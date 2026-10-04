@@ -44,14 +44,14 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preload" as="image" href="assets/img/gullu-96.png" fetchpriority="high">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400..650&display=swap">
-<link rel="stylesheet" href="assets/css/site.css?v=1">
+<link rel="stylesheet" href="assets/css/site.css?v=4">
 <script>
 (function(){var r=document.documentElement;r.classList.add('js');try{var t=localStorage.getItem('nook-theme');if(t==='light'||t==='dark')r.setAttribute('data-theme',t)}catch(e){}})();
 </script>
 <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://nook.zubyr.dev/#website","url":"https://nook.zubyr.dev/","name":"Nook","alternateName":["Nook for Windows","Nook for Claude Code"],"inLanguage":"en","publisher":{"@id":"https://nook.zubyr.dev/#author"}},{"@type":"Person","@id":"https://nook.zubyr.dev/#author","name":"Zubair Bin Shaukat","url":"https://zubyr.dev","jobTitle":"Software Engineer","homeLocation":{"@type":"Place","name":"Lahore, Pakistan"},"worksFor":{"@type":"Organization","name":"Devsmat"},"sameAs":["https://zubyr.dev","https://github.com/zubairbinshaukat","https://www.linkedin.com/in/zubairbinshaukat","https://x.com/zubyrdev"]},{"@type":"WebPage","@id":"https://nook.zubyr.dev/#webpage","url":"https://nook.zubyr.dev/","name":"Nook – a Dynamic Island for Windows | Claude Code agents","description":"Nook for Windows is a free, open-source Dynamic Island for Claude Code agents. See every session, approve from the island, 100% local. For Windows 10/11.","inLanguage":"en","isPartOf":{"@id":"https://nook.zubyr.dev/#website"},"about":{"@id":"https://nook.zubyr.dev/#app"},"primaryImageOfPage":{"@type":"ImageObject","url":"https://nook.zubyr.dev/assets/img/og.png","width":1200,"height":630},"breadcrumb":{"@id":"https://nook.zubyr.dev/#breadcrumb"},"datePublished":"2026-10-04","dateModified":"2026-10-04"},{"@type":"SoftwareApplication","@id":"https://nook.zubyr.dev/#app","name":"Nook","alternateName":["Nook for Windows","Nook for Claude Code","Nook Dynamic Island for Windows"],"description":"A free, open-source Dynamic Island-style overlay for Windows that shows every running Claude Code agent session at the top of the screen, with approvals and answers from the island, usage limits, system stats and a Shelf of widgets. 100% local.","url":"https://nook.zubyr.dev/","applicationCategory":"DeveloperApplication","operatingSystem":"Windows 10, Windows 11","softwareVersion":"0.1.0","downloadUrl":"https://github.com/zubairbinshaukat/nook/releases/latest","installUrl":"https://github.com/zubairbinshaukat/nook/releases/latest","license":"https://opensource.org/licenses/MIT","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD","availability":"https://schema.org/InStock"},"author":{"@id":"https://nook.zubyr.dev/#author"},"screenshot":"https://nook.zubyr.dev/assets/img/og.png","image":"https://nook.zubyr.dev/assets/img/og.png","featureList":["See every Claude Code session at a glance","Approve permissions and answer questions from the island","Usage limits","CPU, GPU and RAM readout","Subagents shown as a tree","Shelf of widgets: To-do, Timer, Reminders, Media, Mirror, Projects","Go to the session that needs you","Cursor agent sessions next to Claude Code ones (status only)","Global keyboard shortcuts","100% local: no network, no telemetry, no account"]},{"@type":"FAQPage","@id":"https://nook.zubyr.dev/#faq","mainEntity":[{"@type":"Question","name":"Is Nook free and safe?","acceptedAnswer":{"@type":"Answer","text":"Nook is free and open source (MIT-licensed code), so anyone can read exactly what it does. It runs 100% locally: no network calls, no telemetry and no account."}},{"@type":"Question","name":"Does Nook send my code or prompts anywhere?","acceptedAnswer":{"@type":"Answer","text":"No. Events go from Claude Code's hooks to a small local relay and then to Nook, all on your own computer. Nook makes no network calls and has no telemetry."}},{"@type":"Question","name":"Will Nook approve things for me or get in Claude Code's way?","acceptedAnswer":{"@type":"Answer","text":"No. Nook never approves anything without your click, and it never blocks Claude Code. The relay gives the app 300 ms to pick up; if Nook is closed, slow or crashed, it exits and Claude Code asks in the terminal as usual."}},{"@type":"Question","name":"Does Nook change my Claude Code settings?","acceptedAnswer":{"@type":"Answer","text":"Only when you ask. Installing hooks shows the exact diff of what will change in ~/.claude/settings.json and takes a dated backup first. Nothing is written until you click, hooks from other tools are left alone, and Uninstall hooks removes only Nook's entries the same way."}},{"@type":"Question","name":"Why does Windows show \"Windows protected your PC\"?","acceptedAnswer":{"@type":"Answer","text":"The installer is not code-signed yet, and SmartScreen does not know new, unsigned programs. If you downloaded it from the official GitHub release, choose More info, then Run anyway. You can verify the download with Get-FileHash .\\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256 and compare it with SHA256SUMS.txt, or build Nook from source."}},{"@type":"Question","name":"My antivirus flagged nook-hook.exe. What now?","acceptedAnswer":{"@type":"Answer","text":"That is a typical false positive for small, unsigned programs that other programs start often. You can report it to Microsoft at https://www.microsoft.com/wdsi/filesubmission as \"Software developer\" and \"Incorrectly detected\", or build Nook from source."}},{"@type":"Question","name":"Which systems and Claude Code setups does it work with?","acceptedAnswer":{"@type":"Answer","text":"Nook 0.1.0 is built for Windows 10 and 11. It follows Claude Code through Claude Code's hooks, so sessions appear whether you start Claude Code in a terminal window or in the integrated terminal of an editor such as VS Code."}},{"@type":"Question","name":"Does Nook support Cursor or other agents?","acceptedAnswer":{"@type":"Answer","text":"Yes. Nook shows Cursor agent sessions next to Claude Code ones, status only: you can see what a Cursor agent is doing, but you cannot approve or answer from the island. Turn it on in Settings, Cursor, Install (preview, dated backup, click). New in v0.1.x (unreleased build). Claude Code running inside Cursor's terminal works as a normal Claude Code session."}},{"@type":"Question","name":"Does it slow down my PC?","acceptedAnswer":{"@type":"Answer","text":"Nook is a small desktop app that reacts to events from Claude Code's hooks. It also shows CPU, GPU and RAM in the island, so you can check its footprint on your own machine."}},{"@type":"Question","name":"Who makes Nook, and is it affiliated with Anthropic?","acceptedAnswer":{"@type":"Answer","text":"Nook is an independent open-source project by Zubair Bin Shaukat, a software engineer from Lahore. It is based on Coucou by Louis Raillé (MIT), with credit to Edurique's Windows multi-session work, and is not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks of Anthropic."}}]},{"@type":"BreadcrumbList","@id":"https://nook.zubyr.dev/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Nook","item":"https://nook.zubyr.dev/"}]}]}</script>
 <style>svg.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}</style>
 </head>
-<body id="top">
+<body id="top" class="page-home">
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="progress" data-progress aria-hidden="true"></div>
 
@@ -77,141 +77,144 @@
 <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></symbol>
 <symbol id="i-cam" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></symbol>
 <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11H3z"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></symbol>
+<symbol id="i-prev" viewBox="0 0 24 24"><path d="M7 5v14M19 5l-9 7 9 7z"/></symbol>
+<symbol id="i-next" viewBox="0 0 24 24"><path d="M17 5v14M5 5l9 7-9 7z"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+<symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M9 7h6"/></symbol>
+<symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9zM16.500 9a4 4 0 0 1 0 6M19 6.500a8 8 0 0 1 0 11"/></symbol>
+<symbol id="i-replay" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.200M4 4v4h4"/></symbol>
 </defs></svg>
 
 <noscript><p class="noscript-note">JavaScript is off: the page is fully readable, only the interactive island demo is shown as a static preview.</p></noscript>
 
-<header class="nav">
+<header class="nav nav-home">
   <div class="container nav-inner">
     <a class="brand" href="/" aria-label="Nook, home"><img src="assets/img/gullu-96.png" width="32" height="32" alt="" decoding="async"><span>Nook</span></a>
-    <nav aria-label="Primary" style="display:contents">
-      <ul class="nav-links" data-nav-links id="site-menu">
-        <li><a href="#how">How it works</a></li>
-        <li><a href="#features">Features</a></li>
-        <li><a href="#privacy">Privacy</a></li>
-        <li><a href="#install">Install</a></li>
-        <li><a href="#faq">FAQ</a></li>
-        <li><a href="/guides/">Guides</a></li>
-      </ul>
-    </nav>
     <div class="nav-tools">
       <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch theme"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-moon"/></svg></button>
-      <button class="icon-btn nav-menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-menu" aria-label="Menu"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-menu"/></svg></button>
       <a class="btn btn-primary nav-cta" href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a>
     </div>
+  </div>
+  <!-- The island: attached to the top edge, in the middle of the header. Sample data. -->
+  <div class="isl" data-island data-view="home" role="group" aria-label="Interactive demo of the Nook island">
+    <div class="isl-clip">
+      <button class="isl-pill" type="button" aria-expanded="false" aria-controls="isl-panel" aria-label="Nook island demo. Open to see sessions">
+        <img src="assets/img/gullu-96.png" width="26" height="26" alt="" fetchpriority="high" decoding="async">
+        <span class="isl-sum" data-isl-sum>2 working &middot; 1 needs you</span>
+        <span class="isl-sum isl-sum-s" data-isl-sum-s>1 needs you</span>
+        <span class="isl-dots" data-isl-dots aria-hidden="true"><i style="--c:var(--need)"></i><i style="--c:var(--thinking)"></i><i style="--c:var(--working)"></i><i style="--c:var(--done)"></i></span>
+      </button>
+      <div class="isl-panel" id="isl-panel">
+        <div class="ih">
+          <div class="ih-tabs" role="tablist" aria-label="Island views">
+            <button class="isl-tab" role="tab" type="button" id="t-home" data-tab="home" aria-selected="true" aria-controls="p-home"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg>Home</button>
+            <button class="isl-tab" role="tab" type="button" id="t-shelf" data-tab="shelf" aria-selected="false" tabindex="-1" aria-controls="p-shelf"><svg class="i" aria-hidden="true"><use href="#i-grid"/></svg>Shelf</button>
+          </div>
+          <div class="ih-stats" aria-hidden="true"><span>CPU <b data-out="cpu">14%</b></span><span>GPU <b data-out="gpu">22%</b></span><span>RAM <b data-out="ram">41%</b></span></div>
+          <button class="isl-x" type="button" data-isl-close aria-label="Close the demo island"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
+        </div>
+
+        <div class="isl-pane home" role="tabpanel" id="p-home" data-pane="home" aria-labelledby="t-home" data-lenis-prevent>
+          <section class="bcard" aria-label="Selected session">
+            <img class="bc-bot" src="assets/img/gullu-96.png" width="92" height="92" alt="" decoding="async">
+            <p class="bc-name"><img src="assets/img/gullu-64.png" width="16" height="16" alt="">Claude Code &middot; <b data-bc="proj">korus-api</b></p>
+            <p class="bc-model">Opus 5.5</p>
+            <span class="chip" data-st="need" data-bc="chip">Needs you</span>
+            <p class="bc-task" data-bc="task">Wants to run npm test</p>
+            <div class="bc-ask" data-bc-ask><code>npm test</code><button class="pill pill-main" type="button" data-answer="allow">Allow</button><button class="pill" type="button" data-answer="deny">Deny</button></div>
+            <ul class="subs bc-subs" data-bc-subs hidden>
+              <li data-st="working"><i></i><span>explore</span><span class="sbar"><b style="--p:.55"></b></span><em>Working</em></li>
+              <li data-st="thinking"><i></i><span>code-reviewer</span><span class="sbar"><b style="--p:.3"></b></span><em>Thinking</em></li>
+            </ul>
+            <button class="bc-open" type="button" data-go="session">Open session &rsaquo;</button>
+          </section>
+          <section class="wcard" aria-label="Sessions">
+            <p class="lab">Sessions <b data-count>4</b></p>
+            <ul class="wlist">
+              <li><button class="wb" type="button" data-id="korus" data-st="need" aria-pressed="true"><span class="wbi"><img src="assets/img/gullu-64.png" width="40" height="40" alt=""></span><span class="wbn">Korus API</span><span class="wbs">Needs you</span></button></li>
+              <li><button class="wb" type="button" data-id="portfolio" data-st="thinking" aria-pressed="false"><span class="wbi"><img src="assets/img/gullu-64.png" width="40" height="40" alt=""></span><span class="wbn">Portfolio</span><span class="wbs">Thinking</span></button></li>
+              <li><button class="wb" type="button" data-id="docs" data-st="working" aria-pressed="false"><span class="wbi"><img src="assets/img/gullu-64.png" width="40" height="40" alt=""></span><span class="wbn">Docs</span><span class="wbs">Working</span></button></li>
+              <li><button class="wb" type="button" data-id="billing" data-st="done" aria-pressed="false"><span class="wbi"><img src="assets/img/gullu-64.png" width="40" height="40" alt=""></span><span class="wbn">Billing</span><span class="wbs">Done</span></button></li>
+            </ul>
+            <p class="wnote">Pick a bot to see its project and what it is doing. Sample data for this demo.</p>
+          </section>
+          <section class="scard" aria-label="This PC and Claude usage">
+            <div class="meter" data-meter="cpu" data-live="1" data-v="14" style="--p:.14"><span>CPU</span><b data-out="cpu">14%</b><span class="bar g"><span></span></span></div>
+            <div class="meter" data-meter="gpu" data-live="1" data-v="22" style="--p:.22"><span>GPU</span><b data-out="gpu">22%</b><span class="bar g"><span></span></span></div>
+            <div class="meter" data-meter="ram" data-live="1" data-v="41" style="--p:.41"><span>RAM</span><b data-out="ram">41%</b><span class="bar g"><span></span></span></div>
+            <p class="lab">Claude usage</p>
+            <div class="meter" style="--p:.62"><span>Current window</span><b>62%</b><span class="bar"><span></span></span><small>Resets in 2 h 14 m</small></div>
+            <div class="meter" style="--p:.38"><span>This week</span><b>38%</b><span class="bar"><span></span></span></div>
+          </section>
+        </div>
+
+        <div class="isl-pane" role="tabpanel" id="p-shelf" data-pane="shelf" aria-labelledby="t-shelf" hidden>
+          <ul class="shelfrow" tabindex="0" aria-label="Shelf widgets, scroll sideways" data-lenis-prevent>
+            <li class="sc" style="--tc:var(--done)"><header><i><svg class="i" aria-hidden="true"><use href="#i-play"/></svg></i><b>Media</b></header><p class="sc-t">Paper Lanterns</p><p class="sc-s">The Low Tides</p><div class="sc-ctl"><svg class="i" aria-hidden="true"><use href="#i-prev"/></svg><span class="sc-main"><svg class="i" aria-hidden="true"><use href="#i-pause"/></svg></span><svg class="i" aria-hidden="true"><use href="#i-next"/></svg></div></li>
+            <li class="sc" style="--tc:var(--need)"><header><i><svg class="i" aria-hidden="true"><use href="#i-check"/></svg></i><b>To-do</b></header><p class="sc-s">Nothing to do</p><div class="sc-field">Add an item&hellip;</div></li>
+            <li class="sc" style="--tc:#FF9F43"><header><i><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg></i><b>Timer</b></header><p class="sc-big">15:00</p><p class="sc-s">of 15:00 &middot; paused</p><span class="pill pill-main sc-start">Start</span></li>
+            <li class="sc" style="--tc:var(--error)"><header><i><svg class="i" aria-hidden="true"><use href="#i-bell"/></svg></i><b>Reminders</b></header><p class="sc-s">Nothing coming up</p><div class="sc-field">Remind me to&hellip;</div></li>
+            <li class="sc" style="--tc:var(--accent)"><header><i><svg class="i" aria-hidden="true"><use href="#i-folder"/></svg></i><b>Projects</b></header><p class="sc-s">Open or start one</p></li>
+          </ul>
+        </div>
+
+        <div class="isl-pane" id="p-session" data-pane="session" hidden data-lenis-prevent>
+          <div class="sh"><button class="isl-back" type="button" data-go="home">&lsaquo; Home</button><span class="chip" data-st="working">at work</span><span class="sh-meta">Opus 5.5 &middot; 4 files</span></div>
+          <div class="diffs">
+            <div class="dh"><b>Edit</b><span>windows/hook/src/main.rs</span><time>03:38 am</time></div>
+            <div class="code">
+              <div class="l del"><i>66</i><s>&minus;</s><span>let waits_for_answer = event == "PermissionRequest";</span></div>
+              <div class="l add"><i>66</i><s>+</s><span>// Only a permission request waits for a human.</span></div>
+              <div class="l add"><i>67</i><s>+</s><span>let waits_for_answer = matches!(event.as_str(), "PermissionRequest" | "Stop");</span></div>
+            </div>
+            <div class="dh"><b>Edit</b><span>windows/src/island/hooks.ts</span><time>03:38 am</time></div>
+            <div class="code">
+              <div class="l"><i>181</i><s></s><span>case "PostToolUse":</span></div>
+              <div class="l add"><i>182</i><s>+</s><span>  if (answeredElsewhere(payload)) dropPending(island);</span></div>
+              <div class="l add"><i>183</i><s>+</s><span>  recordChange(payload);</span></div>
+            </div>
+            <div class="dh"><b>Bash</b><span>cargo test -p nook-hook</span><time>03:38 am</time></div>
+            <div class="code term">
+              <div class="l"><span>running 12 tests</span></div>
+              <div class="l"><span>test result: ok. 12 passed; 0 failed; finished in 0.01s</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <span class="isl-hint" aria-hidden="true"><svg class="i"><use href="#i-up"/></svg><span class="h-fine">Hover to open</span><span class="h-touch">Tap to open</span></span>
   </div>
 </header>
 
 <main id="main">
 
 <section class="hero" aria-labelledby="h1">
-  <div class="container hero-grid">
-    <div class="hero-copy">
-      <p class="badge"><span class="badge-dot" aria-hidden="true"></span>Nook for Windows &middot; Free &middot; Open source</p>
-      <h1 id="h1">A Dynamic Island for your <em>Claude Code</em> agents</h1>
-      <p class="lede">Nook for Claude Code sits at the top of your screen and shows every running session across your projects. See who is working, who is done and who needs you, then approve or answer with a click.</p>
-      <div class="hero-cta">
-        <a class="btn btn-primary btn-lg" href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg>Download for Windows</a>
-        <a class="btn btn-ghost btn-lg" href="https://github.com/zubairbinshaukat/nook" target="_blank" rel="noopener noreferrer"><svg class="i" aria-hidden="true"><use href="#i-github"/></svg>View on GitHub</a>
-      </div>
-      <ul class="hero-points">
-        <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>100% local</li>
-        <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>No telemetry or account</li>
-        <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Windows 10 &amp; 11</li>
-      </ul>
-      <p class="hero-fine">Version 0.1.0. The installer is not code-signed yet, so Windows may ask you to confirm once. <a href="#install">How to install</a>.</p>
+  <div class="container hero-center">
+    <p class="badge"><span class="badge-dot" aria-hidden="true"></span>Nook for Windows &middot; Free &middot; Open source</p>
+    <h1 id="h1">A Dynamic Island for your <em>Claude Code</em> agents</h1>
+    <p class="lede">Nook for Claude Code sits at the top of your screen and shows every running session across your projects. See who is working, who is done and who needs you, then approve or answer with a click.</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary btn-lg" href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg>Download for Windows</a>
+      <a class="btn btn-ghost btn-lg" href="/guides/"><svg class="i" aria-hidden="true"><use href="#i-book"/></svg>Read the guides</a>
     </div>
-
-    <div class="stage-wrap">
-      <div class="stage" role="group" aria-label="Interactive demo of the Nook island on a desktop">
-        <div class="stage-bg" data-parallax aria-hidden="true">
-          <div class="stage-win win-a"><span class="sk w1"></span><span class="sk w2"></span><span class="sk w3"></span><span class="sk w4"></span><span class="sk w5"></span><span class="sk w6"></span><span class="sk w1"></span><span class="sk w3"></span></div>
-          <div class="stage-win win-b"><span class="sk w6"></span><span class="sk w4"></span><span class="sk w1"></span><span class="sk w5"></span><span class="sk w3"></span><span class="sk w2"></span></div>
-        </div>
-        <div class="stage-shade" aria-hidden="true"></div>
-        <div class="taskbar" aria-hidden="true"><i></i><i></i><i></i><img src="assets/img/gullu-64.png" width="22" height="22" alt="" loading="lazy"><i></i><time>9:41</time></div>
-
-        <div class="isl" data-island data-tab="sessions">
-          <div class="isl-clip">
-            <button class="isl-pill" type="button" aria-expanded="false" aria-controls="isl-panel" aria-label="Nook island demo. Open to see sessions">
-              <img src="assets/img/gullu-96.png" width="24" height="24" alt="" fetchpriority="high" decoding="async">
-              <span class="isl-sum" data-isl-sum>2 working &middot; 1 needs you</span>
-              <span class="isl-dots" data-isl-dots aria-hidden="true"><i style="--c:var(--need)"></i><i style="--c:var(--thinking)"></i><i style="--c:var(--working)"></i><i style="--c:var(--done)"></i></span>
-            </button>
-            <div class="isl-panel" id="isl-panel">
-              <div class="isl-head">
-                <img src="assets/img/gullu-96.png" width="30" height="30" alt="" loading="lazy">
-                <div class="isl-tabs" role="tablist" aria-label="Island views">
-                  <button class="isl-tab" role="tab" type="button" id="t-sessions" data-tab="sessions" aria-selected="true" aria-controls="p-sessions">Sessions</button>
-                  <button class="isl-tab" role="tab" type="button" id="t-usage" data-tab="usage" aria-selected="false" tabindex="-1" aria-controls="p-usage">Usage</button>
-                  <button class="isl-tab" role="tab" type="button" id="t-shelf" data-tab="shelf" aria-selected="false" tabindex="-1" aria-controls="p-shelf">Shelf</button>
-                </div>
-                <span class="isl-sys" data-isl-sys>CPU 14% &middot; RAM 41%</span>
-                <button class="isl-x" type="button" data-isl-close aria-label="Close the demo island"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button>
-              </div>
-
-              <div class="isl-pane" role="tabpanel" id="p-sessions" data-pane="sessions" aria-labelledby="t-sessions" data-lenis-prevent>
-                <ul class="slist">
-                  <li class="srow" data-row data-ask data-st="need">
-                    <img src="assets/img/gullu-64.png" width="32" height="32" alt="" loading="lazy">
-                    <div><span class="s-name">Korus API <small>korus-api</small></span><span class="s-task">Wants to run npm test</span></div>
-                    <span class="chip">Needs you</span>
-                    <div class="srow-x ask"><code>npm test</code><button class="pill pill-main" type="button" data-answer="allow">Allow</button><button class="pill" type="button" data-answer="deny">Deny</button></div>
-                  </li>
-                  <li class="srow" data-row data-st="thinking">
-                    <img src="assets/img/gullu-64.png" width="32" height="32" alt="" loading="lazy">
-                    <div><span class="s-name">Portfolio <small>portfolio</small></span><span class="s-task">Thinking&hellip;</span></div>
-                    <span class="chip">Thinking</span>
-                  </li>
-                  <li class="srow" data-row data-st="working">
-                    <img src="assets/img/gullu-64.png" width="32" height="32" alt="" loading="lazy">
-                    <div><span class="s-name">Docs <small>docs-site</small></span><span class="s-task">Checking the query plan</span></div>
-                    <span class="chip">Working</span>
-                    <div class="srow-x"><ul class="subs">
-                      <li data-st="working"><i></i><span>explore</span><span class="sbar"><b style="--p:.55"></b></span><em>Working</em></li>
-                      <li data-st="thinking"><i></i><span>code-reviewer</span><span class="sbar"><b style="--p:.3"></b></span><em>Thinking</em></li>
-                    </ul></div>
-                  </li>
-                  <li class="srow" data-row data-st="done">
-                    <img src="assets/img/gullu-64.png" width="32" height="32" alt="" loading="lazy">
-                    <div><span class="s-name">Billing <small>billing-svc</small></span><span class="s-task">Finished the refactor</span></div>
-                    <span class="chip">Done</span>
-                  </li>
-                </ul>
-                <p class="demo-note">Sample data for this demo.</p>
-              </div>
-
-              <div class="isl-pane" role="tabpanel" id="p-usage" data-pane="usage" aria-labelledby="t-usage" hidden data-lenis-prevent>
-                <div class="ustack">
-                  <div class="ucard"><h4>Usage limits</h4>
-                    <div class="meter" data-meter="u5" data-v="62" style="--p:.62"><span>Current window</span><b data-out="u5">62%</b><span class="bar"><span></span></span><small>Resets later today</small></div>
-                    <div class="meter" data-meter="uw" data-v="38" style="--p:.38"><span>This week</span><b data-out="uw">38%</b><span class="bar"><span></span></span><small>Weekly limit</small></div>
-                  </div>
-                  <div class="ucard"><h4>This PC</h4>
-                    <div class="meter" data-meter="cpu" data-live="1" data-v="14" style="--p:.14"><span>CPU</span><b data-out="cpu">14%</b><span class="bar g"><span></span></span></div>
-                    <div class="meter" data-meter="gpu" data-live="1" data-v="22" style="--p:.22"><span>GPU</span><b data-out="gpu">22%</b><span class="bar g"><span></span></span></div>
-                    <div class="meter" data-meter="ram" data-live="1" data-v="41" style="--p:.41"><span>RAM</span><b data-out="ram">41%</b><span class="bar g"><span></span></span></div>
-                  </div>
-                </div>
-                <p class="demo-note">Sample numbers for this demo.</p>
-              </div>
-
-              <div class="isl-pane" role="tabpanel" id="p-shelf" data-pane="shelf" aria-labelledby="t-shelf" hidden>
-                <ul class="isl-strip" tabindex="0" aria-label="Shelf widgets, scroll sideways" data-lenis-prevent>
-                  <li class="tile" style="--tc:var(--done)"><i><svg class="i" aria-hidden="true"><use href="#i-check"/></svg></i><span><b>To-do</b><small>Quick checklist</small></span></li>
-                  <li class="tile" style="--tc:var(--need)"><i><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg></i><span><b>Timer</b><small>Focus countdown</small></span></li>
-                  <li class="tile" style="--tc:var(--error)"><i><svg class="i" aria-hidden="true"><use href="#i-bell"/></svg></i><span><b>Reminders</b><small>Nudges, on time</small></span></li>
-                  <li class="tile" style="--tc:var(--thinking)"><i><svg class="i" aria-hidden="true"><use href="#i-play"/></svg></i><span><b>Media</b><small>Now playing</small></span></li>
-                  <li class="tile" style="--tc:var(--working)"><i><svg class="i" aria-hidden="true"><use href="#i-cam"/></svg></i><span><b>Mirror</b><small>Camera preview</small></span></li>
-                  <li class="tile" style="--tc:var(--accent)"><i><svg class="i" aria-hidden="true"><use href="#i-folder"/></svg></i><span><b>Projects</b><small>Open or start one</small></span></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
+    <ul class="hero-points">
+      <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>100% local</li>
+      <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>No telemetry or account</li>
+      <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Windows 10 &amp; 11</li>
+    </ul>
+    <div class="hero-try">
+      <span class="try-ico" aria-hidden="true"><svg class="i"><use href="#i-island"/></svg></span>
+      <div class="try-txt">
+        <p class="try-title">Try the island at the top</p>
+        <p class="try-cap">It is the real thing. Hover it, tap it, or focus it and press Enter. Arrow keys switch tabs.</p>
       </div>
-      <p class="stage-cap">Try it: hover the island, tap it, or focus it and press Enter. Arrow keys switch tabs.</p>
-    </div>
+      <div class="try-ctl">
+        <button class="ctl" type="button" data-snd aria-pressed="false" hidden><svg class="i" aria-hidden="true"><use href="#i-sound"/></svg><span data-snd-t>Sound off</span></button>
+        <button class="ctl" type="button" data-replay hidden><svg class="i" aria-hidden="true"><use href="#i-replay"/></svg>Replay the tour</button>
+      </div>
+    </div>    <p class="hero-fine">Version 0.1.0. The installer is not code-signed yet, so Windows may ask you to confirm once. <a href="#install">How to install</a>.</p>
   </div>
 </section>
 
@@ -238,46 +241,103 @@
       <h2 id="feat-h">Everything your agents are doing, at a glance.</h2>
       <p class="lede">Built for people who run several Claude Code sessions at once and are tired of hunting for the terminal that needs them.</p>
     </div>
-    <div class="bento" data-stagger>
-      <article class="card b-big reveal">
-        <div><h3>Every session at a glance</h3><p>One row per Claude Code session, across all your projects, each with its live state: working, thinking, needs you, done or error. Fold the island to a pill, open it when you care.</p></div>
-        <div class="viz mini" aria-hidden="true">
-          <div class="srow" data-st="need"><img src="assets/img/gullu-64.png" width="28" height="28" alt="" loading="lazy"><div><span class="s-name">Korus API</span><span class="s-task">Wants to run npm test</span></div><span class="chip">Needs you</span></div>
-          <div class="srow" data-st="working"><img src="assets/img/gullu-64.png" width="28" height="28" alt="" loading="lazy"><div><span class="s-name">Docs</span><span class="s-task">Checking the query plan</span></div><span class="chip">Working</span></div>
-          <div class="srow" data-st="done"><img src="assets/img/gullu-64.png" width="28" height="28" alt="" loading="lazy"><div><span class="s-name">Billing</span><span class="s-task">Finished the refactor</span></div><span class="chip">Done</span></div>
+    <div class="fgrid" data-stagger>
+      <article class="card fcard f-7 reveal">
+        <div class="fviz" aria-hidden="true">
+          <div class="home mini-home">
+            <section class="bcard">
+              <img class="bc-bot" src="assets/img/gullu-96.png" width="72" height="72" alt="" loading="lazy" decoding="async">
+              <p class="bc-name"><img src="assets/img/gullu-64.png" width="16" height="16" alt="">Claude Code &middot; <b>docs-site</b></p>
+              <span class="chip" data-st="working">Working</span>
+              <p class="bc-task">Checking the query plan</p>
+            </section>
+            <section class="wcard">
+              <p class="lab">Sessions <b>4</b></p>
+              <ul class="wlist">
+                <li><span class="wb" data-st="need"><span class="wbi"><img src="assets/img/gullu-64.png" width="36" height="36" alt="" loading="lazy"></span><span class="wbn">Korus API</span><span class="wbs">Needs you</span></span></li>
+                <li><span class="wb" data-st="thinking"><span class="wbi"><img src="assets/img/gullu-64.png" width="36" height="36" alt="" loading="lazy"></span><span class="wbn">Portfolio</span><span class="wbs">Thinking</span></span></li>
+                <li><span class="wb" data-st="working"><span class="wbi"><img src="assets/img/gullu-64.png" width="36" height="36" alt="" loading="lazy"></span><span class="wbn">Docs</span><span class="wbs">Working</span></span></li>
+                <li><span class="wb" data-st="done"><span class="wbi"><img src="assets/img/gullu-64.png" width="36" height="36" alt="" loading="lazy"></span><span class="wbn">Billing</span><span class="wbs">Done</span></span></li>
+              </ul>
+            </section>
+          </div>
         </div>
+        <div class="ftxt"><h3>Every session at a glance</h3><p>One bot per Claude Code session, across all your projects, each with its live state: working, thinking, needs you, done or error. Fold the island to a pill, open it when you care.</p></div>
       </article>
-      <article class="card b-third reveal">
-        <div><h3>Approve or answer from the island</h3><p>Permission requests and questions show up where you are. One click to allow or deny, never automatic.</p></div>
-        <div class="viz mini mini-tree" aria-hidden="true"><div class="ask" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><code style="font:11.5px var(--font-mono);background:rgba(255,255,255,.08);padding:5px 8px;border-radius:8px">npm test</code><span class="pill pill-main">Allow</span><span class="pill">Deny</span></div></div>
+
+      <article class="card fcard f-5 reveal">
+        <div class="fviz" aria-hidden="true">
+          <div class="bcard fperm">
+            <p class="bc-name"><img src="assets/img/gullu-64.png" width="16" height="16" alt=""><b>Korus API</b> wants to run <span class="chip" data-st="need">Needs you</span></p>
+            <code class="fcmd"><i>$</i> npm test</code>
+            <div class="fbtns"><span class="pill pill-main">Allow</span><span class="pill">Deny</span></div>
+          </div>
+          <div class="bcard fperm">
+            <p class="bc-name"><img src="assets/img/gullu-64.png" width="16" height="16" alt=""><b>Portfolio</b> asks a question</p>
+            <p class="fq">Which test runner should I use?</p>
+            <div class="fbtns"><span class="pill">vitest</span><span class="pill">jest</span></div>
+          </div>
+        </div>
+        <div class="ftxt"><h3>Approve or answer from the island</h3><p>Permission requests and questions show up where you are. One click to allow or deny, never automatic.</p></div>
       </article>
-      <article class="card b-third reveal">
-        <div><h3>Usage limits</h3><p>See how much of your Claude usage window you have used before a long run, without opening a dashboard.</p></div>
-        <div class="viz gauge" aria-hidden="true"><div class="meter" style="--p:.62"><span>Current window</span><b>62%</b><span class="bar"><span></span></span></div><div class="meter" style="--p:.38"><span>This week</span><b>38%</b><span class="bar"><span></span></span></div></div>
+
+      <article class="card fcard f-6 reveal">
+        <div class="fviz fusage" aria-hidden="true">
+          <figure class="rg">
+            <div class="rg-ring"><svg viewBox="0 0 100 100"><circle class="rg-bg" cx="50" cy="50" r="40"/><circle class="rg-fg" cx="50" cy="50" r="40" style="stroke-dasharray:155.8 251.3"/></svg><b>62%</b></div>
+            <figcaption>Current window<small>Resets in 2 h 14 m</small></figcaption>
+          </figure>
+          <figure class="rg">
+            <div class="rg-ring"><svg viewBox="0 0 100 100"><circle class="rg-bg" cx="50" cy="50" r="40"/><circle class="rg-fg rg-fg2" cx="50" cy="50" r="40" style="stroke-dasharray:95.5 251.3"/></svg><b>38%</b></div>
+            <figcaption>This week<small>Weekly limit</small></figcaption>
+          </figure>
+          <figure class="rg">
+            <div class="rg-ring"><svg viewBox="0 0 100 100"><circle class="rg-bg" cx="50" cy="50" r="40"/><circle class="rg-fg rg-fg3" cx="50" cy="50" r="40" style="stroke-dasharray:35.2 251.3"/></svg><b>14%</b></div>
+            <figcaption>CPU now<small>GPU 22% &middot; RAM 41%</small></figcaption>
+          </figure>
+        </div>
+        <div class="ftxt"><h3>Usage limits, before a long run</h3><p>See how much of your Claude usage window and your week you have used, next to your CPU, GPU and RAM, without opening a dashboard. The island shows when the window resets, so you can plan the next big task.</p></div>
       </article>
-      <article class="card b-third reveal">
-        <div><h3>CPU, GPU and RAM</h3><p>A live read of your machine in the island, so you can tell when the agents are what is heating the fans.</p></div>
-        <div class="viz gauge" aria-hidden="true"><div class="meter" style="--p:.14"><span>CPU</span><b>14%</b><span class="bar g"><span></span></span></div><div class="meter" style="--p:.22"><span>GPU</span><b>22%</b><span class="bar g"><span></span></span></div><div class="meter" style="--p:.41"><span>RAM</span><b>41%</b><span class="bar g"><span></span></span></div></div>
+
+      <article class="card fcard f-6 reveal">
+        <div class="fviz" aria-hidden="true">
+          <div class="bcard fsub">
+            <p class="bc-name"><img src="assets/img/gullu-64.png" width="16" height="16" alt="">Claude Code &middot; <b>docs-site</b> <span class="chip" data-st="working">Working</span></p>
+            <ul class="subs fsubs"><li data-st="working"><i></i><span>explore</span><span class="sbar"><b style="--p:.7"></b></span><em>Working</em></li><li data-st="thinking"><i></i><span>code-reviewer</span><span class="sbar"><b style="--p:.35"></b></span><em>Thinking</em></li><li data-st="done"><i></i><span>test-runner</span><span class="sbar"><b style="--p:1"></b></span><em>Done</em></li></ul>
+          </div>
+        </div>
+        <div class="ftxt"><h3>Subagents, as a tree</h3><p>When a session fans out to subagents, they are listed under their parent with their own state, so a quiet parent never hides busy work.</p></div>
       </article>
-      <article class="card b-wide reveal">
-        <div><h3>Subagents, as a tree</h3><p>When a session fans out to subagents, they are listed under their parent with their own state, so a quiet parent never hides busy work.</p></div>
-        <div class="viz mini mini-tree" aria-hidden="true"><ul class="subs" style="list-style:none;margin:0;padding:0"><li data-st="working"><i></i><span>explore</span><span class="sbar"><b style="--p:.7"></b></span><em>Working</em></li><li data-st="thinking"><i></i><span>code-reviewer</span><span class="sbar"><b style="--p:.35"></b></span><em>Thinking</em></li><li data-st="done"><i></i><span>test-runner</span><span class="sbar"><b style="--p:1"></b></span><em>Done</em></li></ul></div>
+
+      <article class="card fcard f-8 reveal">
+        <div class="fviz" aria-hidden="true">
+          <ul class="shelfrow fshelf">
+            <li class="sc" style="--tc:var(--done)"><header><i><svg class="i" aria-hidden="true"><use href="#i-play"/></svg></i><b>Media</b></header><p class="sc-t">Paper Lanterns</p><p class="sc-s">The Low Tides</p><div class="sc-ctl"><svg class="i" aria-hidden="true"><use href="#i-prev"/></svg><span class="sc-main"><svg class="i" aria-hidden="true"><use href="#i-pause"/></svg></span><svg class="i" aria-hidden="true"><use href="#i-next"/></svg></div></li>
+            <li class="sc" style="--tc:var(--need)"><header><i><svg class="i" aria-hidden="true"><use href="#i-check"/></svg></i><b>To-do</b></header><p class="sc-s">Nothing to do</p><div class="sc-field">Add an item&hellip;</div></li>
+            <li class="sc" style="--tc:#FF9F43"><header><i><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg></i><b>Timer</b></header><p class="sc-big">15:00</p><p class="sc-s">of 15:00 &middot; paused</p><span class="pill pill-main sc-start">Start</span></li>
+          </ul>
+        </div>
+        <div class="ftxt"><h3>A Shelf of small widgets</h3><p>Pull the island down for a shelf you can use between prompts: To-do, Timer, Reminders, Media, Mirror and Projects. Stay in flow without another window.</p></div>
       </article>
-      <article class="card b-wide reveal">
-        <div><h3>A Shelf of small widgets</h3><p>Pull the island down for a shelf you can use between prompts. Stay in flow without another window.</p></div>
-        <div class="viz chips"><span>To-do</span><span>Timer</span><span>Reminders</span><span>Media</span><span>Mirror</span><span>Projects</span></div>
+
+      <article class="card fcard f-4 reveal">
+        <div class="fviz" aria-hidden="true">
+          <div class="bcard fsys">
+            <div class="meter" style="--p:.14"><span>CPU</span><b>14%</b><span class="bar g"><span></span></span></div>
+            <div class="meter" style="--p:.22"><span>GPU</span><b>22%</b><span class="bar g"><span></span></span></div>
+            <div class="meter" style="--p:.41"><span>RAM</span><b>41%</b><span class="bar g"><span></span></span></div>
+          </div>
+        </div>
+        <div class="ftxt"><h3>CPU, GPU and RAM</h3><p>A live read of your machine in the island, so you can tell when the agents are what is heating the fans.</p></div>
       </article>
-      <article class="card b-wide reveal">
-        <div><h3>Go to the session that needs you</h3><p>One shortcut jumps to the session waiting on you, so you answer in the right terminal without searching windows.</p></div>
-        <div class="viz keys"><div><span><kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Alt</kbd> <kbd class="kbd">Enter</kbd></span></div></div>
-      </article>
-      <article class="card b-wide reveal">
-        <div><h3>Keyboard shortcuts</h3><p>Defaults, all changeable in Settings.</p></div>
-        <div class="viz keys">
+
+      <article class="card fcard f-12 reveal">
+        <div class="fviz fkeys" aria-hidden="true">
           <div><span>Expand or shrink the panel</span><span><kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Alt</kbd> <kbd class="kbd">Space</kbd></span></div>
           <div><span>Open the panel at normal size</span><span><kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Shift</kbd> <kbd class="kbd">Space</kbd></span></div>
           <div><span>Go to the session that needs you</span><span><kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Alt</kbd> <kbd class="kbd">Enter</kbd></span></div>
         </div>
+        <div class="ftxt"><h3>Shortcuts, and a jump to the session that needs you</h3><p>One shortcut jumps to the session waiting on you, so you answer in the right terminal without searching windows. Defaults, all changeable in Settings.</p></div>
       </article>
     </div>
     <p class="roadmap reveal">New in v0.1.x (unreleased build): Cursor agent sessions appear next to Claude Code ones, status only. <a href="/guides/cursor/">How it works</a>.</p>
@@ -341,7 +401,7 @@
 
 <section class="section" id="faq" aria-labelledby="faq-h" style="padding-top:0">
   <div class="container">
-    <div class="section-head reveal"><p class="eyebrow">FAQ</p><h2 id="faq-h">Questions, answered plainly.</h2></div>
+    <div class="section-head center reveal"><p class="eyebrow">FAQ</p><h2 id="faq-h">Questions, answered plainly.</h2></div>
     <div class="faq reveal">
       <details><summary>Is Nook free and safe?</summary><p>Nook is free and open source (MIT-licensed code), so anyone can read exactly what it does. It runs 100% locally: no network calls, no telemetry and no account.</p></details>
       <details><summary>Does Nook send my code or prompts anywhere?</summary><p>No. Events go from Claude Code's hooks to a small local relay and then to Nook, all on your own computer. Nook makes no network calls and has no telemetry.</p></details>
@@ -366,7 +426,7 @@
       <p class="lede">Nook for Windows is free, open source and local. Install it in a minute.</p>
       <div class="cta-row">
         <a class="btn btn-primary btn-lg" href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer"><svg class="i" aria-hidden="true"><use href="#i-download"/></svg>Download for Windows</a>
-        <a class="btn btn-ghost btn-lg" href="https://github.com/zubairbinshaukat/nook" target="_blank" rel="noopener noreferrer"><svg class="i" aria-hidden="true"><use href="#i-github"/></svg>Star on GitHub</a>
+        <a class="btn btn-ghost btn-lg" href="https://github.com/zubairbinshaukat/nook" target="_blank" rel="noopener noreferrer"><svg class="i" aria-hidden="true"><use href="#i-github"/></svg>View on GitHub</a>
       </div>
     </div>
   </div>
@@ -407,9 +467,11 @@
   </div>
 </footer>
 
+<div class="cur" data-cursor aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M5 3l14 8-6.200 1.600L10 19z" fill="#fff" stroke="#000" stroke-width="1.400" stroke-linejoin="round"/></svg></div>
 <a class="btn btn-ghost to-top" href="#top" data-to-top aria-label="Back to top"><svg class="i" aria-hidden="true"><use href="#i-up"/></svg></a>
 
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.20/dist/lenis.min.js" defer></script>
-<script src="assets/js/site.js?v=1" defer></script>
+<script src="assets/js/site.js?v=3" defer></script>
+<script src="assets/js/island.js?v=4" defer></script>
 </body>
 </html>
