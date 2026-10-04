@@ -629,9 +629,7 @@ fn unified_diff(before: &str, after: &str) -> String {
     for idx in changed {
         let lo = idx.saturating_sub(3);
         let hi = (idx + 4).min(out.len());
-        for k in lo..hi {
-            keep[k] = true;
-        }
+        keep[lo..hi].fill(true);
     }
     let mut result = String::new();
     let mut gap = false;

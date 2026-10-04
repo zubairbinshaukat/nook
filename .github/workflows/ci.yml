@@ -45,7 +45,4 @@ jobs:
 
       - run: cargo test --workspace
 
-      # Never run locally yet (clippy is not installed on the dev machine), so it
-      # reports without failing the check. Drop continue-on-error once it is clean.
       - run: cargo clippy --workspace --all-targets -- -D warnings
-        continue-on-error: true

@@ -163,7 +163,7 @@ fn press(action: Action) -> windows::core::Result<bool> {
 pub fn control(action: Action) -> bool {
     let _com = Com::ready();
     let pressed = press(action);
-    crate::log::line(&format!("media: {action:?} -> {pressed:?}"));
+    crate::log::line(format!("media: {action:?} -> {pressed:?}"));
     if matches!(pressed, Ok(true)) {
         return true;
     }
