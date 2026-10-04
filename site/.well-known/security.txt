@@ -1,0 +1,5 @@
+Contact: https://github.com/zubairbinshaukat/nook/security/advisories/new
+Expires: 2027-10-04T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://nook.zubyr.dev/.well-known/security.txt
+Policy: https://github.com/zubairbinshaukat/nook/security/policy

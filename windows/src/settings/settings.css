@@ -1,0 +1,1792 @@
+/* The settings window.
+   Self-contained: it does not load the island's style.css. Everything is on
+   the tokens below, given once for light and once for dark; main.ts says which
+   with `data-theme` on <html>, and whether anything moves with `data-motion`. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* ── Tokens ─────────────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: light;
+
+  --font: system-ui, "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  --font-title: "Segoe UI Variable Display", system-ui, "Segoe UI", sans-serif;
+  --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  /* Surfaces: warm neutrals, so the cream bot belongs on them. */
+  --bg: #fbfaf8;
+  --side: #f2f0ec;
+  --surface: #ffffff;
+  --sunken: #edeae5;
+  --hover: rgba(46, 36, 16, 0.055);
+  --press: rgba(46, 36, 16, 0.09);
+  --line: #e4e0d9;
+  /* The edge of a control: 3:1 against the surfaces. */
+  --edge: #8a847a;
+
+  --text: #1c1a17;
+  --text-2: #5a554d;
+  --text-3: #716b61;
+
+  /* The one accent. */
+  --accent: #4652cc;
+  --accent-hover: #3a45b6;
+  --accent-text: #3d48c0;
+  --on-accent: #ffffff;
+  --accent-soft: #e6e8f9;
+
+  --ok: #1b7340;
+  --ok-soft: #e2f1e8;
+  --warn: #8a5300;
+  --warn-soft: #f7ecd6;
+  --danger: #b3261e;
+  --danger-soft: #f9e5e3;
+
+  --add: #17633a;
+  --add-bg: #dcefe3;
+  --del: #9c2019;
+  --del-bg: #f8dfdc;
+
+  --desk: #c9cfd9;
+}
+
+:root[data-theme="dark"],
+.sp-dark {
+  color-scheme: dark;
+
+  --bg: #1b1a18;
+  --side: #151413;
+  --surface: #2a2826;
+  --sunken: #121110;
+  --hover: rgba(255, 244, 228, 0.06);
+  --press: rgba(255, 244, 228, 0.1);
+  --line: #302e2b;
+  --edge: #827c73;
+
+  --text: #f3f0eb;
+  --text-2: #b3ada3;
+  --text-3: #958f85;
+
+  --accent: #a7b1ff;
+  --accent-hover: #bbc3ff;
+  --accent-text: #b2bbff;
+  --on-accent: #14163c;
+  --accent-soft: #2b2d49;
+
+  --ok: #6fd39a;
+  --ok-soft: #1d2d24;
+  --warn: #f0b955;
+  --warn-soft: #332a18;
+  --danger: #ff8e85;
+  --danger-soft: #3a2320;
+
+  --add: #8be0ac;
+  --add-bg: #1b2e23;
+  --del: #ff9d95;
+  --del-bg: #3a211f;
+
+  --desk: #30343d;
+}
+
+/* ── The window: the page fills it, and nothing but a section scrolls ────── */
+
+html {
+  height: 100%;
+  background: var(--side);
+}
+
+body.settings-window {
+  /* What the layout answers to is the page's own width: see the two
+     @container blocks at the end. */
+  container: win / inline-size;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--side);
+  color: var(--text);
+  font: 400 13px/18px var(--font);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+#settings-root {
+  height: 100%;
+}
+
+.sp-app {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 172px minmax(0, 1fr);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.sp-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* One focus ring for everything. */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* What is there to be read can be selected and copied: paths, the diff, an error. */
+.sp-facts dd,
+.sp-diff,
+.sp-path,
+.sp-flash,
+.sp-panel code {
+  user-select: text;
+  cursor: auto;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+
+.sp-side {
+  min-height: 0;
+  padding: 6px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sp-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px;
+}
+
+/* The bot lives on the island's black wherever he is shown: the island is
+   dark in both themes, and so is his nook. */
+.sp-nook {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: #000;
+  display: grid;
+  place-items: center;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+}
+
+.sp-brand-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sp-brand-text b {
+  font: 600 14px/18px var(--font-title);
+  letter-spacing: -0.005em;
+}
+
+.sp-brand-text span {
+  font: 400 11.5px/15px var(--font);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sp-tab {
+  appearance: none;
+  position: relative;
+  height: 34px;
+  padding: 0 10px 0 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  font: 500 13px var(--font);
+  text-align: left;
+  cursor: default;
+  transition: background 0.14s ease-out, color 0.14s ease-out;
+}
+
+.sp-tab svg {
+  flex: 0 0 auto;
+}
+
+.sp-tab span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sp-tab:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.sp-tab:active {
+  background: var(--press);
+}
+
+.sp-tab[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.sp-tab[aria-selected="true"] svg {
+  color: var(--accent-text);
+}
+
+/* The marker of the section on show: it slides to it on the island's spring. */
+.sp-nav {
+  position: relative;
+}
+
+.sp-nav-mark {
+  position: absolute;
+  z-index: 1;
+  left: 3px;
+  top: 9px;
+  width: 3px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: translateY(calc(var(--at, 0) * 36px));
+  transition: transform var(--spring-ms) var(--spring);
+  pointer-events: none;
+}
+
+/* ── The section on show ─────────────────────────────────────────────────── */
+
+.sp-main {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg);
+  border-top-left-radius: 10px;
+  box-shadow: -1px 0 0 var(--line), 0 -1px 0 var(--line);
+  overflow: hidden;
+}
+
+.sp-pane {
+  position: absolute;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--edge) 55%, transparent) transparent;
+  scrollbar-gutter: stable;
+  padding: 22px 14px 28px 24px;
+}
+
+.sp-pane > * {
+  max-width: 540px;
+}
+
+.sp-pane.entering {
+  animation: sp-fade 0.2s ease-out both, sp-rise var(--spring-ms) var(--spring) both;
+}
+
+.sp-pane.leaving {
+  pointer-events: none;
+  animation: sp-fade 0.12s ease-in reverse both;
+}
+
+@keyframes sp-fade {
+  from { opacity: 0; }
+}
+
+@keyframes sp-rise {
+  from { transform: translateY(8px); }
+}
+
+.sp-title {
+  margin: 0;
+  font: 600 20px/26px var(--font-title);
+  letter-spacing: -0.012em;
+  color: var(--text);
+}
+
+.sp-lede {
+  margin: 4px 0 0;
+  font: 400 12.5px/18px var(--font);
+  color: var(--text-2);
+}
+
+.sp-group {
+  margin-top: 26px;
+}
+
+.sp-title + .sp-group,
+.sp-lede + .sp-group {
+  margin-top: 20px;
+}
+
+.sp-group-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 2px;
+  font: 600 11px/16px var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.sp-group-label:has(+ div > .sp-status) {
+  margin-bottom: 8px;
+}
+
+.sp-group-label .count {
+  margin-left: auto;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-tag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--sunken);
+  color: var(--text-2);
+  font: 500 10.5px/15px var(--font);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+/* A setting: its name on the left, its control on the right, help under the name. */
+.sp-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 50px;
+  padding: 11px 0;
+}
+
+.sp-row + .sp-row {
+  border-top: 1px solid var(--line);
+}
+
+/* A control too wide to sit beside its name goes under it. */
+.sp-row.stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 9px;
+}
+
+.sp-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sp-row-label {
+  font: 500 13px/18px var(--font);
+  color: var(--text);
+}
+
+.sp-help {
+  margin: 2px 0 0;
+  font: 400 12px/16px var(--font);
+  color: var(--text-2);
+}
+
+.sp-note {
+  margin: 12px 0 0;
+  font: 400 12px/17px var(--font);
+  color: var(--text-2);
+}
+
+.sp-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+
+.sp-btn {
+  appearance: none;
+  height: 30px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: 500 12.5px var(--font);
+  white-space: nowrap;
+  cursor: default;
+  transition: background 0.14s ease-out, border-color 0.14s ease-out, color 0.14s ease-out;
+}
+
+.sp-btn.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.sp-btn.primary:hover {
+  background: var(--accent-hover);
+}
+
+.sp-btn.quiet {
+  border-color: color-mix(in srgb, var(--edge) 55%, transparent);
+}
+
+.sp-btn.quiet:hover {
+  background: var(--hover);
+}
+
+.sp-btn.danger {
+  color: var(--danger);
+}
+
+.sp-btn.danger:hover {
+  background: var(--danger-soft);
+}
+
+.sp-btn.danger.solid {
+  border-color: color-mix(in srgb, var(--danger) 60%, transparent);
+}
+
+.sp-btn:active {
+  transform: translateY(0.5px);
+}
+
+.sp-link {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--accent-text);
+  font: 500 13px/18px var(--font);
+  cursor: default;
+  border-radius: 6px;
+}
+
+.sp-link:hover .sp-link-text {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ── Toggle ──────────────────────────────────────────────────────────────── */
+
+.sp-toggle {
+  appearance: none;
+  flex: 0 0 auto;
+  position: relative;
+  width: 38px;
+  height: 22px;
+  padding: 0;
+  border: 1.5px solid var(--edge);
+  border-radius: 999px;
+  background: transparent;
+  cursor: default;
+  transition: background 0.16s ease-out, border-color 0.16s ease-out;
+}
+
+.sp-toggle i {
+  position: absolute;
+  top: 50%;
+  left: 3.5px;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--edge);
+  transition: transform var(--spring-ms) var(--spring), background 0.16s ease-out, scale 0.16s ease-out;
+}
+
+.sp-toggle:hover i {
+  scale: 1.1;
+}
+
+.sp-toggle[aria-checked="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.sp-toggle[aria-checked="true"]:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.sp-toggle[aria-checked="true"] i {
+  background: var(--on-accent);
+  transform: translateX(16px);
+}
+
+/* ── Segmented control ───────────────────────────────────────────────────── */
+
+.sp-seg {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--sunken);
+}
+
+.sp-seg.fit {
+  flex: 0 0 auto;
+}
+
+.sp-seg-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc((100% - 4px) / var(--n));
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgba(0, 0, 0, 0.08);
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform var(--spring-ms) var(--spring);
+}
+
+.sp-seg button {
+  appearance: none;
+  position: relative;
+  height: 28px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-2);
+  font: 500 12.5px var(--font);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: default;
+  transition: color 0.14s ease-out;
+}
+
+.sp-seg button:hover {
+  color: var(--text);
+}
+
+.sp-seg button[aria-checked="true"] {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.sp-seg button:focus-visible {
+  outline-offset: 0;
+}
+
+/* ── Slider ──────────────────────────────────────────────────────────────── */
+
+.sp-slider {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: opacity 0.16s ease-out;
+}
+
+.sp-slider.off {
+  opacity: 0.45;
+}
+
+.sp-slider input {
+  appearance: none;
+  width: 150px;
+  height: 20px;
+  margin: 0;
+  background: transparent;
+  border-radius: 999px;
+  cursor: default;
+}
+
+.sp-slider input::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  /* Filled up to the value: `--p` is the value, as a length. */
+  background: linear-gradient(to right, var(--accent) var(--p), color-mix(in srgb, var(--edge) 45%, transparent) var(--p));
+}
+
+.sp-slider input::-webkit-slider-thumb {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+  transition: scale 0.14s ease-out;
+}
+
+.sp-slider input:not(:disabled):hover::-webkit-slider-thumb {
+  scale: 1.12;
+}
+
+.sp-slider-value {
+  flex: 0 0 38px;
+  text-align: right;
+  font: 500 12.5px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/* ── A small number field, with its unit ─────────────────────────────────── */
+
+.sp-number {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 400 12px var(--font);
+  color: var(--text-2);
+}
+
+.sp-number input {
+  width: 62px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: 500 12.5px var(--font);
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-number input:focus-visible {
+  outline-offset: 1px;
+}
+
+/* Something that opens under a control: no height when shut. */
+.sp-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--spring-ms) var(--spring);
+}
+
+.sp-fold > div {
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility 0s 0.2s;
+}
+
+.sp-fold.open {
+  grid-template-rows: 1fr;
+}
+
+.sp-status > .sp-fold.open {
+  margin-top: 14px;
+}
+
+.sp-fold.open > div {
+  visibility: visible;
+  transition: none;
+  /* Room for a focus ring inside the clip. */
+  padding: 3px;
+  margin: -3px;
+}
+
+/* ── Claude Code: a status, its one action, and what it would write ──────── */
+
+.sp-status {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+:root[data-theme="dark"] .sp-status {
+  background: color-mix(in srgb, var(--surface) 45%, var(--bg));
+}
+
+.sp-status-head {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px 0;
+}
+
+.sp-status-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--text-3);
+}
+
+.sp-status[data-tone="ok"] .sp-status-icon { color: var(--ok); }
+.sp-status[data-tone="warn"] .sp-status-icon { color: var(--warn); }
+.sp-status[data-tone="error"] .sp-status-icon { color: var(--danger); }
+
+.sp-status-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font: 600 14px/22px var(--font-title);
+  color: var(--text);
+}
+
+.sp-status-text {
+  margin: 2px 0 0;
+  font: 400 12.5px/18px var(--font);
+  color: var(--text-2);
+}
+
+.sp-facts {
+  margin: 12px 16px 0 50px;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 3px 12px;
+  font: 400 11.5px/17px var(--font);
+  color: var(--text-2);
+}
+
+.sp-facts dt,
+.sp-facts dd {
+  margin: 0;
+}
+
+.sp-facts dd {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.sp-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 14px 50px;
+}
+
+.sp-actions .push {
+  margin-left: auto;
+}
+
+.sp-flash {
+  display: flex;
+  gap: 8px;
+  margin: 12px 16px 0 50px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--ok-soft);
+  color: var(--ok);
+  font: 400 12px/17px var(--font);
+  overflow-wrap: anywhere;
+}
+
+.sp-flash.error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.sp-flash svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.sp-panel {
+  border-top: 1px solid var(--line);
+  padding: 14px 16px 16px;
+}
+
+.sp-panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font: 600 12.5px/18px var(--font);
+  color: var(--text);
+}
+
+.sp-panel-head .counts {
+  margin-left: auto;
+  font: 500 11.5px var(--mono);
+}
+
+.sp-panel-head .plus { color: var(--add); }
+.sp-panel-head .minus { color: var(--del); margin-left: 6px; }
+
+.sp-diff {
+  margin-top: 8px;
+  max-height: 172px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--edge) 55%, transparent) transparent;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  padding: 6px 0;
+  font: 400 11.5px/18px var(--mono);
+  white-space: pre;
+  /* One column as wide as the longest line: a changed line's ground runs the
+     whole width, however far the panel is scrolled sideways. */
+  display: grid;
+  grid-template-columns: minmax(100%, max-content);
+}
+
+:root[data-theme="dark"] .sp-diff {
+  background: var(--sunken);
+}
+
+.sp-diff > div {
+  padding: 0 12px 0 10px;
+  color: var(--text-2);
+}
+
+.sp-diff > div::before {
+  content: attr(data-sign);
+  display: inline-block;
+  width: 16px;
+  opacity: 0.8;
+}
+
+.sp-diff .add {
+  color: var(--add);
+  background: var(--add-bg);
+}
+
+.sp-diff .del {
+  color: var(--del);
+  background: var(--del-bg);
+}
+
+.sp-panel .sp-help {
+  margin-top: 8px;
+}
+
+.sp-panel .sp-help code {
+  font: 400 11px var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.sp-panel-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ── General: the shortcuts ──────────────────────────────────────────────── */
+
+.sp-shortcut-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sp-shortcut-top .sp-row-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sp-keys {
+  appearance: none;
+  width: 100%;
+  min-height: 38px;
+  padding: 5px 10px 5px 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid color-mix(in srgb, var(--edge) 55%, transparent);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text-2);
+  font: 400 12px var(--font);
+  text-align: left;
+  cursor: default;
+  transition: border-color 0.14s ease-out, background 0.14s ease-out, box-shadow 0.14s ease-out;
+}
+
+:root[data-theme="dark"] .sp-keys {
+  background: color-mix(in srgb, var(--surface) 45%, var(--bg));
+}
+
+.sp-keys:hover:not(:disabled) {
+  border-color: var(--edge);
+}
+
+.sp-keys kbd {
+  min-width: 26px;
+  height: 24px;
+  padding: 0 8px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--sunken);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--edge) 45%, transparent);
+  color: var(--text);
+  font: 600 11.5px var(--font);
+}
+
+.sp-keys .hint {
+  margin-left: auto;
+  padding-left: 8px;
+  white-space: nowrap;
+}
+
+.sp-keys .wait {
+  padding-left: 6px;
+  color: var(--accent-text);
+  font-weight: 500;
+}
+
+.sp-shortcut[data-state="recording"] .sp-keys {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.sp-shortcut[data-state="error"] .sp-keys {
+  border-color: var(--danger);
+}
+
+.sp-shortcut[data-state="off"] .sp-keys {
+  background: transparent;
+  border-style: dashed;
+}
+
+.sp-shortcut[data-state="off"] .sp-keys kbd {
+  color: var(--text-3);
+  box-shadow: none;
+}
+
+.sp-shortcut-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 16px;
+  font: 400 12px/16px var(--font);
+  color: var(--text-2);
+}
+
+.sp-shortcut-status i {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+.sp-shortcut[data-state="ok"] .sp-shortcut-status i {
+  background: var(--ok);
+}
+
+.sp-shortcut[data-state="recording"] .sp-shortcut-status {
+  color: var(--accent-text);
+}
+
+.sp-shortcut[data-state="recording"] .sp-shortcut-status i {
+  background: var(--accent);
+}
+
+.sp-shortcut[data-state="error"] .sp-shortcut-status {
+  color: var(--danger);
+}
+
+.sp-shortcut[data-state="error"] .sp-shortcut-status i {
+  background: var(--danger);
+}
+
+/* ── Island: the folded island, live ─────────────────────────────────────── */
+
+/* Stays in sight while the choices under it scroll. */
+.sp-live {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 4px -14px 0 -24px;
+  padding: 12px 14px 10px 24px;
+  max-width: none;
+  background: var(--bg);
+}
+
+.sp-live > * {
+  max-width: 540px;
+}
+
+/* The top of a desktop: the island hangs from the screen's edge. */
+.sp-desk {
+  position: relative;
+  height: 78px;
+  border-radius: 12px;
+  background: var(--desk);
+  overflow: hidden;
+}
+
+.sp-live-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+  font: 400 11.5px/16px var(--font);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The island itself: dark in both themes, in the island's own colours. */
+.sp-ci {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  left: 50%;
+  height: 38px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #f1f2f4;
+}
+
+.sp-ci-bot {
+  flex: 0 0 34px;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.sp-ci-dots {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sp-ci-dots i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--c);
+}
+
+.sp-ci-dots i.calls {
+  box-shadow: 0 0 6px var(--c);
+}
+
+.sp-ci-metrics {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sp-ci-metrics:empty {
+  display: none;
+}
+
+.sp-ci-metric {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: #8e939c;
+  white-space: nowrap;
+  animation: sp-fade 0.24s ease-out 0.08s both;
+}
+
+.sp-ci-metric svg {
+  flex: 0 0 auto;
+}
+
+.sp-ci-metric b {
+  font: 500 12px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: #f1f2f4;
+}
+
+/* A usage cell's number, in the island's colour for how much is used (style.css `.ci-metric b`). */
+.sp-ci-metric b[data-level="calm"] { color: #4fd69c; }
+.sp-ci-metric b[data-level="warm"] { color: #ffb547; }
+.sp-ci-metric b[data-level="hot"] { color: #ff8d97; }
+
+/* What island-preview.ts and bots.ts expect of the page. */
+.sp-notch {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  z-index: -1;
+  fill: #000;
+  pointer-events: none;
+}
+
+.sp-bot {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.sp-bot canvas {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* ── Island: the metrics to choose from ──────────────────────────────────── */
+
+.sp-metrics {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sp-metric {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  background: var(--bg);
+}
+
+.sp-metric + .sp-metric {
+  box-shadow: 0 -1px 0 var(--line);
+}
+
+.sp-grip {
+  appearance: none;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 28px;
+  margin-left: -6px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-3);
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  touch-action: none;
+  transition: background 0.14s ease-out, color 0.14s ease-out, opacity 0.14s ease-out;
+}
+
+.sp-grip:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.sp-metric:not(.on) .sp-grip {
+  visibility: hidden;
+}
+
+.sp-check {
+  appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 36px;
+  padding: 0 6px 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: 500 13px var(--font);
+  text-align: left;
+  cursor: default;
+  transition: background 0.14s ease-out;
+}
+
+.sp-check:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.sp-check .box {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--edge);
+  display: grid;
+  place-items: center;
+  color: transparent;
+  transition: background 0.14s ease-out, border-color 0.14s ease-out;
+}
+
+.sp-check[aria-checked="true"] .box {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.sp-check .glyph {
+  flex: 0 0 auto;
+  display: grid;
+  color: var(--text-2);
+}
+
+.sp-check .name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-check .sample {
+  flex: 0 0 auto;
+  font: 400 12px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+
+.sp-check:disabled {
+  color: var(--text-3);
+}
+
+.sp-check:disabled .box {
+  border-style: dashed;
+}
+
+.sp-check:disabled .glyph {
+  color: var(--text-3);
+}
+
+.sp-metric.lifted {
+  z-index: 2;
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line), 0 6px 16px rgba(0, 0, 0, 0.14);
+}
+
+.sp-metric.lifted .sp-grip,
+.reordering {
+  cursor: grabbing;
+}
+
+.sp-metric.refused {
+  animation: sp-refuse 0.34s ease-in-out;
+}
+
+@keyframes sp-refuse {
+  20% { transform: translateX(-4px); }
+  45% { transform: translateX(4px); }
+  70% { transform: translateX(-2px); }
+}
+
+.sp-refusal {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font: 500 12px/17px var(--font);
+}
+
+.sp-refusal svg {
+  flex: 0 0 auto;
+  margin-top: 0.5px;
+}
+
+/* The bot's colours. */
+.sp-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.sp-swatch {
+  appearance: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: default;
+}
+
+.sp-swatch i {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+  transition: scale 0.16s ease-out;
+}
+
+.sp-swatch:hover i {
+  scale: 1.1;
+}
+
+.sp-swatch[aria-checked="true"] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* ── Shelf: the cards, as the shelf has them ─────────────────────────────── */
+
+/* The island's black, in both themes: the cards sit in it as they do there. */
+.sp-tray {
+  position: relative;
+  margin-top: 16px;
+  padding: 10px;
+  border-radius: 20px;
+  background: #000;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  color: var(--text);
+}
+
+.sp-card {
+  position: relative;
+  min-width: 0;
+  min-height: 92px;
+  padding: 9px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border-radius: 16px;
+  background: #141518;
+  border: 1px solid color-mix(in srgb, var(--c) 26%, rgba(255, 255, 255, 0.03));
+  box-shadow: inset 0 0 24px -15px var(--c);
+  color: #f5f6f8;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: border-color 0.16s ease-out, box-shadow 0.16s ease-out, scale 0.16s ease-out, opacity 0.16s ease-out;
+}
+
+.sp-card:hover {
+  border-color: color-mix(in srgb, var(--c) 46%, rgba(255, 255, 255, 0.03));
+}
+
+.sp-card:focus-visible {
+  outline-offset: 1px;
+}
+
+.sp-card-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.sp-card-head b {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 12px var(--font);
+}
+
+/* The widget's mark: the one place its colour is worn in full, as on the shelf. */
+.sp-mark {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--c) 18%, transparent);
+  color: color-mix(in srgb, var(--c) 85%, #fff);
+}
+
+.sp-card p {
+  margin: 0;
+  font: 400 11.5px/15px var(--font);
+  color: #a3a8b1;
+}
+
+.sp-card .sp-toggle {
+  width: 32px;
+  height: 19px;
+}
+
+.sp-card .sp-toggle i {
+  width: 11px;
+  height: 11px;
+  margin-top: -5.5px;
+  left: 2.5px;
+}
+
+.sp-card .sp-toggle[aria-checked="true"] i {
+  transform: translateX(13px);
+}
+
+.sp-card.lifted {
+  z-index: 2;
+  scale: 1.03;
+  cursor: grabbing;
+  border-color: color-mix(in srgb, var(--c) 70%, #fff);
+  box-shadow: inset 0 0 24px -15px var(--c), 0 8px 20px rgba(0, 0, 0, 0.55);
+}
+
+/* Hidden: its colour is off, and it stands after the ones on show. */
+.sp-card.hidden {
+  cursor: default;
+  border-color: rgba(255, 255, 255, 0.07);
+  border-style: dashed;
+  box-shadow: none;
+  background: #0d0e10;
+}
+
+.sp-card.hidden .sp-mark {
+  background: rgba(255, 255, 255, 0.06);
+  color: #8e939c;
+}
+
+.sp-card.hidden b,
+.sp-card.hidden p {
+  color: #8e939c;
+}
+
+/* ── About ───────────────────────────────────────────────────────────────── */
+
+.sp-about {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sp-about .sp-nook {
+  width: 84px;
+  height: 84px;
+  border-radius: 24px;
+}
+
+.sp-about-name {
+  margin: 0;
+  font: 600 22px/28px var(--font-title);
+  letter-spacing: -0.015em;
+}
+
+.sp-about-version {
+  margin: 2px 0 0;
+  font: 400 12.5px/18px var(--font);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-path {
+  flex: 0 1 auto;
+  min-width: 0;
+  font: 400 11.5px/16px var(--mono);
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.sp-row .sp-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sp-row .sp-link svg:last-child {
+  margin-left: auto;
+  color: var(--text-3);
+}
+
+.sp-credits {
+  margin: 22px 0 0;
+  font: 400 12px/17px var(--font);
+  color: var(--text-2);
+}
+
+/* ── Small windows: the sidebar folds to its icons ───────────────────────── */
+
+@container win (max-width: 500px) {
+  .sp-app {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .sp-side {
+    padding: 6px 8px 10px;
+    align-items: center;
+  }
+
+  .sp-brand {
+    padding: 0;
+  }
+
+  .sp-brand-text,
+  .sp-tab span {
+    display: none;
+  }
+
+  .sp-nav {
+    align-self: stretch;
+  }
+
+  .sp-tab {
+    padding: 0;
+    justify-content: center;
+  }
+
+  .sp-pane {
+    padding: 18px 10px 24px 20px;
+  }
+
+  .sp-live {
+    margin: 4px -10px 0 -20px;
+    padding: 12px 10px 10px 20px;
+  }
+
+  .sp-facts,
+  .sp-flash {
+    margin-left: 16px;
+  }
+
+  .sp-actions {
+    padding-left: 16px;
+  }
+}
+
+@container win (min-width: 700px) {
+  .sp-app {
+    grid-template-columns: 208px minmax(0, 1fr);
+  }
+
+  .sp-pane {
+    padding: 28px 26px 32px 36px;
+  }
+
+  .sp-live {
+    margin: 4px -26px 0 -36px;
+    padding: 12px 26px 10px 36px;
+  }
+}
+
+/* ── What the real window adds to the design ─────────────────────────────── */
+
+.sp-btn:disabled {
+  opacity: 0.5;
+}
+
+.sp-btn.primary:disabled:hover {
+  background: var(--accent);
+}
+
+.sp-btn:disabled:active {
+  transform: none;
+}
+
+/* Why the one action is not on offer, beside it. */
+.sp-actions-note {
+  min-width: 0;
+  font: 400 12px/16px var(--font);
+  color: var(--text-2);
+}
+
+.sp-actions {
+  flex-wrap: wrap;
+}
+
+/* A word from Nook that is neither good news nor bad. */
+.sp-flash.note {
+  background: var(--sunken);
+  color: var(--text-2);
+}
+
+.sp-flash.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.sp-panel > .sp-flash {
+  margin: 12px 0 0;
+}
+
+.sp-status > .sp-flash:last-child,
+.sp-status > .sp-flash + .sp-fold:not(.open):last-child {
+  margin-bottom: 0;
+}
+
+/* A status with nothing under its text still has a foot. */
+.sp-status {
+  padding-bottom: 0;
+}
+
+.sp-status > .sp-status-head:last-child,
+.sp-status > .sp-facts:last-child,
+.sp-status > .sp-flash:last-child {
+  margin-bottom: 14px;
+}
+
+.sp-status > :nth-last-child(2):not(.sp-actions):has(+ .sp-fold:not(.open)) {
+  margin-bottom: 14px;
+}
+
+.sp-status-notes {
+  margin: 10px 16px 0 50px;
+}
+
+.sp-status-notes p {
+  margin: 0;
+  font: 400 12px/17px var(--font);
+  color: var(--text-2);
+}
+
+.sp-status-notes p + p {
+  margin-top: 6px;
+}
+
+/* A refusal can run to two lines: its dot stays by the first. */
+.sp-shortcut-status {
+  align-items: flex-start;
+}
+
+.sp-shortcut-status i {
+  margin-top: 5px;
+}
+
+/* The shortcut's help sits under its name, beside the switch. */
+.sp-shortcut-top .sp-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* About: who made it, and where to find him — his name, and a row of links. */
+.sp-credit {
+  margin-top: 8px;
+  padding: 14px 14px 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+:root[data-theme="dark"] .sp-credit {
+  background: color-mix(in srgb, var(--surface) 55%, var(--bg));
+}
+
+.sp-made {
+  margin: 0;
+  font: 600 14px/20px var(--font-title);
+  letter-spacing: -0.005em;
+  color: var(--text);
+}
+
+.sp-links {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 0 -2px;
+}
+
+.sp-social {
+  appearance: none;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--edge) 45%, transparent);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: 500 12.5px/16px var(--font);
+  cursor: default;
+  transition: background 0.14s ease-out, border-color 0.14s ease-out, color 0.14s ease-out;
+}
+
+/* Every mark sits in the same square, whatever its own size: the labels line up. */
+.sp-social i {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+  transition: color 0.14s ease-out;
+}
+
+.sp-social span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-social:hover {
+  background: var(--hover);
+  border-color: var(--edge);
+}
+
+.sp-social:hover i,
+.sp-social:focus-visible i {
+  color: var(--accent-text);
+}
+
+.sp-social:active {
+  background: var(--press);
+  transform: translateY(0.5px);
+}
+/* Dev only (fake.ts): says the data is made up, and frames the page at the window's size. */
+.sp-fake {
+  margin-top: auto;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font: 600 10.5px/14px var(--font);
+  text-align: center;
+}
+
+html.fake-frame {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  height: auto;
+  background: #25262a;
+}
+
+html.fake-frame body.settings-window {
+  position: relative;
+  box-shadow: 0 0 0 1px rgba(128, 128, 128, 0.4), 0 16px 44px rgba(0, 0, 0, 0.32);
+}
+
+@container win (max-width: 500px) {
+  .sp-status-notes {
+    margin-left: 16px;
+  }
+
+  .sp-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sp-fake {
+    font-size: 0;
+    padding: 4px;
+  }
+
+  .sp-fake::after {
+    content: "Fake";
+    font-size: 9.5px;
+  }
+}
+
+/* ── Reduced motion: nothing travels, nothing fades ──────────────────────── */
+
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  transition: none !important;
+  animation: none !important;
+}

@@ -1,0 +1,43 @@
+# Security headers and caching for Cloudflare Pages and Netlify (same syntax).
+# GitHub Pages ignores this file; see DEPLOY.md.
+#
+# CSP notes: the only inline script is the tiny theme bootstrap in <head>, allowed by hash
+# (sha256-AIPMsabccB96nOgg4nF80X0+sx3CbN0XVIQ6NXU327o=). If you edit that script in any page, recompute the hash.
+# 'unsafe-inline' for styles is needed for the style="" attributes on the landing page.
+# External hosts used: fonts.googleapis.com + fonts.gstatic.com (typefaces), cdn.jsdelivr.net (Lenis smooth scroll).
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-AIPMsabccB96nOgg4nF80X0+sx3CbN0XVIQ6NXU327o=' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; media-src 'none'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin
+
+# Static assets: cached for a year. The CSS and JS are referenced with ?v=1; change the number
+# (in every page) when you change those files, or the old copy stays cached for a year.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# HTML: always revalidate, so edits show up right away.
+/
+  Cache-Control: public, max-age=0, must-revalidate
+/guides/*
+  Cache-Control: public, max-age=0, must-revalidate
+/privacy/
+  Cache-Control: public, max-age=0, must-revalidate
+/terms/
+  Cache-Control: public, max-age=0, must-revalidate
+/changelog/
+  Cache-Control: public, max-age=0, must-revalidate
+/404.html
+  Cache-Control: public, max-age=0, must-revalidate
+/sitemap.xml
+  Cache-Control: public, max-age=0, must-revalidate
+/llms.txt
+  Cache-Control: public, max-age=0, must-revalidate
+/llms-full.txt
+  Cache-Control: public, max-age=0, must-revalidate
+/robots.txt
+  Cache-Control: public, max-age=0, must-revalidate

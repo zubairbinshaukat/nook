@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nook Guides: Install, Hooks, Shelf, Troubleshooting</title>
+<meta name="description" content="All Nook guides in one place: install on Windows, first run, how the Claude Code hooks work, Shelf widgets, Cursor, troubleshooting and a plain-language FAQ.">
+<link rel="canonical" href="https://nook.zubyr.dev/guides/">
+<link rel="alternate" hreflang="x-default" href="https://nook.zubyr.dev/guides/">
+<link rel="alternate" hreflang="en" href="https://nook.zubyr.dev/guides/">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+<meta name="author" content="Zubair Bin Shaukat">
+<meta name="application-name" content="Nook">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0B0B0F" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F5F8" media="(prefers-color-scheme: light)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Nook">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Nook Guides: Install, Hooks, Shelf, Troubleshooting">
+<meta property="og:description" content="All Nook guides in one place: install on Windows, first run, how the Claude Code hooks work, Shelf widgets, Cursor, troubleshooting and a plain-language FAQ.">
+<meta property="og:url" content="https://nook.zubyr.dev/guides/">
+<meta property="og:image" content="https://nook.zubyr.dev/assets/img/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Nook, a Dynamic Island for Windows: Gullu the mascot beside the island showing Claude Code agents">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@zubyrdev">
+<meta name="twitter:creator" content="@zubyrdev">
+<meta name="twitter:title" content="Nook Guides: Install, Hooks, Shelf, Troubleshooting">
+<meta name="twitter:description" content="All Nook guides in one place: install on Windows, first run, how the Claude Code hooks work, Shelf widgets, Cursor, troubleshooting and a plain-language FAQ.">
+<meta name="twitter:image" content="https://nook.zubyr.dev/assets/img/og.png">
+<meta name="twitter:image:alt" content="Nook, a Dynamic Island for Windows, showing Claude Code agents">
+<link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/img/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400..650&display=swap">
+<link rel="stylesheet" href="/assets/css/site.css?v=1">
+<script>
+(function(){var r=document.documentElement;r.classList.add('js');try{var t=localStorage.getItem('nook-theme');if(t==='light'||t==='dark')r.setAttribute('data-theme',t)}catch(e){}})();
+</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://nook.zubyr.dev/#website","url":"https://nook.zubyr.dev/","name":"Nook","inLanguage":"en","publisher":{"@id":"https://nook.zubyr.dev/#author"}},{"@type":"Person","@id":"https://nook.zubyr.dev/#author","name":"Zubair Bin Shaukat","url":"https://zubyr.dev","sameAs":["https://zubyr.dev","https://github.com/zubairbinshaukat","https://www.linkedin.com/in/zubairbinshaukat","https://x.com/zubyrdev"]},{"@type":"CollectionPage","@id":"https://nook.zubyr.dev/guides/#page","url":"https://nook.zubyr.dev/guides/","name":"Nook Guides: Install, Hooks, Shelf, Troubleshooting","description":"All Nook guides in one place: install on Windows, first run, how the Claude Code hooks work, Shelf widgets, Cursor, troubleshooting and a plain-language FAQ.","inLanguage":"en","isPartOf":{"@id":"https://nook.zubyr.dev/#website"},"mainEntity":{"@type":"ItemList","itemListElement":[{"@type":"ListItem","position":1,"url":"https://nook.zubyr.dev/guides/install/","name":"Install Nook on Windows"},{"@type":"ListItem","position":2,"url":"https://nook.zubyr.dev/guides/first-run/","name":"First run: hooks, shortcuts and a tour"},{"@type":"ListItem","position":3,"url":"https://nook.zubyr.dev/guides/claude-code-hooks/","name":"How Nook talks to Claude Code"},{"@type":"ListItem","position":4,"url":"https://nook.zubyr.dev/guides/shelf-widgets/","name":"Shelf widgets"},{"@type":"ListItem","position":5,"url":"https://nook.zubyr.dev/guides/cursor/","name":"Cursor and Nook"},{"@type":"ListItem","position":6,"url":"https://nook.zubyr.dev/guides/troubleshooting/","name":"Troubleshooting Nook"},{"@type":"ListItem","position":7,"url":"https://nook.zubyr.dev/guides/faq/","name":"Nook FAQ"}]}},{"@type":"BreadcrumbList","@id":"https://nook.zubyr.dev/guides/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Nook","item":"https://nook.zubyr.dev/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://nook.zubyr.dev/guides/"}]}]}</script>
+</head>
+<body id="top">
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="progress" data-progress aria-hidden="true"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"/></symbol>
+<symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-4 1-4-2-6-2m12 4v-3.500c0-1 .1-1.400-.5-2 2.800-.3 5.500-1.400 5.500-6a4.600 4.600 0 0 0-1.300-3.200 4.200 4.200 0 0 0-.1-3.200s-1.100-.3-3.500 1.300a12.300 12.300 0 0 0-6.200 0C6.500 2.800 5.400 3.100 5.400 3.100a4.200 4.200 0 0 0-.1 3.200A4.600 4.600 0 0 0 4 9.500c0 4.600 2.700 5.700 5.500 6-.6.600-.6 1.200-.5 2V21"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.500A8 8 0 0 1 9.500 4 8 8 0 1 0 20 14.500z"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5m0 0l-6 6m6-6l6 6"/></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3l10 18H2zM12 10v5m0 3h.01"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><path d="M12 8h.01M11 12h1v5h1M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.500l4.500 4.500L19 7.500"/></symbol>
+</defs></svg>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="/" aria-label="Nook, home"><img src="/assets/img/gullu-96.png" width="32" height="32" alt="" decoding="async"><span>Nook</span></a>
+    <nav aria-label="Primary" style="display:contents">
+      <ul class="nav-links" data-nav-links id="site-menu">
+        <li><a href="/#how">How it works</a></li>
+        <li><a href="/#features">Features</a></li>
+        <li><a href="/privacy/">Privacy</a></li>
+        <li><a href="/guides/install/">Install</a></li>
+        <li><a href="/guides/" aria-current="page">Guides</a></li>
+        <li><a href="/guides/faq/">FAQ</a></li>
+      </ul>
+    </nav>
+    <div class="nav-tools">
+      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch theme"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      <button class="icon-btn nav-menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-menu" aria-label="Menu"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-menu"/></svg></button>
+      <a class="btn btn-primary nav-cta" href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+<div class="container doc-wrap">
+  <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="/">Nook</a></li><li aria-current="page">Guides</li></ol></nav>
+  <header class="doc-head">
+    <p class="eyebrow">Guides</p>
+    <h1>Nook guides</h1>
+    <p class="lede">Install Nook, connect it to Claude Code and fix the things that go wrong.</p>
+    <p class="doc-meta">Last updated <time datetime="2026-10-04">2026-10-04</time> &middot; Nook 0.1.0 &middot; <a href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer">Was this helpful? Report a problem</a></p>
+  </header>
+  <div class="doc-grid no-toc">
+    
+    <article class="doc-body hub-body">
+
+<p>Nook is a free, open-source Dynamic Island for Claude Code agents on Windows. These guides cover everything from the first download to a tricky bug report. Each guide is short, written for the 0.1.0 release and kept in plain language.</p>
+<div class="gcards">
+<a class="card card-hover gcard" href="/guides/install/"><span class="gcard-n">01</span><h2>Install Nook on Windows</h2><p>Download, verify, install and uninstall Nook. SmartScreen, checksums and where the files live.</p><span class="gcard-go">Read guide &rarr;</span></a>
+<a class="card card-hover gcard" href="/guides/first-run/"><span class="gcard-n">02</span><h2>First run: hooks, shortcuts and a tour</h2><p>Install the Claude Code hooks, start a session and learn the island, the Shelf and the shortcuts.</p><span class="gcard-go">Read guide &rarr;</span></a>
+<a class="card card-hover gcard" href="/guides/claude-code-hooks/"><span class="gcard-n">03</span><h2>How Nook talks to Claude Code</h2><p>Hooks, the nook-hook relay and the named pipe: what is written to settings.json and what is never done.</p><span class="gcard-go">Read guide &rarr;</span></a>
+<a class="card card-hover gcard" href="/guides/shelf-widgets/"><span class="gcard-n">04</span><h2>Shelf widgets</h2><p>To-do, Timer, Reminders, Media, Mirror and Projects: what each does and what it keeps.</p><span class="gcard-go">Read guide &rarr;</span></a>
+<a class="card card-hover gcard" href="/guides/cursor/"><span class="gcard-n">05</span><h2>Cursor and Nook</h2><p>Cursor agent sessions next to Claude Code ones, status only, and how to turn them on.</p><span class="gcard-go">Read guide &rarr;</span></a>
+<a class="card card-hover gcard" href="/guides/troubleshooting/"><span class="gcard-n">06</span><h2>Troubleshooting Nook</h2><p>SmartScreen, antivirus, a missing island, no sessions, shortcuts, camera and how to file a useful issue.</p><span class="gcard-go">Read guide &rarr;</span></a>
+<a class="card card-hover gcard" href="/guides/faq/"><span class="gcard-n">07</span><h2>Nook FAQ</h2><p>Plain answers on privacy, safety, hooks, signing, platforms and who makes Nook.</p><span class="gcard-go">Read guide &rarr;</span></a>
+</div>
+<h2 id="which">Which guide do you need?</h2>
+<ul>
+<li>New to Nook? Start with <a href="/guides/install/">installing Nook on Windows</a>, then the <a href="/guides/first-run/">first-run guide</a>.</li>
+<li>Curious how Nook sees your sessions, or worried about your settings? Read <a href="/guides/claude-code-hooks/">how Nook talks to Claude Code</a>.</li>
+<li>Something not working? Go to <a href="/guides/troubleshooting/">troubleshooting</a>.</li>
+<li>Quick questions about privacy, safety or signing? See the <a href="/guides/faq/">FAQ</a> and the <a href="/privacy/">privacy policy</a>.</li>
+<li>Using Cursor? See <a href="/guides/cursor/">Cursor and Nook</a>.</li>
+</ul>
+<p>Nook is free and open source. If a guide is wrong or missing something, <a href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer">report a problem</a>.</p>
+    </article>
+  </div>
+  
+  <aside class="card doc-feedback" aria-label="Feedback"><h2>Was this helpful?</h2><p>If something here is wrong, unclear or out of date, tell us. A short issue is enough.</p><div class="cta-row"><a class="btn btn-ghost" href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer"><svg class="i" aria-hidden="true"><use href="#i-github"/></svg>Report a problem</a><a class="btn btn-ghost" href="/guides/">All guides</a></div></aside>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-credit">
+        <p class="by">Designed &amp; built by <span>Zubair Bin Shaukat</span></p>
+        <p>Software engineer from Lahore, at Devsmat. Nook by Zubair is a small, careful tool for people who live in Claude Code.</p>
+        <div class="social">
+          <a class="btn btn-ghost" href="https://zubyr.dev" target="_blank" rel="noopener noreferrer">zubyr.dev</a>
+          <a class="btn btn-ghost" href="https://github.com/zubairbinshaukat" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a class="btn btn-ghost" href="https://www.linkedin.com/in/zubairbinshaukat" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          <a class="btn btn-ghost" href="https://x.com/zubyrdev" target="_blank" rel="noopener noreferrer">X</a>
+        </div>
+      </div>
+      <nav class="footer-col" aria-label="Product"><h2>Product</h2><ul>
+        <li><a href="/#how">How it works</a></li><li><a href="/#features">Features</a></li><li><a href="/#privacy">Privacy</a></li><li><a href="/#gullu">Meet Gullu</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a></li></ul></nav>
+      <nav class="footer-col" aria-label="Guides"><h2>Guides</h2><ul>
+        <li><a href="/guides/">All guides</a></li><li><a href="/guides/install/">Install Nook</a></li><li><a href="/guides/first-run/">First run</a></li><li><a href="/guides/troubleshooting/">Troubleshooting</a></li><li><a href="/guides/faq/">FAQ</a></li></ul></nav>
+      <nav class="footer-col" aria-label="Project"><h2>Project</h2><ul>
+        <li><a href="https://github.com/zubairbinshaukat/nook" target="_blank" rel="noopener noreferrer">Source on GitHub</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases" target="_blank" rel="noopener noreferrer">Releases</a></li><li><a href="/changelog/">Changelog</a></li><li><a href="https://github.com/zubairbinshaukat/nook/issues" target="_blank" rel="noopener noreferrer">Report an issue</a></li><li><a href="https://github.com/zubairbinshaukat/nook/blob/main/NOTICE" target="_blank" rel="noopener noreferrer">NOTICE</a></li></ul></nav>
+      <nav class="footer-col" aria-label="Legal"><h2>Legal</h2><ul>
+        <li><a href="/privacy/">Privacy</a></li><li><a href="/terms/">Terms</a></li><li><a href="https://github.com/zubairbinshaukat/nook/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT license</a></li><li><a href="https://github.com/zubairbinshaukat/nook/blob/main/NOTICE" target="_blank" rel="noopener noreferrer">Credits</a></li></ul></nav>
+    </div>
+    <div class="footer-legal">
+      <p>Nook is an independent project and is not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks of Anthropic.<br>Based on Coucou by Louis Raillé (MIT). See <a href="https://github.com/zubairbinshaukat/nook/blob/main/NOTICE" target="_blank" rel="noopener noreferrer">NOTICE</a>. No cookies, no analytics.</p>
+      <p>Made in Lahore &middot; &copy; 2026 Zubair Bin Shaukat &middot; <a href="#top" data-top class="to-top-inline">Back to top</a></p>
+    </div>
+  </div>
+  <div class="footer-mark-wrap" aria-hidden="true">
+    <img class="footer-peek" src="/assets/img/gullu-320.png" width="160" height="160" alt="" loading="lazy">
+    <p class="footer-mark">Nook</p>
+  </div>
+</footer>
+
+<a class="btn btn-ghost to-top" href="#top" data-to-top aria-label="Back to top"><svg class="i" aria-hidden="true"><use href="#i-up"/></svg></a>
+
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.20/dist/lenis.min.js" defer></script>
+<script src="/assets/js/site.js?v=1" defer></script>
+</body>
+</html>

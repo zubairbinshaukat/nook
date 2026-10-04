@@ -1,0 +1,1550 @@
+/* Shelf preview — only what the preview adds on top of src/style.css.
+   The island, its cards, buttons, rows and fields are the app's own styles;
+   this file holds the page around it, the Shelf's small cards and expanded
+   views (which do not exist in the app yet), and the preview controls. */
+
+/* ── The page: a stand-in for the desktop ───────────────────────────────── */
+
+html,
+body {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+  /* A horizontal trackpad swipe must not turn into the browser's back / forward. */
+  overscroll-behavior-x: none;
+  background: #171b23;
+}
+
+html {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+#desk {
+  min-height: 100vh;
+  padding-bottom: 48px;
+  background:
+    radial-gradient(1100px 560px at 18% -8%, #3d4d6b 0%, transparent 62%),
+    radial-gradient(900px 520px at 92% 6%, #54406c 0%, transparent 60%),
+    linear-gradient(#262d3a, #171b23 70%);
+}
+
+/* The transparent native window: sized once, never resized. The island moves
+   inside it; whatever would leave it is cut, as the real window cuts it. */
+#window {
+  position: relative;
+  width: 720px;
+  height: 430px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+#window.outlined {
+  outline: 1px dashed rgba(255, 255, 255, 0.28);
+  outline-offset: -1px;
+}
+
+#window-label {
+  display: none;
+  position: absolute;
+  right: 9px;
+  bottom: 7px;
+  font: 400 10.5px var(--mono);
+  color: rgba(255, 255, 255, 0.45);
+  pointer-events: none;
+}
+
+#window.outlined #window-label {
+  display: block;
+}
+
+/* ── The island ─────────────────────────────────────────────────────────── */
+
+/* Sized and placed by the script (width, height, left): the rectangle that
+   would be reported for click-through. */
+#island-wrap {
+  position: absolute;
+  top: 0;
+  left: 40px;
+  width: 640px;
+  height: 160px;
+  --accent: rgba(0, 0, 0, 0);
+  transition: --accent 0.35s ease-out;
+}
+
+/* The glow under the island, in the colour of the widget on show. */
+#island-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 0 0 22px 22px;
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.42),
+    0 14px 44px -6px color-mix(in srgb, var(--accent) 60%, transparent);
+  pointer-events: none;
+  /* Its own piece of the shared-element transition: the glow changes size with the island, not ahead of it. */
+  view-transition-name: island-glow;
+}
+
+#island {
+  inset: 0;
+  left: 0;
+  border-radius: 0 0 22px 22px;
+  view-transition-name: island;
+}
+
+/* The top bar: Home, Shelf, the reserved slot; expand and settings. */
+.tabs {
+  align-items: center;
+}
+
+.tab.named {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px 0 8px;
+  font: 600 11px var(--font);
+}
+
+.tab-slot {
+  width: 30px;
+  height: 22px;
+  border-radius: 11px;
+  border: 1px dashed rgba(255, 255, 255, 0.17);
+}
+
+/* A focused view is the whole island: the bar steps aside. */
+#content.bare #header {
+  flex-basis: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* While a shared-element transition holds the picture, the page under it is
+   already in its final state: nothing in it fades on its own. */
+#island.no-anim .view,
+#island.no-anim #header {
+  transition: none !important;
+}
+
+/* ── Home (a simplified stand-in for plans/design-plan.md §1) ───────────── */
+
+.home-left {
+  flex: 0 0 190px;
+}
+
+.home-bot {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  translate: 0 -50%;
+}
+
+.home-bot canvas,
+.alert-bot canvas {
+  position: absolute;
+  pointer-events: none;
+}
+
+.bot-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(6px);
+  pointer-events: none;
+  transition: opacity 0.4s ease-in-out, background 0.4s ease-in-out;
+}
+
+.home-now {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  padding: 0 10px 0 88px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.home-now b {
+  font: 600 12px var(--font);
+}
+
+.home-now span {
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-mid {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 6px;
+  padding: 0 8px;
+}
+
+.home-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.home-group > small {
+  font: 600 9px var(--font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim-3);
+}
+
+.home-minis {
+  display: flex;
+  gap: 9px;
+  padding: 0 3px 4px;
+}
+
+.home-right {
+  flex: 0 0 136px;
+  padding: 10px 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.meter {
+  display: grid;
+  grid-template-columns: 28px 1fr 38px;
+  align-items: center;
+  gap: 6px;
+  font: 400 10.5px var(--font);
+  color: var(--dim-2);
+}
+
+.meter > i {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+}
+
+.meter > i > i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--c);
+}
+
+.meter > b {
+  font: 500 10.5px var(--font);
+  color: var(--gh-text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-age {
+  font: 400 9.5px var(--font);
+  color: var(--dim-4);
+}
+
+/* ── The Shelf: a row of small working widgets ──────────────────────────── */
+
+.shelf-row {
+  height: 100%;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  border-radius: 18px;
+  /* A finger pans the row; everything else about a press is gestures.ts's. */
+  touch-action: pan-x;
+}
+
+/* A swipe or a drag in progress, or a card being carried: the row moves freely,
+   and snaps again when it is let go. */
+.shelf-row.free,
+.shelf-row.reordering {
+  scroll-snap-type: none;
+}
+
+.shelf-row.dragging {
+  cursor: grabbing;
+}
+
+/* More cards past an edge: that edge fades. */
+.shelf-row.more-right {
+  mask-image: linear-gradient(to right, #000 calc(100% - 30px), transparent);
+}
+
+.shelf-row.more-left {
+  mask-image: linear-gradient(to right, transparent, #000 14px);
+}
+
+.shelf-row.more-left.more-right {
+  mask-image: linear-gradient(to right, transparent, #000 14px, #000 calc(100% - 30px), transparent);
+}
+
+/* A small card: dark, like the expanded views. The widget's colour is on its
+   mark, in a thin border and in a faint glow inside it — nowhere else.
+   180 px wide (shelf-preview.ts has the same number): three stand in the row
+   and the fourth shows its edge. */
+.wmini {
+  position: relative;
+  flex: 0 0 180px;
+  width: 180px;
+  min-width: 0;
+  height: 100%;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 10px 10px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid color-mix(in srgb, var(--c) 24%, rgba(255, 255, 255, 0.03));
+  box-shadow: inset 0 0 24px -15px var(--c);
+  color: var(--ink);
+  overflow: hidden;
+  transition:
+    transform 0.24s cubic-bezier(0.3, 1.2, 0.4, 1),
+    scale 0.16s ease-out,
+    border-color 0.16s ease-out,
+    box-shadow 0.16s ease-out;
+}
+
+.wmini:hover {
+  border-color: color-mix(in srgb, var(--c) 44%, rgba(255, 255, 255, 0.03));
+}
+
+/* Picked up after a long press: it follows the pointer, the others step aside. */
+.wmini.lifted {
+  z-index: 3;
+  scale: 0.95;
+  border-color: color-mix(in srgb, var(--c) 70%, #fff);
+  box-shadow: inset 0 0 24px -15px var(--c), 0 8px 22px rgba(0, 0, 0, 0.6);
+  transition: scale 0.16s ease-out, border-color 0.16s ease-out, box-shadow 0.16s ease-out;
+}
+
+.shelf-row.no-shift .wmini {
+  transition: none;
+}
+
+.wmini-head {
+  flex: 0 0 22px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.wmini-head > b {
+  font: 600 12px var(--font);
+  white-space: nowrap;
+}
+
+/* The widget's mark: the one place its colour is worn in full. */
+.w-mark {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--c) 18%, transparent);
+  color: color-mix(in srgb, var(--c) 85%, #fff);
+}
+
+.wmini-expand {
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dim-4);
+  display: grid;
+  place-items: center;
+  cursor: default;
+  transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.wmini:hover .wmini-expand {
+  color: var(--dim-2);
+}
+
+.wmini-expand:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink) !important;
+}
+
+.wmini-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wmini-btn {
+  align-self: flex-start;
+  min-width: 70px;
+  justify-content: center;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.wmini-field {
+  flex: 0 0 26px;
+  width: 100%;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11.5px;
+}
+
+.wmini-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+}
+
+/* Small: Media */
+.wbody-media {
+  justify-content: space-between;
+}
+
+.wmini .media-now {
+  padding: 2px 2px 0;
+  min-width: 0;
+}
+
+.wmini .media-title {
+  font: 600 12.5px var(--font);
+}
+
+.wmini .media-artist {
+  font: 400 11px var(--font);
+}
+
+.wmini .media-ctl {
+  margin: 0;
+  gap: 12px;
+}
+
+.wmini .media-skip {
+  width: 28px;
+  height: 28px;
+}
+
+.wmini .media-play {
+  width: 32px;
+  height: 32px;
+}
+
+/* Small: To-do */
+.wbody-todo {
+  gap: 4px;
+}
+
+.wmini .check-main {
+  padding: 3px 5px;
+}
+
+/* Small: Timer */
+.wbody-timer {
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.wmini .timer-time {
+  font: 600 27px/1.15 var(--font);
+}
+
+.wmini .timer-sub {
+  font: 400 10.5px var(--font);
+  white-space: nowrap;
+}
+
+/* Small: Reminders */
+.wbody-reminders {
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.next-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.next-row .check-main {
+  align-items: flex-start;
+}
+
+.next-row .check {
+  margin-top: 1px;
+}
+
+.next-text {
+  font: 500 11.5px/15px var(--font);
+  color: var(--gh-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.next-when {
+  padding-left: 27px;
+  font: 400 10.5px var(--font);
+  color: var(--dim-3);
+}
+
+.wmini-none {
+  padding: 4px 5px;
+  font: 400 11.5px var(--font);
+  color: var(--dim-3);
+}
+
+/* Small: Mirror */
+.wbody-mirror {
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.wmini-note {
+  padding-top: 2px;
+  font: 400 11px/15px var(--font);
+  color: var(--dim-2);
+}
+
+/* Small: Projects */
+.wbody-projects .wmini-list {
+  justify-content: space-between;
+  padding: 2px 0 1px;
+}
+
+.wmini-proj {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-left: 5px;
+}
+
+.wmini-proj > b {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 600 11.5px var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shelf-empty {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font: 400 12px var(--font);
+  color: var(--dim-3);
+}
+
+/* ── Expanded views ─────────────────────────────────────────────────────── */
+
+/* Dark, with the widget's colour as a tint behind what it holds and a thin border. */
+.focus-card {
+  display: none;
+  flex-direction: column;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 9%, var(--card)) 0%, var(--card) 62%);
+  border-color: color-mix(in srgb, var(--c) 22%, transparent);
+}
+
+.focus-card.on {
+  display: flex;
+}
+
+/* The app's wash is a fixed 280 px circle for an 84 px card: these cards are
+   larger, and the wash grows with them. */
+.focus-card.wash::after {
+  background: radial-gradient(78% 80% at 50% 128%, var(--wash) 0%, rgba(0, 0, 0, 0) 72%);
+}
+
+.fc-head {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 30px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px 0 8px;
+  min-width: 0;
+}
+
+.fc-head > b {
+  font: 600 12.5px var(--font);
+  white-space: nowrap;
+}
+
+.back-pill {
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 9px 0 5px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--ink-2);
+  font: 500 11px var(--font);
+  cursor: default;
+  transition: background 0.12s ease-out, transform 0.08s ease-out;
+}
+
+.back-pill:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.back-pill:active {
+  transform: scale(0.94);
+}
+
+.fc-mark {
+  width: 20px;
+  height: 20px;
+  margin-left: 3px;
+}
+
+.fc-aside {
+  margin-left: auto;
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+}
+
+.fc-body {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 8px 12px 12px;
+}
+
+.fc-col {
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fc-list {
+  padding: 0;
+  gap: 2px;
+}
+
+.fc-add {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fc-add .btn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.fc-select {
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  font: 400 12px var(--font);
+  outline: none;
+}
+
+.fc-note {
+  flex: 0 0 auto;
+  font: 400 10.5px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fc-label {
+  flex: 0 0 auto;
+  font: 600 9.5px var(--font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim-3);
+}
+
+/* A line with a box to tick, in either size. The box and the words are one button. */
+.check-row {
+  width: 100%;
+  gap: 2px;
+  padding: 0;
+}
+
+.check-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: default;
+}
+
+.check-main.bare {
+  flex: 0 0 auto;
+  padding-right: 2px;
+}
+
+.check {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--dim-3);
+  display: grid;
+  place-items: center;
+  color: var(--on-light);
+  transition: background 0.15s ease-out, border-color 0.15s ease-out;
+}
+
+.check.square {
+  border-radius: 4px;
+}
+
+.check-main:hover .check {
+  border-color: var(--dim);
+}
+
+.check-row.done .check {
+  background: #cfd2d8;
+  border-color: #cfd2d8;
+}
+
+.check-row.done .gh-row-title,
+.check-row.done .row-edit {
+  color: var(--dim-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--dim-4);
+}
+
+/* A reminder's words, editable where they stand. */
+.row-edit {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gh-text);
+  font: 500 11.5px var(--font);
+  outline: none;
+  user-select: text;
+  text-overflow: ellipsis;
+}
+
+.row-edit:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.row-edit:focus {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.rem-row .int-ago {
+  margin-left: 4px;
+  min-width: 52px;
+}
+
+.row-x {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dim-4);
+  display: grid;
+  place-items: center;
+  cursor: default;
+  opacity: 0;
+  transition: opacity 0.12s ease-out, background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.gh-row:hover .row-x,
+.row-x:focus-visible {
+  opacity: 1;
+}
+
+.row-x:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink);
+}
+
+.chip-btn {
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--gh-plate);
+  color: var(--gh-text);
+  font: 500 10.5px var(--font);
+  white-space: nowrap;
+  cursor: default;
+  transition: background 0.12s ease-out, color 0.12s ease-out, transform 0.08s ease-out;
+}
+
+.chip-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--ink);
+}
+
+.chip-btn:active {
+  transform: scale(0.94);
+}
+
+/* A button that would launch something: its mark turns to a tick for a moment. */
+.launch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px 0 7px;
+}
+
+.launch-icon {
+  display: grid;
+  place-items: center;
+}
+
+.launch.done {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--ink);
+}
+
+/* Media */
+.media {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.media-cover {
+  flex: 0 0 116px;
+  height: 116px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 8px 22px -8px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.media-side {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.media-title {
+  font: 600 15px var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.media-artist {
+  margin-top: 1px;
+  font: 400 12px var(--font);
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.media-bar {
+  margin-top: 11px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.media-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--ink-2);
+  transition: width 0.3s linear;
+}
+
+.media-times {
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  font: 400 10px var(--font);
+  color: var(--dim-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.media-foot {
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.media-ctl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.media-skip,
+.media-play {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: default;
+  transition: transform 0.08s ease-out, background 0.12s ease-out;
+}
+
+.media-skip {
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.media-skip:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.media-play {
+  width: 38px;
+  height: 38px;
+  background: var(--ink);
+  color: var(--on-light);
+}
+
+.media-skip:active,
+.media-play:active {
+  transform: scale(0.92);
+}
+
+.media-volume {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--dim-2);
+}
+
+.media-vol-icon {
+  display: grid;
+  place-items: center;
+}
+
+.media-vol {
+  width: 84px;
+}
+
+/* Timer */
+.timer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.timer-face {
+  position: relative;
+  width: 150px;
+  height: 150px;
+}
+
+.timer-dial {
+  display: block;
+  color: var(--ink-2);
+}
+
+.timer-ring {
+  transition: stroke-dashoffset 0.4s linear;
+}
+
+.timer-read {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-time {
+  font: 600 30px var(--font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.timer-time.long {
+  font-size: 25px;
+}
+
+.timer-sub {
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+}
+
+.timer-set {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.timer-presets {
+  margin-left: 0;
+}
+
+.timer-presets button {
+  padding: 4px 10px;
+}
+
+.timer-presets button:hover {
+  color: var(--ink-2);
+}
+
+.timer-own {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timer-custom {
+  flex: 0 0 58px;
+  width: 58px;
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.timer-custom::-webkit-inner-spin-button,
+.timer-custom::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.timer .actions .btn {
+  min-width: 82px;
+  justify-content: center;
+}
+
+/* To-do: the whole list, and the notes */
+.todo {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 12px;
+  min-height: 0;
+}
+
+.note-text {
+  flex: 1 1 auto;
+  min-height: 0;
+  resize: none;
+  padding: 9px 11px;
+  border: 1px solid var(--gh-edge);
+  border-radius: 12px;
+  background: var(--card-flat);
+  color: var(--gh-text);
+  font: 400 12.5px/1.5 var(--font);
+  outline: none;
+  user-select: text;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.note-text:focus {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Mirror: the preview and nothing else. */
+.focus-card.bare .fc-head {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 0;
+}
+
+.focus-card.bare .fc-head > b,
+.focus-card.bare .fc-mark {
+  display: none;
+}
+
+.focus-card.bare .back-pill {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+.focus-card.bare .fc-body {
+  padding: 0;
+}
+
+.mirror {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.mirror-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* A mirror: left is left. */
+  transform: scaleX(-1);
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+}
+
+.mirror.live .mirror-video {
+  opacity: 1;
+}
+
+.mirror-ph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 60px;
+  text-align: center;
+}
+
+.mirror-ph .btn {
+  margin-top: 10px;
+}
+
+.mirror.live .mirror-ph {
+  display: none;
+}
+
+.mirror-ph-mark {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--c) 16%, transparent);
+  color: color-mix(in srgb, var(--c) 82%, #fff);
+}
+
+/* Projects */
+.proj-row {
+  gap: 7px;
+  padding: 5px 6px 5px 8px;
+}
+
+.proj-who {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.proj-name {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.proj-name b {
+  font: 600 12px var(--font);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.proj-name .int-ago {
+  margin-left: 0;
+  padding-left: 0;
+  text-align: left;
+}
+
+.proj-who .gh-sub {
+  display: block;
+}
+
+/* ── The alert card ─────────────────────────────────────────────────────── */
+
+.alert-bot {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  translate: 0 -50%;
+}
+
+.alert-stack {
+  padding: 0 18px 0 122px;
+}
+
+.alert-back {
+  color: var(--dim-2);
+  white-space: nowrap;
+  padding: 4px 2px;
+}
+
+.alert-back:hover {
+  color: var(--ink);
+}
+
+.alert-stack .actions {
+  align-items: center;
+}
+
+.alert-stack .actions .alert-back {
+  margin-left: 6px;
+}
+
+/* ── Motion ─────────────────────────────────────────────────────────────── */
+
+/* The morph between a widget's two sizes. For one transition the script gives
+   `view-transition-name: w-…` to the card and to each element the two sizes
+   share (the mark, the name, the controls, the list's lines); the browser then
+   moves each from where it was to where it is. Every box moves on the island's
+   own spring (written into --vt-spring by the script, from anim.ts's Spring)
+   when expanding, and on its closing curve when going back. */
+html.vt-open::view-transition-group(*) {
+  animation-duration: var(--vt-spring-ms, 600ms);
+  animation-timing-function: var(--vt-spring, ease-out);
+}
+
+html.vt-back::view-transition-group(*) {
+  animation-duration: 340ms;
+  animation-timing-function: cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+/* The island keeps its shape while it changes size: black, square on top,
+   round below, and what it holds is cut at its edge and never stretched. */
+::view-transition-group(island) {
+  overflow: clip;
+  border-radius: 0 0 22px 22px;
+  background: #000;
+}
+
+::view-transition-old(island),
+::view-transition-new(island) {
+  height: 100%;
+  object-fit: none;
+  object-position: 50% 0;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(island) {
+  animation: vt-out 0.14s ease-in both;
+}
+
+::view-transition-new(island) {
+  animation: vt-in 0.24s ease-out 0.1s both;
+}
+
+/* The card itself: a dark box that grows from the small card's place to the
+   expanded view's (and back). What only one size has is inside its picture,
+   kept at its own size from the top left corner — never stretched — and fades
+   in as the box opens over it. */
+::view-transition-group(w-card) {
+  overflow: clip;
+  border-radius: 20px;
+  background: #141518;
+}
+
+::view-transition-old(w-card),
+::view-transition-new(w-card) {
+  height: 100%;
+  object-fit: none;
+  object-position: 0 0;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(w-card) {
+  animation: vt-out 0.16s ease-out both;
+}
+
+::view-transition-new(w-card) {
+  animation: vt-in 0.26s ease-out 0.08s both;
+}
+
+/* Words and lines (data-vtc="text"): moved, not stretched. The two pictures
+   keep their own size, from the left, and one gives way to the other.
+   Round controls and the countdown have no such class: they scale. */
+::view-transition-old(.w-text),
+::view-transition-new(.w-text) {
+  height: 100%;
+  object-fit: none;
+  object-position: 0 50%;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(.w-text) {
+  animation: vt-out 0.16s ease-out 0.06s both;
+}
+
+::view-transition-new(.w-text) {
+  animation: vt-in 0.2s ease-out both;
+}
+
+::view-transition-old(island-glow),
+::view-transition-new(island-glow) {
+  height: 100%;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.2s;
+}
+
+@keyframes vt-out {
+  to { opacity: 0; }
+}
+
+@keyframes vt-in {
+  from { opacity: 0; }
+}
+
+/* Reduced motion (the system's, or forced from the controls): no shared
+   element, no spring; views cross-fade in 120 ms and nothing else moves. */
+html.rm .view,
+html.rm .view.on {
+  transform: none;
+  transition: opacity 0.12s linear;
+}
+
+html.rm .wmini,
+html.rm .wmini.lifted,
+html.rm .timer-ring,
+html.rm .media-bar > i,
+html.rm #island-wrap {
+  transition: none;
+}
+
+/* ── Preview controls ───────────────────────────────────────────────────── */
+
+#controls {
+  max-width: 920px;
+  margin: 18px auto 0;
+  padding: 0 20px;
+  font: 400 12.5px var(--font);
+  color: #c5c8cd;
+  cursor: auto;
+}
+
+#controls h1 {
+  font: 600 17px var(--font);
+  color: var(--ink);
+}
+
+#controls .lead {
+  margin: 4px 0 14px;
+  color: #a2a7b0;
+  line-height: 1.5;
+  max-width: 820px;
+}
+
+#controls kbd {
+  font: 500 10.5px var(--mono);
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink-2);
+}
+
+.pc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pc {
+  padding: 14px 16px 16px;
+  border-radius: 16px;
+  background: rgba(13, 14, 17, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(14px);
+}
+
+.pc.wide {
+  grid-column: 1 / -1;
+}
+
+.pc h2 {
+  margin-bottom: 10px;
+  font: 600 11px var(--font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim-2);
+}
+
+.pc .hint {
+  margin-top: 9px;
+  font: 400 11.5px/1.45 var(--font);
+  color: var(--dim-3);
+}
+
+.pc-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pc .btn {
+  cursor: pointer;
+}
+
+.pc .switch {
+  cursor: pointer;
+}
+
+.pc .settings-row b {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.pc .settings-row small {
+  margin-left: auto;
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+}
+
+.pc .settings-row .dot {
+  width: 8px;
+  height: 8px;
+}
+
+.tile-toggles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 18px;
+  margin-bottom: 12px;
+}
+
+.slider-row {
+  display: grid;
+  grid-template-columns: 84px 1fr 62px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.slider-row input[type="range"] {
+  width: 100%;
+  cursor: pointer;
+}
+
+.slider-row output {
+  font: 500 11.5px var(--mono);
+  color: var(--ink-2);
+  text-align: right;
+}
+
+.swipe-meter {
+  position: relative;
+  height: 8px;
+  margin: 12px 0 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+/* Grows from the middle: right for "next tab", left for "previous". */
+.swipe-meter > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  background: var(--cyan);
+  border-radius: 4px;
+}
+
+.swipe-meter.cooling {
+  background: color-mix(in srgb, var(--amber) 34%, transparent);
+}
+
+.swipe-live {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font: 400 11.5px var(--mono);
+  color: var(--gh-text);
+}
+
+#readout {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 6px 14px;
+  font: 400 11.5px/1.45 var(--mono);
+  user-select: text;
+}
+
+#readout dt {
+  color: var(--dim-3);
+}
+
+#readout dd {
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+#readout dd.hot {
+  color: var(--amber);
+}
+
+#readout dd.live {
+  color: var(--red-text);
+}
+
+@media (max-width: 760px) {
+  .pc-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

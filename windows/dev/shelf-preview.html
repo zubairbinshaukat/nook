@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nook — shelf preview</title>
+    <!-- The app's own styles: the island, its cards, buttons, rows and fields. -->
+    <link rel="stylesheet" href="../src/style.css" />
+    <!-- What only this preview has: the page, the Shelf, the controls. -->
+    <link rel="stylesheet" href="./preview-c/shelf.css" />
+  </head>
+  <body>
+    <div id="desk">
+      <!-- Stands in for the transparent native window: fixed, never resized. -->
+      <div id="window" class="outlined">
+        <span id="window-label"></span>
+        <div id="island-wrap">
+          <div id="island-glow"></div>
+          <div id="island">
+            <div id="island-clip">
+              <div id="content">
+                <div id="header"></div>
+                <div id="views"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <main id="controls">
+        <h1>Preview controls</h1>
+        <p class="lead">
+          The Shelf with fake data (plans/tabs-plan.md): six small widgets that work where they stand, each with
+          an expanded view of the same state. Use a card's controls in place; tap its header, its empty area or
+          the corner icon to expand it. Drag or two-finger swipe to scroll the row (a drag never taps); hold a
+          card's header for 350 ms, then drag, to reorder. Back from an expanded view: <kbd>Esc</kbd>, swipe
+          right, or the back pill. Tabs: a click, <kbd>←</kbd> <kbd>→</kbd>, or a swipe past the row's end.
+        </p>
+
+        <div class="pc-grid">
+          <section class="pc wide">
+            <h2>Jump to</h2>
+            <div class="pc-btns" id="jump-btns"></div>
+            <p class="hint">
+              From the shelf, a jump to a widget is the same morph as a tap on its card; "Shelf" from an
+              expanded view is the same morph back. From anywhere else it is the island's ordinary change of view.
+            </p>
+          </section>
+
+          <section class="pc wide">
+            <h2>Use a control in place</h2>
+            <div class="pc-btns">
+              <button class="btn secondary" id="ctl-todo">Tick the newest To-do item</button>
+              <button class="btn secondary" id="ctl-media">Play / pause</button>
+              <button class="btn secondary" id="ctl-timer">Start / pause the timer</button>
+            </div>
+            <p class="hint">
+              Better done on the cards themselves: tick a box, type in "Add an item…" and press Enter, press
+              play, start the timer, add a reminder, press "Code" on a project. Then expand the card: it is the
+              same state, and a running timer keeps running in both sizes. These three buttons call the same
+              functions from outside, so it can be seen with a widget expanded too.
+            </p>
+          </section>
+
+          <section class="pc">
+            <h2>Agent alert</h2>
+            <div class="pc-btns">
+              <button class="btn secondary" id="alert-permission">Agent needs permission</button>
+              <button class="btn secondary" id="alert-question">Agent asks a question</button>
+            </div>
+            <p class="hint">
+              The card takes over at once, over any widget (the camera stops). Answering it, or "Back to …",
+              returns to where you were with the widget's state kept.
+            </p>
+          </section>
+
+          <section class="pc">
+            <h2>Motion and shape</h2>
+            <div class="settings-rows">
+              <div class="settings-row">
+                <button class="switch" id="force-reduced" aria-label="Force reduced motion"></button>
+                <b>Force reduced motion</b>
+                <small id="reduced-system"></small>
+              </div>
+              <div class="settings-row">
+                <button class="switch" id="force-fallback" aria-label="Force the fallback"></button>
+                <b>No View Transitions (fallback)</b>
+                <small id="vt-support"></small>
+              </div>
+              <div class="settings-row">
+                <button class="switch on" id="show-window" aria-label="Show the window outline"></button>
+                <b>Show the native window's outline</b>
+              </div>
+            </div>
+          </section>
+
+          <section class="pc">
+            <h2>Swipe tuning</h2>
+            <div class="slider-row">
+              <span>Threshold</span>
+              <input type="range" id="swipe-threshold" min="20" max="200" step="5" value="60" />
+              <output id="swipe-threshold-out"></output>
+            </div>
+            <div class="slider-row">
+              <span>Cooldown</span>
+              <input type="range" id="swipe-cooldown" min="100" max="1200" step="25" value="450" />
+              <output id="swipe-cooldown-out"></output>
+            </div>
+            <div class="swipe-meter" id="swipe-meter"><i></i></div>
+            <div class="swipe-live">
+              <span id="swipe-acc"></span>
+              <span id="swipe-cool"></span>
+            </div>
+            <p class="hint">
+              Wheel events with |deltaX| &gt; |deltaY| scroll the row first; at its end they add up, and past the
+              threshold one tab switches, then deltas are ignored for the cooldown. A wheel event never presses
+              anything. No trackpad? Shift + mouse wheel sends deltaX too, or drag the row.
+            </p>
+          </section>
+
+          <section class="pc">
+            <h2>Settings → Shelf (stand-in)</h2>
+            <div class="tile-toggles" id="tile-toggles"></div>
+            <div class="pc-btns">
+              <button class="btn secondary" id="reset-order">Reset order</button>
+            </div>
+            <p class="hint">
+              The order is saved in localStorage here; in the app it would be %APPDATA%\Nook\shelf.json.
+              A hidden widget's backend never runs.
+            </p>
+          </section>
+
+          <section class="pc wide">
+            <h2>Read-out</h2>
+            <dl id="readout"></dl>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="./shelf-preview.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nook First Run: Install Hooks, Shortcuts &amp; Tour</title>
+<meta name="description" content="Set up Nook in minutes: install the Claude Code hooks with a preview and backup, start a session, and learn the island, the Shelf and the three shortcuts.">
+<link rel="canonical" href="https://nook.zubyr.dev/guides/first-run/">
+<link rel="alternate" hreflang="x-default" href="https://nook.zubyr.dev/guides/first-run/">
+<link rel="alternate" hreflang="en" href="https://nook.zubyr.dev/guides/first-run/">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+<meta name="author" content="Zubair Bin Shaukat">
+<meta name="application-name" content="Nook">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0B0B0F" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F5F8" media="(prefers-color-scheme: light)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Nook">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Nook First Run: Install Hooks, Shortcuts &amp; Tour">
+<meta property="og:description" content="Set up Nook in minutes: install the Claude Code hooks with a preview and backup, start a session, and learn the island, the Shelf and the three shortcuts.">
+<meta property="og:url" content="https://nook.zubyr.dev/guides/first-run/">
+<meta property="og:image" content="https://nook.zubyr.dev/assets/img/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Nook, a Dynamic Island for Windows: Gullu the mascot beside the island showing Claude Code agents">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@zubyrdev">
+<meta name="twitter:creator" content="@zubyrdev">
+<meta name="twitter:title" content="Nook First Run: Install Hooks, Shortcuts &amp; Tour">
+<meta name="twitter:description" content="Set up Nook in minutes: install the Claude Code hooks with a preview and backup, start a session, and learn the island, the Shelf and the three shortcuts.">
+<meta name="twitter:image" content="https://nook.zubyr.dev/assets/img/og.png">
+<meta name="twitter:image:alt" content="Nook, a Dynamic Island for Windows, showing Claude Code agents">
+<link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/img/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400..650&display=swap">
+<link rel="stylesheet" href="/assets/css/site.css?v=1">
+<script>
+(function(){var r=document.documentElement;r.classList.add('js');try{var t=localStorage.getItem('nook-theme');if(t==='light'||t==='dark')r.setAttribute('data-theme',t)}catch(e){}})();
+</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://nook.zubyr.dev/#website","url":"https://nook.zubyr.dev/","name":"Nook","inLanguage":"en","publisher":{"@id":"https://nook.zubyr.dev/#author"}},{"@type":"Person","@id":"https://nook.zubyr.dev/#author","name":"Zubair Bin Shaukat","url":"https://zubyr.dev","sameAs":["https://zubyr.dev","https://github.com/zubairbinshaukat","https://www.linkedin.com/in/zubairbinshaukat","https://x.com/zubyrdev"]},{"@type":"HowTo","@id":"https://nook.zubyr.dev/guides/first-run/#howto","name":"Nook first run: hooks, your first session and a tour","description":"Set up Nook in minutes: install the Claude Code hooks with a preview and backup, start a session, and learn the island, the Shelf and the three shortcuts.","inLanguage":"en","image":"https://nook.zubyr.dev/assets/img/og.png","step":[{"@type":"HowToStep","position":1,"name":"Open Settings","text":"Choose Settings… from the Nook tray icon, or open it from the island.","url":"https://nook.zubyr.dev/guides/first-run/#steps"},{"@type":"HowToStep","position":2,"name":"Go to Claude Code and click Install hooks…","text":"Nook shows the exact diff of what will change in ~/.claude/settings.json and the path of the dated backup it will take.","url":"https://nook.zubyr.dev/guides/first-run/#steps"},{"@type":"HowToStep","position":3,"name":"Read the preview and confirm","text":"Nothing is written until you click the confirm button. Your own hooks and other settings are left untouched.","url":"https://nook.zubyr.dev/guides/first-run/#steps"},{"@type":"HowToStep","position":4,"name":"Optionally install the usage status line","text":"In the same section, install the usage limits entry so the island can show your 5-hour and weekly limits.","url":"https://nook.zubyr.dev/guides/first-run/#steps"},{"@type":"HowToStep","position":5,"name":"Start a new Claude Code session","text":"Open a terminal, run claude in a project, and send a prompt. Sessions started before the hooks were installed must be restarted.","url":"https://nook.zubyr.dev/guides/first-run/#steps"},{"@type":"HowToStep","position":6,"name":"Watch the island","text":"The pill shows how many sessions are working or need you. Point at it to open the panel.","url":"https://nook.zubyr.dev/guides/first-run/#steps"}],"author":{"@id":"https://nook.zubyr.dev/#author"},"datePublished":"2026-10-04","dateModified":"2026-10-04"},{"@type":"BreadcrumbList","@id":"https://nook.zubyr.dev/guides/first-run/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Nook","item":"https://nook.zubyr.dev/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://nook.zubyr.dev/guides/"},{"@type":"ListItem","position":3,"name":"First run","item":"https://nook.zubyr.dev/guides/first-run/"}]}]}</script>
+</head>
+<body id="top">
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="progress" data-progress aria-hidden="true"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"/></symbol>
+<symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-4 1-4-2-6-2m12 4v-3.500c0-1 .1-1.400-.5-2 2.800-.3 5.500-1.400 5.500-6a4.600 4.600 0 0 0-1.300-3.200 4.200 4.200 0 0 0-.1-3.200s-1.100-.3-3.500 1.300a12.300 12.300 0 0 0-6.200 0C6.500 2.800 5.400 3.100 5.400 3.100a4.200 4.200 0 0 0-.1 3.200A4.600 4.600 0 0 0 4 9.500c0 4.600 2.700 5.700 5.500 6-.6.600-.6 1.200-.5 2V21"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.500A8 8 0 0 1 9.500 4 8 8 0 1 0 20 14.500z"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5m0 0l-6 6m6-6l6 6"/></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3l10 18H2zM12 10v5m0 3h.01"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><path d="M12 8h.01M11 12h1v5h1M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.500l4.500 4.500L19 7.500"/></symbol>
+</defs></svg>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="/" aria-label="Nook, home"><img src="/assets/img/gullu-96.png" width="32" height="32" alt="" decoding="async"><span>Nook</span></a>
+    <nav aria-label="Primary" style="display:contents">
+      <ul class="nav-links" data-nav-links id="site-menu">
+        <li><a href="/#how">How it works</a></li>
+        <li><a href="/#features">Features</a></li>
+        <li><a href="/privacy/">Privacy</a></li>
+        <li><a href="/guides/install/">Install</a></li>
+        <li><a href="/guides/" aria-current="page">Guides</a></li>
+        <li><a href="/guides/faq/">FAQ</a></li>
+      </ul>
+    </nav>
+    <div class="nav-tools">
+      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch theme"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      <button class="icon-btn nav-menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-menu" aria-label="Menu"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-menu"/></svg></button>
+      <a class="btn btn-primary nav-cta" href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+<div class="container doc-wrap">
+  <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="/">Nook</a></li><li><a href="/guides/">Guides</a></li><li aria-current="page">First run</li></ol></nav>
+  <header class="doc-head">
+    <p class="eyebrow">Guide</p>
+    <h1>Nook first run: hooks, your first session and a tour</h1>
+    <p class="lede">After installing Nook you connect it to Claude Code once. This guide covers the hooks, the optional usage status line, what you will see, the shortcuts, approvals and auto-hide.</p>
+    <p class="doc-meta">Last updated <time datetime="2026-10-04">2026-10-04</time> &middot; Nook 0.1.0 &middot; <a href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer">Was this helpful? Report a problem</a></p>
+  </header>
+  <div class="doc-grid">
+    <aside class="doc-side"><nav class="toc" aria-label="On this page"><p class="toc-h">On this page</p><ol><li><a href="#steps">Steps</a></li><li><a href="#settings">Open Settings</a></li><li><a href="#install-hooks">Install the Claude Code hooks</a></li><li><a href="#usage-status-line">Install the usage status line (optional)</a></li><li><a href="#first-session">Start a Claude Code session</a></li><li><a href="#tour">A tour of the island</a></li><li><a href="#shortcuts">Keyboard shortcuts</a></li><li><a href="#approvals">Approvals and questions</a></li><li><a href="#auto-hide">Auto-hide and visibility</a></li></ol></nav></aside>
+    <article class="prose doc-body">
+
+<h2 id="steps">Steps</h2>
+<ol class="howto"><li><strong>Open Settings.</strong> Choose <strong>Settings&hellip;</strong> from the Nook tray icon, or open it from the island.</li><li><strong>Go to Claude Code and click Install hooks&hellip;.</strong> Nook shows the exact diff of what will change in <code>~/.claude/settings.json</code> and the path of the dated backup it will take.</li><li><strong>Read the preview and confirm.</strong> Nothing is written until you click the confirm button. Your own hooks and other settings are left untouched.</li><li><strong>Optionally install the usage status line.</strong> In the same section, install the usage limits entry so the island can show your 5-hour and weekly limits.</li><li><strong>Start a new Claude Code session.</strong> Open a terminal, run <code>claude</code> in a project, and send a prompt. Sessions started before the hooks were installed must be restarted.</li><li><strong>Watch the island.</strong> The pill shows how many sessions are working or need you. Point at it to open the panel.</li></ol>
+
+<h2 id="settings">Open Settings</h2>
+<p>Use the Nook icon in the notification area and choose <strong>Settings&hellip;</strong>. The window has six sections: <strong>Claude Code</strong>, <strong>General</strong>, <strong>Island</strong>, <strong>Shelf</strong>, <strong>Appearance</strong> and <strong>About</strong>. Everything in this guide starts from the first one.</p>
+<!-- Replace .shot with <img src=... width height alt> -->
+<figure class="shot" data-shot="first-run-1"><div class="shot-box" role="img" aria-label="Screenshot placeholder: Settings, Claude Code section, showing Hooks as Not installed with an Install hooks button"><b>Screenshot coming:</b> <span>Settings, Claude Code section, showing Hooks as Not installed with an Install hooks button</span></div><figcaption>Settings, Claude Code section, showing Hooks as Not installed with an Install hooks button</figcaption></figure>
+
+<h2 id="install-hooks">Install the Claude Code hooks</h2>
+<p>Nook learns what Claude Code is doing through Claude Code&rsquo;s hooks. Installing them changes <code>%USERPROFILE%\.claude\settings.json</code>, which is your file, so Nook goes slowly and shows its work:</p>
+<ol>
+<li>Click <strong>Install hooks&hellip;</strong>.</li>
+<li>Nook shows a <strong>preview</strong>: the exact diff of what will change, and the path of the <strong>dated backup</strong> it will take (for example <code>settings.json.bak-20261004-101500</code>, beside the original).</li>
+<li>Click to confirm. Only then is anything written. The diff is checked again at that moment: if the file changed since you looked, Nook stops and shows you a new diff instead.</li>
+<li>Open a <strong>new</strong> Claude Code session to pick the hooks up.</li>
+</ol>
+<!-- Replace .shot with <img src=... width height alt> -->
+<figure class="shot" data-shot="first-run-2"><div class="shot-box" role="img" aria-label="Screenshot placeholder: The diff preview with the backup path and the confirm button"><b>Screenshot coming:</b> <span>The diff preview with the backup path and the confirm button</span></div><figcaption>The diff preview with the backup path and the confirm button</figcaption></figure>
+<p>Hooks that belong to other tools are never touched. The full story, including what exactly is written, is in <a href="/guides/claude-code-hooks/">How Nook talks to Claude Code</a>. To undo it, use <strong>Uninstall hooks&hellip;</strong> in the same place.</p>
+
+<h2 id="usage-status-line">Install the usage status line (optional)</h2>
+<p>The 5-hour and weekly usage limits reach Nook through Claude Code&rsquo;s status line. In <strong>Settings &rarr; Claude Code</strong> there is a separate <strong>Usage limits</strong> block with its own <strong>Install&hellip;</strong> button and the same preview, backup and click.</p>
+<ul>
+<li>If you already have a status line, Nook keeps it: your command still runs and still shows. Uninstalling puts it back exactly as it was.</li>
+<li>If you have none, Nook prints nothing of its own. Claude Code then hides its keyboard hints (&ldquo;? for shortcuts&rdquo;), because any status line replaces them.</li>
+<li>Numbers appear on subscription plans and refresh only while a session runs.</li>
+</ul>
+<p>There is also an optional <strong>Reply format</strong> block that adds a marked section to your <code>CLAUDE.md</code>, asking Claude to shape replies so Nook can show decisions, warnings and tips. Skip it if you do not want it.</p>
+
+<h2 id="first-session">Start a Claude Code session</h2>
+<p>In any terminal, go to a project and run <code>claude</code>. Send a prompt. Within a moment a row for the session appears in the island with its state: <em>working</em>, <em>thinking</em>, <em>needs you</em>, <em>done</em> or <em>error</em>. Start a second session in another folder and you get a second row. Sessions that were already running before you installed the hooks will not appear until they are restarted.</p>
+<p>The same works in the integrated terminal of VS Code, and in Cursor&rsquo;s terminal (see <a href="/guides/cursor/">Cursor and Nook</a>).</p>
+
+<h2 id="tour">A tour of the island</h2>
+<p>The island lives at the top of your screen. It is folded to a thin pill most of the time, opens when you point at it, and opens by itself when a session needs you. Its mascot, Gullu, wears the state of your sessions.</p>
+<h3>Home</h3>
+<p>The first page lists every running session, one row each, with its state and what it is doing. The header shows your usage limits (if installed) and your PC&rsquo;s CPU, GPU and RAM. A button on each row takes you to the window the session runs in.</p>
+<h3>The session panel</h3>
+<p>Open a session to see its last message, its subagents as a tree, and its pending permission requests or questions. Edits show a real diff.</p>
+<h3>The Shelf</h3>
+<p>The Shelf is a row of small widgets for the moments between prompts: To-do, Timer, Reminders, Media, Mirror and Projects. See <a href="/guides/shelf-widgets/">Shelf widgets</a>.</p>
+<!-- Replace .shot with <img src=... width height alt> -->
+<figure class="shot" data-shot="first-run-3"><div class="shot-box" role="img" aria-label="Screenshot placeholder: The open island showing home with three sessions, the header usage and system readout"><b>Screenshot coming:</b> <span>The open island showing home with three sessions, the header usage and system readout</span></div><figcaption>The open island showing home with three sessions, the header usage and system readout</figcaption></figure>
+
+<h2 id="shortcuts">Keyboard shortcuts</h2>
+<p>Nook has three global shortcuts. They work in any app, and each can be changed or switched off in Settings.</p>
+<table>
+<tr><th>Shortcut</th><th>What it does</th></tr>
+<tr><td><kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Alt</kbd> <kbd class="kbd">Space</kbd></td><td>Expand the session panel large, or shrink it again.</td></tr>
+<tr><td><kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Shift</kbd> <kbd class="kbd">Space</kbd></td><td>Open the session panel at its normal size. Press <kbd class="kbd">Space</kbd> to expand it.</td></tr>
+<tr><td><kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Alt</kbd> <kbd class="kbd">Enter</kbd></td><td>Go to the session that needs you: brings the window of that session forward.</td></tr>
+</table>
+<p>If a shortcut does nothing, another app may hold the key combination. See <a href="/guides/troubleshooting/#shortcut-conflict">shortcut conflicts</a>.</p>
+
+<h2 id="approvals">Approvals and questions</h2>
+<p>When Claude Code wants to run a command, edit a file or ask you something, the island opens on that request. You can <strong>allow</strong> or <strong>deny</strong> a permission request, or answer a question, right there. A few things to know:</p>
+<ul>
+<li><strong>Never without a click.</strong> Nook never approves anything for you.</li>
+<li><strong>The terminal still works.</strong> If nobody answers within about two minutes, or if Nook is closed, Claude Code asks in the terminal as usual. Answering in the terminal also works while the island is showing the same request.</li>
+<li>Edits show a real diff, so you can see what you are allowing.</li>
+</ul>
+
+<h2 id="auto-hide">Auto-hide and visibility</h2>
+<p>In <strong>Settings &rarr; Island &rarr; Visibility</strong> you choose how the folded island behaves:</p>
+<ul>
+<li><strong>Auto-hide the folded island after</strong> 5, 10, 30 or 60 seconds, or never. The default is one minute. Point at the top edge of the screen to wake it.</li>
+<li><strong>Hide only when no session is active</strong>: while a session is working, thinking or asking, the island stays.</li>
+<li><strong>Hide in full-screen apps</strong> (on by default): the island stays out of the way of videos, games and presentations, but a permission request or a question still shows so you can answer it.</li>
+</ul>
+<p>Under <strong>General</strong> you can pick which display it lives on (the main display, or the one the mouse is on) and whether Nook launches at startup. Under <strong>Appearance</strong> there are themes, reduced motion and Gullu&rsquo;s playful reactions.</p>
+<p>Next: <a href="/guides/claude-code-hooks/">how the hooks work</a>, or <a href="/guides/troubleshooting/">troubleshooting</a> if no sessions show up.</p>
+
+    </article>
+  </div>
+  <nav class="pager" aria-label="More guides"><a class="pager-a pager-prev" href="/guides/install/" rel="prev"><span>Previous</span><b>Install Nook on Windows</b></a><a class="pager-a pager-next" href="/guides/claude-code-hooks/" rel="next"><span>Next</span><b>How Nook talks to Claude Code</b></a></nav>
+  <aside class="card doc-feedback" aria-label="Feedback"><h2>Was this helpful?</h2><p>If something here is wrong, unclear or out of date, tell us. A short issue is enough.</p><div class="cta-row"><a class="btn btn-ghost" href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer"><svg class="i" aria-hidden="true"><use href="#i-github"/></svg>Report a problem</a><a class="btn btn-ghost" href="/guides/">All guides</a></div></aside>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-credit">
+        <p class="by">Designed &amp; built by <span>Zubair Bin Shaukat</span></p>
+        <p>Software engineer from Lahore, at Devsmat. Nook by Zubair is a small, careful tool for people who live in Claude Code.</p>
+        <div class="social">
+          <a class="btn btn-ghost" href="https://zubyr.dev" target="_blank" rel="noopener noreferrer">zubyr.dev</a>
+          <a class="btn btn-ghost" href="https://github.com/zubairbinshaukat" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a class="btn btn-ghost" href="https://www.linkedin.com/in/zubairbinshaukat" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          <a class="btn btn-ghost" href="https://x.com/zubyrdev" target="_blank" rel="noopener noreferrer">X</a>
+        </div>
+      </div>
+      <nav class="footer-col" aria-label="Product"><h2>Product</h2><ul>
+        <li><a href="/#how">How it works</a></li><li><a href="/#features">Features</a></li><li><a href="/#privacy">Privacy</a></li><li><a href="/#gullu">Meet Gullu</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a></li></ul></nav>
+      <nav class="footer-col" aria-label="Guides"><h2>Guides</h2><ul>
+        <li><a href="/guides/">All guides</a></li><li><a href="/guides/install/">Install Nook</a></li><li><a href="/guides/first-run/">First run</a></li><li><a href="/guides/troubleshooting/">Troubleshooting</a></li><li><a href="/guides/faq/">FAQ</a></li></ul></nav>
+      <nav class="footer-col" aria-label="Project"><h2>Project</h2><ul>
+        <li><a href="https://github.com/zubairbinshaukat/nook" target="_blank" rel="noopener noreferrer">Source on GitHub</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases" target="_blank" rel="noopener noreferrer">Releases</a></li><li><a href="/changelog/">Changelog</a></li><li><a href="https://github.com/zubairbinshaukat/nook/issues" target="_blank" rel="noopener noreferrer">Report an issue</a></li><li><a href="https://github.com/zubairbinshaukat/nook/blob/main/NOTICE" target="_blank" rel="noopener noreferrer">NOTICE</a></li></ul></nav>
+      <nav class="footer-col" aria-label="Legal"><h2>Legal</h2><ul>
+        <li><a href="/privacy/">Privacy</a></li><li><a href="/terms/">Terms</a></li><li><a href="https://github.com/zubairbinshaukat/nook/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT license</a></li><li><a href="https://github.com/zubairbinshaukat/nook/blob/main/NOTICE" target="_blank" rel="noopener noreferrer">Credits</a></li></ul></nav>
+    </div>
+    <div class="footer-legal">
+      <p>Nook is an independent project and is not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks of Anthropic.<br>Based on Coucou by Louis Raillé (MIT). See <a href="https://github.com/zubairbinshaukat/nook/blob/main/NOTICE" target="_blank" rel="noopener noreferrer">NOTICE</a>. No cookies, no analytics.</p>
+      <p>Made in Lahore &middot; &copy; 2026 Zubair Bin Shaukat &middot; <a href="#top" data-top class="to-top-inline">Back to top</a></p>
+    </div>
+  </div>
+  <div class="footer-mark-wrap" aria-hidden="true">
+    <img class="footer-peek" src="/assets/img/gullu-320.png" width="160" height="160" alt="" loading="lazy">
+    <p class="footer-mark">Nook</p>
+  </div>
+</footer>
+
+<a class="btn btn-ghost to-top" href="#top" data-to-top aria-label="Back to top"><svg class="i" aria-hidden="true"><use href="#i-up"/></svg></a>
+
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.20/dist/lenis.min.js" defer></script>
+<script src="/assets/js/site.js?v=1" defer></script>
+</body>
+</html>

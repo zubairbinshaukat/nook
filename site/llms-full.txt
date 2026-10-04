@@ -1,0 +1,888 @@
+# Nook
+
+> Nook is a free, open-source Dynamic Island for Claude Code agents on Windows 10 and 11. It shows every running Claude Code session at the top of the screen and lets you approve permissions and answer questions with a click. 100% local: no network calls, no telemetry, no account.
+
+This file contains the full text of the Nook website (https://nook.zubyr.dev/) in Markdown, so a model can read the whole site in one fetch. It mirrors the pages; if they differ, the pages and the repository (https://github.com/zubairbinshaukat/nook) are authoritative. Site last updated 2026-10-04. Index of pages: https://nook.zubyr.dev/llms.txt
+
+---
+
+# Nook: a Dynamic Island for Windows, for Claude Code agents
+
+URL: https://nook.zubyr.dev/
+
+Nook for Windows is a free, open-source Dynamic Island for Claude Code agents. It sits at the top of your screen and shows every running Claude Code session across your projects. See who is working, who is done and who needs you, then approve or answer with a click. 100% local. Windows 10 and 11. Version 0.1.0. Free and open source (MIT). Download: https://github.com/zubairbinshaukat/nook/releases/latest
+
+## How it works
+
+Hooks in, island out. Nothing leaves your PC.
+
+1. **Claude Code runs a hook.** On each event (a prompt, a tool call, a permission request) Claude Code runs `nook-hook`, a tiny relay. Hooks are installed from Nook's settings after a preview and a backup.
+2. **The relay hands it to Nook.** It passes the event to the app over a local named pipe, giving Nook 300 ms to answer. If Nook is closed or slow, the relay exits and Claude Code carries on untouched.
+3. **The island shows it.** Every session appears at the top of your screen with its state. Approvals and questions can be answered right there. Nothing is ever approved without your click.
+
+Flow: Claude Code -> nook-hook -> local pipe -> Nook island.
+
+## Features
+
+- **Every session at a glance.** One row per Claude Code session, across all your projects, each with its live state: working, thinking, needs you, done or error. Fold the island to a pill, open it when you care.
+- **Approve or answer from the island.** Permission requests and questions show up where you are. One click to allow or deny, never automatic.
+- **Usage limits.** See how much of your Claude usage window you have used before a long run, without opening a dashboard.
+- **CPU, GPU and RAM.** A live read of your machine in the island.
+- **Subagents, as a tree.** When a session fans out to subagents, they are listed under their parent with their own state.
+- **A Shelf of small widgets.** To-do, Timer, Reminders, Media, Mirror and Projects.
+- **Go to the session that needs you.** One shortcut jumps to the session waiting on you.
+- **Keyboard shortcuts.** Defaults, all changeable in Settings: Ctrl+Alt+Space expands or shrinks the panel; Ctrl+Shift+Space opens the panel at normal size; Ctrl+Alt+Enter goes to the session that needs you.
+
+New in v0.1.x (unreleased build): Cursor agent sessions appear next to Claude Code ones, status only (no approving or answering from the island). Set up in Settings > Cursor > Install.
+
+## Privacy and trust
+
+- **No network, no telemetry.** No network calls, no analytics, no account. Events travel only from Claude Code to Nook, on your own PC.
+- **Never without a click.** Nook never approves anything for you. If nobody answers in time, Claude Code simply asks in the terminal as usual.
+- **Never blocks Claude Code.** The relay gives Nook 300 ms and exits cleanly if it is closed, slow or crashed.
+- **Safe settings changes.** Nook shows the exact diff and takes a dated backup before it touches ~/.claude/settings.json. Only after your click.
+
+This site sets no cookies and uses no analytics.
+
+## Meet Gullu
+
+Gullu is Nook's mascot, a fluffy cream character with a small green sprout on its head. It lives in the island and wears the state of your sessions: busy while Claude works, curious when it thinks, alert when it needs you, happy when it is done. Playful reactions can be switched off in Settings.
+
+## Install
+
+Windows 10 or 11. WebView2 ships with both.
+
+1. Download `Nook-Windows-0.1.0-setup.exe` from the latest release on GitHub: https://github.com/zubairbinshaukat/nook/releases/latest
+2. Run it, then confirm once. The installer is not code-signed yet, so SmartScreen may say "Windows protected your PC". Choose More info, then Run anyway.
+3. Install the hooks: Settings > Claude Code > Install hooks, review the preview, click. Start a Claude Code session and watch the island.
+
+Check the download (optional, recommended): compare the hash with the one for the installer in SHA256SUMS.txt on the release page.
+
+```powershell
+Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256
+```
+
+## Landing page FAQ
+
+### Is Nook free and safe?
+
+Nook is free and open source (MIT-licensed code), so anyone can read exactly what it does. It runs 100% locally: no network calls, no telemetry and no account.
+
+### Does Nook send my code or prompts anywhere?
+
+No. Events go from Claude Code’s hooks to a small local relay and then to Nook, all on your own computer. Nook makes no network calls and has no telemetry.
+
+### Will Nook approve things for me or get in Claude Code’s way?
+
+No. Nook never approves anything without your click, and it never blocks Claude Code. The relay gives the app 300 ms to pick up; if Nook is closed, slow or crashed, it exits and Claude Code asks in the terminal as usual.
+
+### Does Nook change my Claude Code settings?
+
+Only when you ask. Installing hooks shows the exact diff of what will change in ~/.claude/settings.json and takes a dated backup first. Nothing is written until you click, hooks from other tools are left alone, and Uninstall hooks removes only Nook’s entries the same way.
+
+### Why does Windows show "Windows protected your PC"?
+
+The installer is not code-signed yet, and SmartScreen does not know new, unsigned programs. If you downloaded it from the official GitHub release, choose More info, then Run anyway. You can verify the download with Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256 and compare it with SHA256SUMS.txt, or build Nook from source.
+
+### My antivirus flagged nook-hook.exe. What now?
+
+That is a typical false positive for small, unsigned programs that other programs start often. You can report it to Microsoft at https://www.microsoft.com/wdsi/filesubmission as "Software developer" and "Incorrectly detected", or build Nook from source.
+
+### Which systems and Claude Code setups does it work with?
+
+Nook 0.1.0 is built for Windows 10 and 11. It follows Claude Code through Claude Code’s hooks, so sessions appear whether you start Claude Code in a terminal window or in the integrated terminal of an editor such as VS Code.
+
+### Does Nook support Cursor or other agents?
+
+Yes. Nook shows Cursor agent sessions next to Claude Code ones, status only: you can see what a Cursor agent is doing, but you cannot approve or answer from the island. Turn it on in Settings, Cursor, Install (preview, dated backup, click). New in v0.1.x (unreleased build). Claude Code running inside Cursor’s terminal works as a normal Claude Code session.
+
+### Does it slow down my PC?
+
+Nook is a small desktop app that reacts to events from Claude Code’s hooks. It also shows CPU, GPU and RAM in the island, so you can check its footprint on your own machine.
+
+### Who makes Nook, and is it affiliated with Anthropic?
+
+Nook is an independent open-source project by Zubair Bin Shaukat, a software engineer from Lahore. It is based on Coucou by Louis Raillé (MIT), with credit to Edurique’s Windows multi-session work, and is not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks of Anthropic.
+
+## Who makes Nook
+
+Nook is an independent open-source project by Zubair Bin Shaukat, a software engineer from Lahore, at Devsmat (https://zubyr.dev, https://github.com/zubairbinshaukat, https://www.linkedin.com/in/zubairbinshaukat, https://x.com/zubyrdev). Source: https://github.com/zubairbinshaukat/nook. Based on Coucou by Louis Raillé (MIT). Not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks of Anthropic.
+
+---
+
+# How to download and install Nook on Windows
+
+URL: https://nook.zubyr.dev/guides/install/
+Last updated: 2026-10-04
+
+Nook is a free, open-source Dynamic Island for Claude Code agents. This guide takes you from the download to your first session, including the SmartScreen warning and a clean uninstall.
+
+## Install in six steps
+
+1. **Check the requirements.** You need Windows 10 or 11 (64-bit), Claude Code, and the WebView2 runtime, which comes with Windows 11 and with current Windows 10.
+2. **Download the installer.** Open the [latest release on GitHub](https://github.com/zubairbinshaukat/nook/releases/latest) and download `Nook-Windows-0.1.0-setup.exe` and `SHA256SUMS.txt`.
+3. **Verify the SHA256 hash.** In PowerShell run `Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256` and compare the result with the installer line in `SHA256SUMS.txt`.
+4. **Run the installer.** Double-click the installer. If Windows shows “Windows protected your PC”, choose **More info**, then **Run anyway**. The installer is not code-signed yet.
+5. **Let Nook start.** The installer works for your user account and needs no administrator rights. When it finishes, Nook starts: look for the thin island at the top of your screen and the Nook icon in the notification area.
+6. **Install the Claude Code hooks.** Open **Settings → Claude Code → Install hooks…**, read the preview, and click. Then start a new Claude Code session.
+
+The sections below explain each step. If anything goes wrong, see [troubleshooting](https://nook.zubyr.dev/guides/troubleshooting/).
+
+## Requirements
+
+- **Windows 10 or Windows 11, 64-bit (x64).**
+- **Claude Code**, installed and working. Nook shows Claude Code sessions, so it has nothing to show without it.
+- **WebView2.** This is the Microsoft component that draws Nook’s window. It ships with Windows 11 and with current Windows 10, so you usually have it already. If Nook does not start, see [Nook does not start](https://nook.zubyr.dev/guides/troubleshooting/#wont-start).
+- No administrator rights. Nook installs for the current user.
+
+## Download
+
+Get the files from the [latest release on GitHub](https://github.com/zubairbinshaukat/nook/releases/latest). Download two files:
+
+- `Nook-Windows-0.1.0-setup.exe`, the installer.
+- `SHA256SUMS.txt`, the SHA-256 hash of the installer and of the two programs inside it (`nook.exe` and `nook-hook.exe`).
+
+Only download Nook from the official release page linked above. You can also build it from source; the [README](https://github.com/zubairbinshaukat/nook#build-from-source) lists the tools you need.
+
+## Verify the download
+
+A checksum proves the file you have is the file that was published. Open PowerShell in the folder with the download and run:
+
+```powershell
+Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256
+```
+
+The hash PowerShell prints must be the same as the one on the installer’s line in `SHA256SUMS.txt`. Compare them letter by letter, or paste both into a text editor and search for one in the other. If they differ, delete the file and download it again from the release page. The same check works for an installed `nook.exe` or `nook-hook.exe`.
+
+## The SmartScreen warning
+
+The first time you run the installer, Windows may show **Windows protected your PC**.
+
+1. Choose **More info**. A second button appears.
+2. Choose **Run anyway**.
+
+### Why does this happen?
+
+Releases are unsigned for now. SmartScreen does not know new programs that are not code-signed, so it warns about them, whatever they do. Only choose Run anyway if you got the installer from the official release and its hash matches. Code signing is planned through the [SignPath Foundation](https://signpath.org)’s free programme once the project qualifies. When that happens the warning should fade. Until then Nook is open source, so you can read the code or build it yourself.
+
+> **Antivirus flagged nook-hook.exe?** Small unsigned programs that other programs start often are sometimes flagged by heuristics. That is a false positive. You can report it to Microsoft at [www.microsoft.com/wdsi/filesubmission](https://www.microsoft.com/wdsi/filesubmission) as “Software developer” and “Incorrectly detected”. See [troubleshooting](https://nook.zubyr.dev/guides/troubleshooting/#antivirus).
+
+## Run the installer
+
+The installer is a standard NSIS setup that installs for your user account, so Windows should not ask for administrator permission. When it finishes, Nook starts. You should see:
+
+- a thin island, folded to a pill, at the top of your screen (it rests there and opens when you point at it or when a session needs you);
+- a Nook icon in the notification area (tray) with **Open Nook**, **Settings…**, **Pause** and **Quit**.
+
+Next, install the Claude Code hooks so sessions show up. The [first-run guide](https://nook.zubyr.dev/guides/first-run/) walks through it.
+
+## Where Nook keeps its files
+
+| What | Where |
+| --- | --- |
+| Relay (`nook-hook.exe`) | `%LOCALAPPDATA%\Nook\bin\nook-hook.exe`, copied there when Nook starts |
+| Log | `%LOCALAPPDATA%\Nook\nook.log` |
+| Preferences | `%APPDATA%\Nook\settings.json` |
+| Shelf data (to-dos, notes, reminders) | `%APPDATA%\Nook\shelf.json` |
+| Named pipe | `\\.\pipe\nook-<your user SID>` |
+| Claude Code settings Nook edits (only after your click) | `%USERPROFILE%\.claude\settings.json` |
+
+The log records event names and decisions, never the content of your sessions. See the [privacy page](https://nook.zubyr.dev/privacy/) for everything Nook stores.
+
+## Uninstall
+
+1. **Remove the hooks first.** Open Nook’s **Settings → Claude Code** and click **Uninstall hooks…** (and **Uninstall…** for the usage status line if you installed it). Each shows a preview, takes a dated backup and waits for your click. Uninstalling the app does not edit `~/.claude/settings.json`, so if you skip this the entries stay behind and point at a relay that is gone.
+2. Quit Nook from the tray icon.
+3. Open **Settings → Apps → Installed apps**, find **Nook** and choose **Uninstall**.
+
+The uninstaller removes `%LOCALAPPDATA%\Nook\bin` and `nook.log`. Your preferences and Shelf data in `%APPDATA%\Nook` usually stay; delete that folder too if you want a clean slate.
+
+> Already uninstalled without removing the hooks? You can open Nook again, or remove the entries whose command contains `nook-hook` from `~/.claude/settings.json` by hand. Take a copy of the file first.
+
+---
+
+# Nook first run: hooks, your first session and a tour
+
+URL: https://nook.zubyr.dev/guides/first-run/
+Last updated: 2026-10-04
+
+After installing Nook you connect it to Claude Code once. This guide covers the hooks, the optional usage status line, what you will see, the shortcuts, approvals and auto-hide.
+
+## Steps
+
+1. **Open Settings.** Choose **Settings…** from the Nook tray icon, or open it from the island.
+2. **Go to Claude Code and click Install hooks….** Nook shows the exact diff of what will change in `~/.claude/settings.json` and the path of the dated backup it will take.
+3. **Read the preview and confirm.** Nothing is written until you click the confirm button. Your own hooks and other settings are left untouched.
+4. **Optionally install the usage status line.** In the same section, install the usage limits entry so the island can show your 5-hour and weekly limits.
+5. **Start a new Claude Code session.** Open a terminal, run `claude` in a project, and send a prompt. Sessions started before the hooks were installed must be restarted.
+6. **Watch the island.** The pill shows how many sessions are working or need you. Point at it to open the panel.
+
+## Open Settings
+
+Use the Nook icon in the notification area and choose **Settings…**. The window has six sections: **Claude Code**, **General**, **Island**, **Shelf**, **Appearance** and **About**. Everything in this guide starts from the first one.
+
+## Install the Claude Code hooks
+
+Nook learns what Claude Code is doing through Claude Code’s hooks. Installing them changes `%USERPROFILE%\.claude\settings.json`, which is your file, so Nook goes slowly and shows its work:
+
+1. Click **Install hooks…**.
+2. Nook shows a **preview**: the exact diff of what will change, and the path of the **dated backup** it will take (for example `settings.json.bak-20261004-101500`, beside the original).
+3. Click to confirm. Only then is anything written. The diff is checked again at that moment: if the file changed since you looked, Nook stops and shows you a new diff instead.
+4. Open a **new** Claude Code session to pick the hooks up.
+
+Hooks that belong to other tools are never touched. The full story, including what exactly is written, is in [How Nook talks to Claude Code](https://nook.zubyr.dev/guides/claude-code-hooks/). To undo it, use **Uninstall hooks…** in the same place.
+
+## Install the usage status line (optional)
+
+The 5-hour and weekly usage limits reach Nook through Claude Code’s status line. In **Settings → Claude Code** there is a separate **Usage limits** block with its own **Install…** button and the same preview, backup and click.
+
+- If you already have a status line, Nook keeps it: your command still runs and still shows. Uninstalling puts it back exactly as it was.
+- If you have none, Nook prints nothing of its own. Claude Code then hides its keyboard hints (“? for shortcuts”), because any status line replaces them.
+- Numbers appear on subscription plans and refresh only while a session runs.
+
+There is also an optional **Reply format** block that adds a marked section to your `CLAUDE.md`, asking Claude to shape replies so Nook can show decisions, warnings and tips. Skip it if you do not want it.
+
+## Start a Claude Code session
+
+In any terminal, go to a project and run `claude`. Send a prompt. Within a moment a row for the session appears in the island with its state: *working*, *thinking*, *needs you*, *done* or *error*. Start a second session in another folder and you get a second row. Sessions that were already running before you installed the hooks will not appear until they are restarted.
+
+The same works in the integrated terminal of VS Code, and in Cursor’s terminal (see [Cursor and Nook](https://nook.zubyr.dev/guides/cursor/)).
+
+## A tour of the island
+
+The island lives at the top of your screen. It is folded to a thin pill most of the time, opens when you point at it, and opens by itself when a session needs you. Its mascot, Gullu, wears the state of your sessions.
+
+### Home
+
+The first page lists every running session, one row each, with its state and what it is doing. The header shows your usage limits (if installed) and your PC’s CPU, GPU and RAM. A button on each row takes you to the window the session runs in.
+
+### The session panel
+
+Open a session to see its last message, its subagents as a tree, and its pending permission requests or questions. Edits show a real diff.
+
+### The Shelf
+
+The Shelf is a row of small widgets for the moments between prompts: To-do, Timer, Reminders, Media, Mirror and Projects. See [Shelf widgets](https://nook.zubyr.dev/guides/shelf-widgets/).
+
+## Keyboard shortcuts
+
+Nook has three global shortcuts. They work in any app, and each can be changed or switched off in Settings.
+
+| Shortcut | What it does |
+| --- | --- |
+| Ctrl Alt Space | Expand the session panel large, or shrink it again. |
+| Ctrl Shift Space | Open the session panel at its normal size. Press Space to expand it. |
+| Ctrl Alt Enter | Go to the session that needs you: brings the window of that session forward. |
+
+If a shortcut does nothing, another app may hold the key combination. See [shortcut conflicts](https://nook.zubyr.dev/guides/troubleshooting/#shortcut-conflict).
+
+## Approvals and questions
+
+When Claude Code wants to run a command, edit a file or ask you something, the island opens on that request. You can **allow** or **deny** a permission request, or answer a question, right there. A few things to know:
+
+- **Never without a click.** Nook never approves anything for you.
+- **The terminal still works.** If nobody answers within about two minutes, or if Nook is closed, Claude Code asks in the terminal as usual. Answering in the terminal also works while the island is showing the same request.
+- Edits show a real diff, so you can see what you are allowing.
+
+## Auto-hide and visibility
+
+In **Settings → Island → Visibility** you choose how the folded island behaves:
+
+- **Auto-hide the folded island after** 5, 10, 30 or 60 seconds, or never. The default is one minute. Point at the top edge of the screen to wake it.
+- **Hide only when no session is active**: while a session is working, thinking or asking, the island stays.
+- **Hide in full-screen apps** (on by default): the island stays out of the way of videos, games and presentations, but a permission request or a question still shows so you can answer it.
+
+Under **General** you can pick which display it lives on (the main display, or the one the mouse is on) and whether Nook launches at startup. Under **Appearance** there are themes, reduced motion and Gullu’s playful reactions.
+
+Next: [how the hooks work](https://nook.zubyr.dev/guides/claude-code-hooks/), or [troubleshooting](https://nook.zubyr.dev/guides/troubleshooting/) if no sessions show up.
+
+---
+
+# How Nook talks to Claude Code: hooks, relay and pipe
+
+URL: https://nook.zubyr.dev/guides/claude-code-hooks/
+Last updated: 2026-10-04
+
+Nook does not read your terminal. Claude Code tells it what is happening through hooks. This page explains the whole path, what is written to your settings, and the rules Nook follows.
+
+## The path an event takes
+
+Claude Code supports *hooks*: commands it runs when something happens (a prompt is sent, a tool is about to run, a permission is needed). Nook installs hooks for twelve events, and each one runs a tiny program:
+
+```
+Claude Code  ->  nook-hook.exe (relay)  ->  named pipe (local)  ->  Nook island
+```
+
+1. Claude Code runs `nook-hook.exe` with the event name and passes the event as JSON on standard input.
+2. The relay adds a little terminal context (which terminal or editor the session runs in, so the island can bring the right window forward) and hands the event to Nook over the named pipe `\\.\pipe\nook-<your user SID>`. Only your own account can open that pipe.
+3. Nook updates the island. For a permission request or a question, it waits for your click and the relay prints the answer for Claude Code.
+
+The twelve events are `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SubagentStart` and `SubagentStop`.
+
+## What is written to settings.json
+
+Nook adds one entry per event to the `hooks` section of `%USERPROFILE%\.claude\settings.json`. Each looks like this:
+
+```
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Users/you/AppData/Local/Nook/bin/nook-hook.exe",
+            "args": ["Stop"],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Timeouts are 10 seconds for most events and 120 seconds for `PermissionRequest`, which waits for a human. The path of your relay will differ. Nothing else in the file is changed.
+
+### Why the exec form?
+
+The entries use Claude Code’s *exec form*: `command` is just the relay’s path and `args` holds the event name, so no shell is involved. An older style wrote a quoted command string such as `"C:/.../nook-hook.exe" Stop`. That only worked in Git Bash. On a PC without Git Bash, Claude Code runs hooks in PowerShell, which reads a quoted path as a string and fails with an error like `Unexpected token 'Stop'` (a ParserError). The exec form avoids this, and spaces in a path stop mattering. If you installed with an older Nook, reinstall the hooks and the entries are rewritten. A Claude Code too old to know `args` still runs the relay, which then reads the event name from the JSON on standard input.
+
+## How the install stays safe
+
+Your settings file is yours, so every change goes through the same steps:
+
+1. **Read.** Nook reads the file. If it cannot be read or is not valid JSON, Nook refuses and tells you; it never treats an unreadable file as empty and writes over it.
+2. **Preview.** It shows the exact diff.
+3. **Click.** Nothing is written until you confirm. The file’s fingerprint is checked at that moment, so if another tool or your editor changed it in between, Nook stops and shows a fresh diff.
+4. **Backup.** The file is copied beside itself as `settings.json.bak-YYYYMMDD-HHMMSS` before anything changes.
+5. **Atomic write.** The new file is written next to the original and renamed over it, so a crash or a full disk cannot leave half a file.
+
+Hooks that belong to other tools are never touched. If entries left by Coucou (the project Nook is based on) are present, Settings says so and installing replaces them with Nook’s.
+
+## How to remove the hooks
+
+Open **Settings → Claude Code** and click **Uninstall hooks…**. It follows the same preview, backup and click, and removes Nook’s entries only. Do this *before* uninstalling the app, because the uninstaller deliberately does not edit `settings.json`. If the relay is gone, a leftover entry usually costs nothing beyond a dead path, but removing it keeps the file tidy. You can also restore a `.bak` file by hand.
+
+## What the relay never does
+
+- **It never blocks Claude Code.** The relay gives Nook 300 milliseconds to answer the connection. If Nook is closed, slow or crashed, the relay exits with nothing on standard output and Claude Code carries on as if Nook were not installed. Only a permission request waits for a human, and even then only up to about 110 seconds, after which Claude Code asks in the terminal.
+- **It never approves anything.** An answer is printed only after you click Allow or Deny. No answer means no output, which means Claude Code asks you itself.
+- **It never uses the network.** The relay talks to one local pipe and nothing else. Before sending anything it checks that it is talking to Nook: same user, `nook.exe`, no lower integrity level.
+
+To show what an event is about, the relay reads a little context (the tail of the session’s transcript for its title and last message, the file an edit targets, command output). That goes only to the app over the local pipe and stays in memory. The log records event names and decisions, never content.
+
+## The optional usage status line
+
+Claude Code hands its status line command a JSON that includes the 5-hour and weekly limits. Installing **Usage limits** in Settings sets the `statusLine` key in `settings.json` so that command is `nook-hook statusline`. It follows the same preview, backup and click.
+
+- **Chaining.** If you already have a status line, its whole setting is stored, encoded, after `--previous` in the new command. The relay runs it on every call and prints what it prints, so it keeps showing. Uninstalling puts it back exactly as it was. With none, uninstalling removes the key.
+- **No quoting.** `statusLine` has no `args`, so the command is read by a shell (Git Bash or PowerShell on Windows), and the two quote differently. Nook therefore writes a command with nothing to quote. A relay path that contains a space or a special character is refused rather than guessed at. See [troubleshooting](https://nook.zubyr.dev/guides/troubleshooting/#no-sessions).
+- **Freshness.** Claude Code reports limits only on subscription plans and only while a session runs, so the numbers are “as of the last Claude Code activity”.
+
+## Check what the relay sees
+
+`nook-hook --where` is a diagnostic. It prints, as JSON, the terminal context and the parent processes the relay would report from the place you run it. It reads no input and sends nothing to Nook. Run it from the terminal where a session runs:
+
+```powershell
+& "$env:LOCALAPPDATA\Nook\bin\nook-hook.exe" --where
+```
+
+Use it when the “go to session” button goes to the wrong window, or when you want to confirm the relay exists. More in [troubleshooting](https://nook.zubyr.dev/guides/troubleshooting/#hooks-nothing).
+
+---
+
+# Shelf widgets: To-do, Timer, Reminders, Media, Mirror and Projects
+
+URL: https://nook.zubyr.dev/guides/shelf-widgets/
+Last updated: 2026-10-04
+
+The Shelf is a row of small cards in the island for the moments between prompts. Each card is a compact view; open one to expand it. Nothing on the Shelf uses the network.
+
+## Using the Shelf
+
+Open the island and switch to the Shelf. You will see the widgets as small cards in a row. Press a card’s header or empty area to expand it into its larger view, and fold it again when you are done.
+
+- **Swipe or scroll sideways** to move along the row. A swipe never presses a button by accident: a drag that travels more than a few pixels is treated as a swipe, and the click that follows is ignored. Wheel and trackpad scrolling work too.
+- **Reorder by long press.** Hold a card’s header or empty area and the card lifts; carry it to a new place and let go.
+- **Keyboard.** Controls are ordinary buttons and fields, so Tab moves between them and Enter or Space presses the focused one.
+- **Turn widgets off or change their order** in **Settings → Shelf**. A widget that is off never runs.
+
+What the widgets keep (to-dos, notes, reminders, a running timer) is saved in `%APPDATA%\Nook\shelf.json`, on your PC.
+
+## To-do
+
+A checklist and a free notes area. The small card shows the last few items with a box to tick each, and a field to add one. Expanded, you get the whole list (add, tick, remove) and a notes field. Items are kept a moment after the last change, so a restart does not lose them.
+
+## Timer
+
+A countdown. The small card shows the time left with Start and Pause. Expanded, there is a dial, presets of 5, 15, 25 and 45 minutes, a time of your own (up to 599 minutes) and Reset. At zero it plays a sound and opens the island on the Timer. The end is stored as a wall-clock time, so the countdown stays right after the island was hidden or the PC slept, and a running timer survives a restart.
+
+## Reminders
+
+Words and a time. The small card shows the next reminder and a quick add; expanded, you see the whole list, each line editable and removable. When one is due, Nook plays a sound and opens the island on the list.
+
+> Reminders fire only while Nook is running. There is no background service or scheduled task. A reminder that came due while Nook was closed is not fired late and loud: at the next start it is marked as missed, and one notice says so.
+
+## Media
+
+Controls for whatever is playing in any player that tells Windows about it: Spotify, a browser, the Media Player. The small card shows the title, the artist and previous, play or pause, and next. Expanded, you also get the album art, the progress, the volume and the player’s name. Nook asks Windows for the media state about once a second, but only while a Media card is on screen. Album art is held in memory while it is shown and never written to disk. If it shows nothing, see [troubleshooting](https://nook.zubyr.dev/guides/troubleshooting/#media).
+
+## Mirror
+
+Your camera as a mirror, for a quick check before a call. The small card is just a **Turn camera on** button: there is no camera running until you press it.
+
+- **Only while it is open.** The camera runs only while Mirror is expanded. It stops the moment Mirror closes, you leave the Shelf, the island folds or hides, or a card that asks you something takes over. It does not come back by itself.
+- **Nothing is recorded.** No audio, no recording, nothing saved, no frame sent anywhere.
+- **Permission.** Windows may ask for camera access. If you refused, allow it in **Windows Settings → Privacy & security → Camera** and let desktop apps use your camera, then try again.
+
+## Projects
+
+The folders your Claude Code sessions have run in, most recent first (up to 30; folders that no longer exist are not shown). The small card lists the latest few, each with a button to open the folder in VS Code. Expanded, you see all of them, each with **New Claude session**, which opens Windows Terminal running `claude` in that folder. A folder is added when a session’s hook event names it, so the list fills up as you work.
+
+Next: [Cursor and Nook](https://nook.zubyr.dev/guides/cursor/), or back to the [guides](https://nook.zubyr.dev/guides/).
+
+---
+
+# Cursor and Nook
+
+URL: https://nook.zubyr.dev/guides/cursor/
+Last updated: 2026-10-04
+
+Nook shows Cursor agent sessions next to your Claude Code sessions, status only. This page covers what you see, how to turn it on and what it never does.
+
+## What you get
+
+> **New in v0.1.x (unreleased build).** Cursor support is not in the 0.1.0 installer. It arrives with the next release; no date is promised.
+
+Cursor agent sessions show up in the same island as your Claude Code sessions, each with its own row and state (for example working or done).
+
+- **Status only.** You see what a Cursor agent is doing. You **cannot approve or answer** from the island; permissions and questions stay in Cursor.
+- **Marks.** Claude Code sessions wear the Claude sparkle, Cursor sessions wear the Cursor cube, so you can tell them apart at a glance.
+- **Filter chips.** The session list has **All**, **Claude Code** and **Cursor** chips to narrow it down.
+- **Folded island.** When the island is folded to a pill, each session is a small dot. Cursor dots have a hole in the middle, so they differ from Claude Code dots.
+
+## Set it up
+
+1. Open Nook’s **Settings** and go to the **Cursor** block.
+2. Click **Install**. Nook shows a **preview** of the exact diff and the path of the **dated backup** it will take.
+3. Click to confirm. Nothing is written until you do. Nook writes `~/.cursor/hooks.json` (that is, `%USERPROFILE%\.cursor\hooks.json`).
+4. **Restart Cursor** so it reads the new hooks.
+
+It follows the same rules as the Claude Code hooks: see [how the install stays safe](https://nook.zubyr.dev/guides/claude-code-hooks/#safe-install). The Cursor block can also remove its entries again, with the same preview, backup and click.
+
+## What it never does in Cursor
+
+- It listens only to **observational events**: things that already happened or are happening.
+- It **never allows, denies or delays** anything in Cursor. The relay always exits immediately, so Cursor never waits for Nook.
+- It uses no network and no telemetry, like the rest of Nook.
+
+## Claude Code inside Cursor’s terminal
+
+This is separate and works as before. If you run `claude` in **Cursor’s integrated terminal**, that is an ordinary Claude Code session: the Claude Code hooks report it, and it appears with approvals, questions and usage limits like any other. The relay also notes which editor or terminal a session runs in (it recognises Cursor, VS Code, Windows Terminal, PowerShell and others), so the jump button can usually bring the right window forward. If it goes to the wrong window, run `nook-hook --where` from that terminal; see [troubleshooting](https://nook.zubyr.dev/guides/troubleshooting/#goto-session).
+
+## At a glance
+
+|  | Claude Code (incl. in Cursor’s terminal) | Cursor’s own agent |
+| --- | --- | --- |
+| Shown in Nook | Yes (0.1.0) | Yes (new in v0.1.x, unreleased build) |
+| Approve and answer from the island | Yes, same as any session | No: status only |
+| Set up with | Settings, Claude Code, Install hooks | Settings, Cursor, Install (then restart Cursor) |
+| Mark | Claude sparkle | Cursor cube |
+
+Disclaimer: Nook is an independent project, not affiliated with or endorsed by Cursor or Anysphere. Cursor is a trademark of its owner.
+
+---
+
+# Troubleshooting Nook
+
+URL: https://nook.zubyr.dev/guides/troubleshooting/
+Last updated: 2026-10-04
+
+Each problem below has a symptom, a likely cause and a fix. Where Nook cannot know for sure, this page says “usually”. The last section tells you how to file an issue we can act on.
+
+## SmartScreen blocks the installer
+
+- **Symptom:** “Windows protected your PC” appears and there is no obvious way to run the installer.
+- **Cause:** The installer is not code-signed yet, and SmartScreen does not know new unsigned programs.
+- **Fix:**
+
+1. Check the download first: `Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256`, then compare with `SHA256SUMS.txt` from the release.
+2. Choose **More info**, then **Run anyway**.
+
+Details in the [install guide](https://nook.zubyr.dev/guides/install/#smartscreen). Signing through SignPath is planned.
+
+## Antivirus flags nook-hook.exe
+
+- **Symptom:** Your antivirus quarantines or warns about `nook-hook.exe`, so sessions stop showing up.
+- **Cause:** It is a small, unsigned, little-known program that other programs start often, which heuristics dislike. This is a false positive.
+- **Fix:**
+
+1. Verify the file’s hash against `SHA256SUMS.txt` (it lists `nook-hook.exe` too).
+2. Restore it from quarantine or restart Nook, which copies it back to `%LOCALAPPDATA%\Nook\bin` at launch.
+3. Report the false positive to Microsoft at [www.microsoft.com/wdsi/filesubmission](https://www.microsoft.com/wdsi/filesubmission) as “Software developer” and “Incorrectly detected”; this usually clears Microsoft Defender within days. Other vendors have similar forms.
+4. Or build Nook from source and check the code yourself.
+
+## The island does not appear
+
+- **Symptom:** Nook is running but you cannot see the island.
+- **Cause:** It usually auto-hid. The folded island hides after a while (one minute by default), leaving a hidden strip at the top of the screen. It can also be on another display, or hidden because a full-screen app is in front.
+- **Fix:**
+
+1. Move the mouse to the top edge of the screen to wake it, or press Ctrl Alt Space.
+2. Check the notification area for the Nook icon and choose **Open Nook**. If **Pause** was chosen, choose it again.
+3. In **Settings → General**, check which display Nook uses (the main display, or the one under the cursor).
+4. In **Settings → Island**, raise *Auto-hide the folded island after* or set it to never.
+5. No tray icon at all? See [Nook does not start](#wont-start).
+
+## No sessions show up
+
+- **Symptom:** Claude Code is running but the island is empty.
+- **Cause:** Usually one of: the hooks are not installed; the session started before the hooks were installed; old shell-form hooks fail in PowerShell; or the relay is missing.
+- **Fix:**
+
+1. **Install the hooks:** Settings → Claude Code should say *Connected*. If it says *Not installed*, click **Install hooks…**.
+2. **Restart the session.** Hooks are read when a session starts, so a session that was already open will not report until you open a new one.
+3. **PowerShell ParserError.** If Claude Code reports a hook error such as `Unexpected token 'Stop'`, the hooks were written in an old shell form that only works in Git Bash. Open Settings → Claude Code and click **Reinstall…** (or Install hooks…) to rewrite them in the exec form. See [why](https://nook.zubyr.dev/guides/claude-code-hooks/#what-is-written).
+4. **Relay missing.** If Settings says *Relay missing*, restart Nook; it copies `nook-hook.exe` to `%LOCALAPPDATA%\Nook\bin` at launch. Antivirus may have removed it (see [above](#antivirus)).
+5. **Status line only:** a relay path that contains a space or special character is refused for the usage status line, because Claude Code reads that command through a shell. Hooks themselves are fine with spaces. The status line needs a path made of letters, digits and `_ - . / :`, so a user folder with a space can block it.
+
+## Hooks are installed but nothing happens
+
+- **Symptom:** Settings says Connected, you started a new session, and still nothing appears.
+- **Cause:** The relay may not be reaching Nook, may be failing to start, or Claude Code may be reading a different settings file than the one Nook edited.
+- **Fix:**
+
+1. Open the log, which records event names and decisions: `%LOCALAPPDATA%\Nook\nook.log`.
+2. From the terminal where the session runs, run the diagnostic. It prints JSON and proves the relay starts:
+
+```powershell
+& "$env:LOCALAPPDATA\Nook\bin\nook-hook.exe" --where
+```
+
+3. Make sure Nook itself is running (tray icon) and not paused.
+4. Check that `%USERPROFILE%\.claude\settings.json` contains entries whose command contains `nook-hook`.
+5. If Nook runs elevated (as administrator) and Claude Code does not, or the other way round, the relay usually refuses the connection because the integrity levels differ. Run both normally.
+
+## Permission requests or questions cannot be answered
+
+- **Symptom:** A request shows in the island but Allow or the answer does nothing, or a question never appears there.
+- **Cause:** Claude Code versions differ in which prompts they send through hooks. Some questions or permission types may not reach Nook, and the request times out after about two minutes.
+- **Fix:**
+
+Answer in the terminal: the same question is always shown there too. If it keeps happening, update Claude Code, and open an issue with your Claude Code version (`claude --version`) and the kind of prompt it was.
+
+## Usage limits are missing or stale
+
+- **Symptom:** The usage meters are empty, show an old number, or read 0%.
+- **Cause:** Limits come from Claude Code’s status line, so they only appear if the usage status line is installed, only on subscription plans, and only update while a session runs. They are “as of the last Claude Code activity”. After a window resets, Nook shows 0% until Claude Code reports again.
+- **Fix:**
+
+1. In **Settings → Claude Code**, install **Usage limits**.
+2. Run a session; the numbers update when Claude Code reports them. Numbers older than about two hours are shown as old.
+3. Using an API key instead of a subscription plan usually means there are no limits to show.
+4. If another tool owns your status line, Nook chains it; if the numbers are still missing, open an issue.
+
+## High CPU use
+
+- **Symptom:** Nook shows up high in Task Manager.
+- **Cause:** Nook is a small app that mostly waits for events. Sustained high use usually comes from animation on a very busy desktop, a Shelf widget left open (Media is polled about once a second while it is on screen), or a bug.
+- **Fix:**
+
+1. Fold the island and close any expanded widget, then watch Task Manager again.
+2. In **Settings → Appearance**, set reduced motion to *on* and switch off playful reactions.
+3. Check that the usage in the island’s CPU readout is not simply your own agents working.
+4. If it stays high with everything folded, open an issue with the log and your Windows and graphics driver versions.
+
+## The island hides in full-screen apps
+
+- **Symptom:** You are watching a video, playing a game or presenting, and the island is gone.
+- **Cause:** This is a setting, on by default: Nook stays out of the way of full-screen apps. A permission request or a question still shows.
+- **Fix:**
+
+Turn off **Settings → Island → Hide in full-screen apps** if you want the island to stay visible.
+
+## Multi-monitor, 125% scaling, blur or wrong position
+
+- **Symptom:** The island is on the wrong monitor, off-centre, or blurry at 125% or 150% scaling.
+- **Cause:** The island sits on one display. If your displays have different scale factors, or the layout changed after Nook started, the window may need to be placed again.
+- **Fix:**
+
+1. In **Settings → General** choose the main display or the display under the cursor.
+2. Quit and start Nook again after changing the scale, resolution or monitor layout.
+3. Blur usually points to a display with a different scale than the one Nook started on. Move Nook to that display via the setting, then restart it.
+4. If it is still wrong, open an issue with your monitor layout and scale factors.
+
+## Shortcuts do not work
+
+- **Symptom:** Ctrl Alt Space (or another Nook shortcut) does nothing.
+- **Cause:** Another app has already registered that key combination as a global shortcut, and only one app can hold it. Or the shortcut is switched off.
+- **Fix:**
+
+1. Open Settings and change the shortcut to a combination nothing else uses, or switch it on if it is off.
+2. Quit the other app to test whether it is the one holding the key. Common culprits are launchers, clipboard managers and input-method tools.
+
+The defaults are Ctrl Alt Space (expand or shrink), Ctrl Shift Space (open the panel) and Ctrl Alt Enter (go to the session that needs you).
+
+## Mirror: the camera does not work
+
+- **Symptom:** Mirror says the camera was refused, is missing or is busy.
+- **Cause:** Windows camera privacy settings, no camera detected, or another app using the camera.
+- **Fix:**
+
+1. **Refused:** Windows Settings → Privacy & security → Camera: turn on camera access and let desktop apps use your camera. If you chose Block when asked, that choice is remembered; change it there and try again.
+2. **Missing:** plug a camera in, or check that Windows can see it in Device Manager.
+3. **Busy:** close the other app (a video call, a camera tool) and press **Turn camera on** again.
+
+The camera only runs while Mirror is open and is never recorded.
+
+## The Media widget shows nothing
+
+- **Symptom:** Media says nothing is playing while music is playing.
+- **Cause:** Media shows what Windows’ system media controls know about. A player that does not report to Windows is invisible to it. It also only polls while a Media card is on screen.
+- **Fix:**
+
+1. Open the Shelf so a Media card is visible, and start playback.
+2. Check that Windows shows the same track in its own media overlay (volume flyout). If it does not, the player does not report to Windows; try another player or the browser.
+
+## “Go to session” cannot select a Windows Terminal tab
+
+- **Symptom:** The jump button or Ctrl Alt Enter brings Windows Terminal forward but not the right tab.
+- **Cause:** Nook can usually bring a window forward, but Windows Terminal does not offer a way to select a particular tab from outside. All tabs belong to one window.
+- **Fix:**
+
+Look for the tab with the session’s project name. Running `nook-hook --where` in a tab shows which terminal the relay detects there. Separate Windows Terminal windows, VS Code and Cursor are easier for Nook to find than tabs.
+
+## Nook does not start
+
+- **Symptom:** Double-clicking Nook does nothing, or there is no tray icon.
+- **Cause:** Usually one of: the WebView2 runtime is missing; Nook is already running (only one instance is allowed); or a previous crash left a process behind.
+- **Fix:**
+
+1. **Already running:** look in the notification area (click the ^ arrow). Starting Nook a second time just opens the one that is running. In Task Manager, end any leftover `nook.exe` and start it again.
+2. **WebView2:** it ships with Windows 11 and current Windows 10. If it is missing, install the Evergreen WebView2 Runtime from Microsoft and start Nook again.
+3. **Security software:** check that it did not quarantine `nook.exe`.
+4. Look at `%LOCALAPPDATA%\Nook\nook.log` for the last lines.
+
+## How to collect logs and open an issue
+
+A good issue gets fixed faster. Open one at [github.com/zubairbinshaukat/nook/issues/new](https://github.com/zubairbinshaukat/nook/issues/new) and include:
+
+- What you expected and what happened, with steps to repeat it.
+- Your **Nook version** (Settings → About; this site documents 0.1.0), your **Windows version** (`winver`), and your **Claude Code version** (`claude --version`).
+- The last lines of `%LOCALAPPDATA%\Nook\nook.log`. The log has event names and decisions, never the content of your sessions.
+- If it is about hooks, the output of `nook-hook --where`, and the Nook entries from `settings.json` (only those).
+- A screenshot if the problem is visual.
+
+> **Redact before you post.** Paths contain your Windows user name, and logs and settings can contain project names. Replace them (for example `C:\Users\<me>\…`) and never paste API keys. For a security problem, use a [private security advisory](https://github.com/zubairbinshaukat/nook/security/advisories/new) instead of a public issue.
+
+A false positive from an antivirus can be reported to its vendor, see [above](#antivirus).
+
+---
+
+# Frequently asked questions about Nook
+
+URL: https://nook.zubyr.dev/guides/faq/
+Last updated: 2026-10-04
+
+Short, honest answers. For step-by-step help see the guides, and for fixes see troubleshooting.
+
+## Is Nook free and safe?
+
+Nook is free and open source (MIT-licensed code), so anyone can read exactly what it does. It runs 100% locally: no network calls, no telemetry and no account.
+
+## Does Nook send my code or prompts anywhere?
+
+No. Events go from Claude Code’s hooks to a small local relay and then to Nook, all on your own computer. Nook makes no network calls and has no telemetry.
+
+## Will Nook approve things for me or get in Claude Code’s way?
+
+No. Nook never approves anything without your click, and it never blocks Claude Code. The relay gives the app 300 ms to pick up; if Nook is closed, slow or crashed, it exits and Claude Code asks in the terminal as usual.
+
+## Does Nook change my Claude Code settings?
+
+Only when you ask. Installing hooks shows the exact diff of what will change in ~/.claude/settings.json and takes a dated backup first. Nothing is written until you click, hooks from other tools are left alone, and Uninstall hooks removes only Nook’s entries the same way.
+
+## Why does Windows show "Windows protected your PC"?
+
+The installer is not code-signed yet, and SmartScreen does not know new, unsigned programs. If you downloaded it from the official GitHub release, choose More info, then Run anyway. You can verify the download with Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256 and compare it with SHA256SUMS.txt, or build Nook from source.
+
+## My antivirus flagged nook-hook.exe. What now?
+
+That is a typical false positive for small, unsigned programs that other programs start often. You can report it to Microsoft at https://www.microsoft.com/wdsi/filesubmission as "Software developer" and "Incorrectly detected", or build Nook from source.
+
+## Which systems and Claude Code setups does it work with?
+
+Nook 0.1.0 is built for Windows 10 and 11. It follows Claude Code through Claude Code’s hooks, so sessions appear whether you start Claude Code in a terminal window or in the integrated terminal of an editor such as VS Code.
+
+## Does Nook support Cursor or other agents?
+
+Yes. Nook shows Cursor agent sessions next to Claude Code ones, status only: you can see what a Cursor agent is doing, but you cannot approve or answer from the island. Turn it on in Settings, Cursor, Install (preview, dated backup, click). New in v0.1.x (unreleased build). Claude Code running inside Cursor’s terminal works as a normal Claude Code session.
+
+## Does it slow down my PC?
+
+Nook is a small desktop app that reacts to events from Claude Code’s hooks. It also shows CPU, GPU and RAM in the island, so you can check its footprint on your own machine.
+
+## Who makes Nook, and is it affiliated with Anthropic?
+
+Nook is an independent open-source project by Zubair Bin Shaukat, a software engineer from Lahore. It is based on Coucou by Louis Raillé (MIT), with credit to Edurique’s Windows multi-session work, and is not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks of Anthropic.
+
+## How do I uninstall Nook?
+
+First open Settings, Claude Code and click Uninstall hooks (and Uninstall for the usage status line if you installed it), because uninstalling the app does not edit your Claude Code settings. Then quit Nook and remove it from Windows Settings, Apps, Installed apps. Your preferences in %APPDATA%\Nook usually stay unless you delete that folder.
+
+## Where does Nook store its data?
+
+On your own PC only. Preferences and Shelf data are in %APPDATA%\Nook, the relay and a small log are in %LOCALAPPDATA%\Nook, and the log records event names and decisions, never the content of your sessions.
+
+## Does Nook need administrator rights?
+
+No. The installer installs for the current user, and Nook runs as a normal program. Running Nook and Claude Code at different privilege levels can stop the relay from connecting, so run both normally.
+
+## Are the usage limits always shown?
+
+No. They come from Claude Code’s status line, so you have to install the usage status line in Settings, they appear on subscription plans, and they update only while a session runs. They are shown as of the last Claude Code activity.
+
+## Does Nook work on macOS or Linux?
+
+The 0.1.0 release is for Windows 10 and 11. The same code can be built for Linux from source. Nook is a fork of Coucou, the project it is based on; look there if you want the original.
+
+## Will the installer be code-signed?
+
+It is planned. Releases are unsigned today. Code signing is planned through the SignPath Foundation’s free programme once the project qualifies, and a SHA256SUMS.txt file is published with every release either way.
+
+## How do I report a bug or ask for a feature?
+
+Open an issue on GitHub at https://github.com/zubairbinshaukat/nook/issues/new with your Nook, Windows and Claude Code versions and the last lines of nook.log (redact paths). Security problems should go through a private security advisory instead.
+
+---
+
+# Privacy policy (Privacy)
+
+URL: https://nook.zubyr.dev/privacy/
+Effective/last updated: 2026-10-04
+
+Short version: Nook makes no network connections, collects nothing about you, and keeps everything on your own PC. Effective 2026-10-04.
+
+## The short version
+
+- Nook makes **no network connections**. Not the app, not the relay.
+- There is **no telemetry**, no analytics, no crash reporting, no account and no sign-in.
+- Everything Nook keeps is on **your own computer**.
+- Nook sets **no cookies**, and neither does this website.
+- **Third-party services in the app: none.**
+
+## What the Nook app does with your data
+
+Nook shows your Claude Code sessions. To do that, Claude Code runs a small relay program (`nook-hook.exe`) on each hook event. The relay passes the event to the Nook app over a local named pipe that only your Windows account can open. To show an event the relay may read a little context: the end of the session’s transcript (its title and last message), the file an edit targets and the output of a command. That goes only to the app, only over the local pipe, and stays in memory. It is not sent anywhere else, and it is not written to the log.
+
+## What is stored locally
+
+| What | Where |
+| --- | --- |
+| Preferences (shortcuts, display, theme, visibility) | `%APPDATA%\Nook\settings.json` |
+| Shelf data: to-dos, notes, reminders, a running timer, the project list | `%APPDATA%\Nook\shelf.json` |
+| The relay program | `%LOCALAPPDATA%\Nook\bin\nook-hook.exe` |
+| A small log of event names and decisions (never content) | `%LOCALAPPDATA%\Nook\nook.log` |
+
+You can delete these at any time. The uninstaller removes the relay and the log; delete the `%APPDATA%\Nook` folder to remove your preferences and Shelf data. Nothing here identifies you, and none of it leaves your machine.
+
+## Files of yours that Nook edits
+
+Only when you ask, and only after a preview and a click, Nook edits `%USERPROFILE%\.claude\settings.json` (to install or remove its hooks and the optional usage status line) and, if you choose the optional reply format, `CLAUDE.md`, and, if you turn on Cursor sessions, `~/.cursor/hooks.json`. Each edit takes a dated backup first and touches only Nook’s own entries. See [How Nook talks to Claude Code](https://nook.zubyr.dev/guides/claude-code-hooks/).
+
+## Camera (Mirror)
+
+The Mirror widget uses your camera only while Mirror is open. It stops the moment Mirror closes, the island folds or hides, or you leave the Shelf. Nothing is recorded, no audio is used, nothing is saved and nothing is sent anywhere. Windows asks for camera permission, and you can withdraw it in Windows Settings at any time.
+
+## Third parties
+
+**The app uses none.** One note: Nook’s window is drawn by WebView2, a Microsoft component that Microsoft updates outside Nook’s control. Nook does not use it to load anything from the internet.
+
+## This website
+
+This site sets no cookies and uses no analytics or tracking, so there is no cookie banner. To display the page it loads a typeface from Google Fonts and a small scrolling script from the jsDelivr CDN, and it is served by its hosting provider (GitHub Pages or a similar static host). Those services can see your IP address and the usual details your browser sends, under their own privacy policies; this site does not receive that data. Your light or dark choice is saved in your own browser’s local storage and never leaves it. Links to GitHub, LinkedIn, X and other sites are governed by those sites’ policies once you follow them.
+
+## Children and changes
+
+Nook collects no personal data from anyone, including children. If this policy changes, the date at the top changes and the previous text stays in the [public history of the repository](https://github.com/zubairbinshaukat/nook/commits/main/site).
+
+## Contact
+
+Questions about privacy: [open an issue on GitHub](https://github.com/zubairbinshaukat/nook/issues/new). To report a security problem privately, use a [security advisory](https://github.com/zubairbinshaukat/nook/security/advisories/new). Nook is made by [Zubair Bin Shaukat](https://zubyr.dev).
+
+---
+
+# Terms of use (Terms)
+
+URL: https://nook.zubyr.dev/terms/
+Effective/last updated: 2026-10-04
+
+Nook is free software under the MIT license. These short terms say what that means in practice. Effective 2026-10-04.
+
+## License
+
+Nook’s source code is released under the [MIT License](https://github.com/zubairbinshaukat/nook/blob/main/LICENSE). You may use, copy, modify, merge, publish, distribute and sell it, as long as you keep the copyright and permission notice. Nook is a fork of Coucou by Louis Raillé, which is also MIT-licensed; the original notice is kept. Gullu, the icons and the sounds are Nook’s own and are covered by [LICENSE-ASSETS.md](https://github.com/zubairbinshaukat/nook/blob/main/LICENSE-ASSETS.md). Third-party notices (for example Lucide icons) are in [NOTICE](https://github.com/zubairbinshaukat/nook/blob/main/NOTICE).
+
+## Provided as is
+
+The software is provided “as is”, without warranty of any kind, express or implied, including merchantability, fitness for a particular purpose and noninfringement. In no event are the authors liable for any claim, damages or other liability arising from the software or its use. You use Nook at your own risk.
+
+## Your responsibility
+
+- **Approvals are yours.** Nook only shows you a request and relays your click. Decide what you allow, and read what a request will do before you allow it.
+- **Your settings.** Nook edits your Claude Code settings only after a preview and a click, and takes a dated backup first. Keep your own backups of files that matter to you.
+- **Your use of other services.** Your use of Claude Code, Claude, Cursor or any other tool is governed by their terms, not these.
+
+## No affiliation, trademarks
+
+Nook is an independent open-source project. It is **not affiliated with, endorsed by or sponsored by Anthropic, Cursor (Anysphere) or Microsoft**, or by the author of Coucou. “Claude” and “Claude Code” are trademarks of Anthropic. “Cursor” and “Windows” are trademarks of their owners. They are used here only to say what Nook works with.
+
+## This website
+
+The site documents Nook and is provided in good faith. We try to keep it accurate for the version named on each page, but it may lag behind the software. The [source repository](https://github.com/zubairbinshaukat/nook) and the release notes are authoritative.
+
+## Contact
+
+Questions or problems: [open an issue](https://github.com/zubairbinshaukat/nook/issues/new). See also the [privacy policy](https://nook.zubyr.dev/privacy/).
+
+---
+
+# Changelog (Changelog)
+
+URL: https://nook.zubyr.dev/changelog/
+Effective/last updated: 2026-10-04
+
+What shipped in each release, what is in the unreleased build, and what is planned next. Planned items are intentions, not promises, and carry no dates.
+
+## 0.1.0 — first release
+
+The first release of Nook, a fork of Coucou for Windows. Highlights:
+
+- **The island.** It sits at the top of the screen, folds to a thin pill, opens on hover or when a session needs you, and rests between beats.
+- **Sessions on one page.** Claude Code sessions with their state, last message and subagents, and a button that goes to the window each one runs in.
+- **Approvals and questions.** Permission requests and questions answered from the island, with a real diff for edits. No approval without a click; if nobody answers, Claude Code asks in the terminal.
+- **The relay.** `nook-hook` is run by Claude Code on each hook event. It never blocks Claude Code, checks it is talking to Nook (same user, `nook.exe`, no lower integrity level) and talks only over a named pipe that only the current user can open.
+- **Safe hooks.** Hooks are installed and removed from Settings with a diff preview, a dated backup and a click.
+- **Usage and system.** Claude usage limits (5-hour and weekly) and CPU, GPU and RAM in the header.
+- **Gullu.** Nook’s own buddy, with reactions to the pointer and to session status.
+- **The Shelf.** To-do, Timer, Reminders, Media, Mirror and Projects widgets.
+- **Shortcuts and visibility.** Three configurable global shortcuts, auto-hide in full-screen apps, and paging by swipe.
+- **Private by design.** No telemetry and no network calls.
+- **Own art and sounds.** Sounds synthesized from plain tones; none of Coucou’s art or sounds.
+- **Linux.** The same code builds for Linux.
+
+The full list is in the [CHANGELOG.md in the repository](https://github.com/zubairbinshaukat/nook/blob/main/CHANGELOG.md).
+
+## New in v0.1.x (unreleased build)
+
+- **Cursor agent sessions** are shown next to Claude Code ones, status only: nothing to approve or answer from the island. Claude sessions wear the sparkle mark and Cursor sessions the cube; the session list has All, Claude Code and Cursor filter chips; Cursor dots on the folded island have a hole.
+- **Setup** is in Settings, Cursor, Install: a preview of the diff, a dated backup and an explicit click, writing `~/.cursor/hooks.json`. Restart Cursor afterwards. It listens only to observational events, never allows, denies or delays anything in Cursor, and its relay always exits immediately. See [Cursor and Nook](https://nook.zubyr.dev/guides/cursor/).
+
+## Planned
+
+> **Planned means planned.** These are things we intend to do. They are not built yet, and no dates are promised.
+
+- **Code signing** of the installer and the programs inside it through the SignPath Foundation’s free programme, once the project qualifies, so the SmartScreen warning fades.
+
+Watch the [releases page](https://github.com/zubairbinshaukat/nook/releases) for new versions, and download the latest from [GitHub](https://github.com/zubairbinshaukat/nook/releases/latest).

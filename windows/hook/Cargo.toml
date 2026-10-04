@@ -1,0 +1,35 @@
+[package]
+name = "nook-hook"
+description = "Relays Claude Code hook events to Nook over a named pipe (Windows) or a Unix socket (Linux)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "nook-hook"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = "1"
+
+# Just enough Win32 to know our own SID, to check who is serving the pipe, and
+# to name the processes above us (ToolHelp: the terminal or editor a session runs in).
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Security_Authorization",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_Pipes",
+  "Win32_System_Threading",
+] }
+
+# The relay's version information (name, description, author, version) as
+# Windows shows it in a file's properties. The same crate tauri-build uses for
+# the app, so nothing new is pulled in.
+[target.'cfg(windows)'.build-dependencies]
+tauri-winres = "0.3"
+
+# The socket syscalls and peer credentials the Linux transport needs.
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"

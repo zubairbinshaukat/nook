@@ -1,0 +1,1014 @@
+/* The redesigned session panel, as a preview. Loaded after the app's own
+   style.css and built on it: every surface, radius, colour and curve below is
+   one the island already has. What is here is only what the redesign adds. */
+
+/* The app's page never scrolls; this one has controls under the island. */
+:root {
+  height: auto;
+  overflow: auto;
+}
+
+body.pv-page {
+  height: auto;
+  min-height: 100vh;
+  overflow: visible;
+  background: #2a2d34 linear-gradient(#30343d, #23262d) fixed;
+}
+
+#stage {
+  display: flex;
+  justify-content: center;
+}
+
+/* ── The island (style.css #island, #content, #header, #views) ──────────── */
+
+.pv-island {
+  position: relative;
+  flex: 0 0 auto;
+  max-width: 100vw;
+  background: #000;
+  border-radius: 0 0 22px 22px;
+  overflow: hidden;
+  will-change: width, height;
+}
+
+.pv-content {
+  position: absolute;
+  inset: 0;
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.pv-header {
+  height: 34px;
+  flex: 0 0 34px;
+  display: flex;
+  align-items: center;
+  margin: 0 -10px;
+}
+
+.pv-views {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* The slot kept for later: there, and plainly not in use. */
+.tab.slot {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  color: var(--dim-3);
+}
+
+.tab.slot:hover {
+  background: transparent;
+  color: var(--dim-3);
+}
+
+.header-actions button {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.header-actions button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ink);
+}
+
+.header-actions button:disabled {
+  opacity: 0.35;
+}
+
+.header-actions {
+  gap: 8px;
+  padding-right: 13px;
+}
+
+/* ── The bot ────────────────────────────────────────────────────────────── */
+
+.pv-bot {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.pv-bot canvas {
+  position: absolute;
+  left: 0;
+  pointer-events: none;
+}
+
+/* style.css #bot-glow */
+.pv-glow {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(6px);
+  transition: opacity 0.4s ease-in-out, background 0.4s ease-in-out;
+}
+
+/* ── The sidebar ────────────────────────────────────────────────────────── */
+
+.pv-panel {
+  animation: rise-in 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+.pv-rail {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 6px 8px 11px;
+  transition: flex-basis 0.3s cubic-bezier(0.3, 1.2, 0.4, 1);
+}
+
+.large .pv-rail {
+  flex-basis: 276px;
+  padding: 6px 8px 12px 14px;
+}
+
+/* The bot's box is its canvas, wider than its body: the slot takes the body's
+   height and lets the rest overhang, so the name sits close under it. */
+.pv-bot-slot {
+  flex: 0 0 auto;
+  width: 70px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+}
+
+.large .pv-bot-slot {
+  width: auto;
+  height: 112px;
+}
+
+/* At the panel's normal size the session's name sits beside the bot, and the
+   tree under them keeps the height; in the large panel it sits under it. */
+.pv-rail-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.large .pv-rail-head {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.pv-rail .gh-side-who {
+  flex: 1 1 auto;
+}
+
+.pv-rail .gh-side-who span {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.pv-rail .gh-side-who b {
+  font-size: 13px;
+}
+
+.large .pv-rail .gh-side-who b {
+  font-size: 14px;
+}
+
+/* A conversation's title: one line here, where the tree under it needs the
+   room; a second line in the large panel before it is cut. */
+.pv-rail .gh-side-who span {
+  font-size: 11.5px;
+  line-height: 1.25;
+}
+
+.large .pv-rail .gh-side-who span {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* The tree: sessions, and under each the subagents it launched. */
+.pv-tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 4px 0 0 -5px;
+  padding: 5px 0 2px;
+  border-top: 1px solid var(--gh-edge);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.large .pv-tree {
+  margin-top: 14px;
+  padding-top: 8px;
+}
+
+.pv-ti {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-radius: 7px;
+  color: var(--dim-2);
+  cursor: default;
+  outline: none;
+  user-select: none;
+  transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.pv-ti:hover {
+  background: var(--gh-hover);
+  color: var(--gh-text);
+}
+
+/* The row the keyboard is on. */
+.pv-ti:focus-visible,
+.pv-tree.kbd .pv-ti:focus {
+  box-shadow: inset 0 0 0 1.5px #5aa9ff;
+  color: var(--ink);
+}
+
+/* A session: its project's colour as a thin stripe, the arrow to its
+   subagents, its folder, how many subagents, its state as a dot. */
+.pv-sess {
+  gap: 5px;
+  height: 23px;
+  padding: 0 7px 0 5px;
+}
+
+.large .pv-sess {
+  height: 27px;
+}
+
+.pv-sess::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--c);
+  opacity: 0.85;
+}
+
+.pv-sess b {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 500 11.5px var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.large .pv-sess b {
+  font-size: 12.5px;
+}
+
+/* The session in front, with one of its subagents on show. */
+.pv-sess.front {
+  color: var(--gh-text);
+}
+
+.pv-ti.on {
+  background: var(--gh-plate);
+  color: var(--ink);
+}
+
+.pv-sess.on b,
+.pv-sess.front b {
+  font-weight: 600;
+}
+
+.pv-twisty {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 17px;
+  margin: 0 -2px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  color: var(--dim-3);
+  transition: transform 0.2s cubic-bezier(0.3, 1.2, 0.4, 1), color 0.12s ease-out;
+}
+
+.pv-twisty:not(.none):hover {
+  color: var(--ink);
+}
+
+.pv-sess[aria-expanded="true"] .pv-twisty {
+  transform: rotate(90deg);
+}
+
+/* How many subagents it has: lit while one runs, amber while one waits. */
+.pv-count {
+  flex: 0 0 auto;
+  min-width: 15px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--gh-plate);
+  font: 600 9.5px/14px var(--font);
+  text-align: center;
+  color: var(--dim-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-count.going {
+  background: color-mix(in srgb, #5aa9ff 22%, transparent);
+  color: #9ccbff;
+}
+
+.pv-count.asking {
+  background: color-mix(in srgb, var(--amber) 24%, transparent);
+  color: var(--amber);
+}
+
+/* A session waiting for an answer: its dot calls. */
+.pv-sess .dot.calls {
+  animation: pv-call 1.3s ease-in-out infinite;
+}
+
+@keyframes pv-call {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 60%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 5px transparent; }
+}
+
+.pv-subs {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  animation: rise-in 0.24s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+/* A subagent: how it stands, its type, what it was launched to do. */
+.pv-sub {
+  gap: 5px;
+  height: 21px;
+  padding: 0 7px 0 21px;
+  font: 400 11px var(--font);
+}
+
+.large .pv-sub {
+  height: 24px;
+  padding-left: 24px;
+  font-size: 11.5px;
+}
+
+.pv-sub .sess-mark {
+  width: 11px;
+  height: 11px;
+}
+
+.pv-sub .sess-mark.run {
+  border-width: 1.5px;
+}
+
+.pv-sub-type {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 36%;
+  color: var(--dim-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pv-sub-task {
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--gh-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pv-sub.on .pv-sub-task {
+  color: var(--ink);
+}
+
+/* Finished: still there, and out of the way. */
+.pv-sub.done > *,
+.pv-sub.failed > * {
+  opacity: 0.55;
+}
+
+.pv-sub.failed .sess-mark {
+  opacity: 0.9;
+}
+
+.pv-sub.on > * {
+  opacity: 1;
+}
+
+/* Waiting for the user: the row is amber. */
+.pv-sub.asking {
+  background: color-mix(in srgb, var(--amber) 13%, transparent);
+}
+
+.pv-sub.asking:hover,
+.pv-sub.asking.on {
+  background: color-mix(in srgb, var(--amber) 21%, transparent);
+}
+
+.pv-sub.asking .pv-sub-task,
+.pv-sub.asking .pv-sub-type {
+  color: var(--amber);
+}
+
+.pv-sub.asking .pv-sub-type {
+  opacity: 0.75;
+}
+
+/* "needs me", said in words where there is the room for it. */
+.pv-sub-needs {
+  display: none;
+  flex: 0 0 auto;
+  font: 600 9.5px var(--font);
+  color: var(--amber);
+  white-space: nowrap;
+}
+
+.large .pv-sub-needs {
+  display: block;
+}
+
+.sess-mark.pv-needs {
+  background: var(--amber);
+  color: var(--on-light);
+  animation: pv-call 1.3s ease-in-out infinite;
+  --c: var(--amber);
+}
+
+/* ── The filter chips, in the panel's head ──────────────────────────────── */
+
+.pv-filters {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 31px;
+  padding: 0 6px 0 7px;
+  border-bottom: 1px solid var(--gh-edge);
+  overflow: hidden;
+}
+
+.pv-f {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 19px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dim-2);
+  font: 500 10.5px var(--font);
+  white-space: nowrap;
+  cursor: default;
+  transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.pv-f b {
+  font-weight: 600;
+  color: var(--dim-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-f:hover {
+  background: var(--gh-hover);
+  color: var(--gh-text);
+}
+
+.pv-f.on {
+  background: var(--gh-plate);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.pv-f.on b {
+  color: var(--gh-text);
+}
+
+.pv-filters .jr-chip,
+.pv-filters .sess-files {
+  white-space: nowrap;
+}
+
+.large .pv-filters {
+  height: 36px;
+  gap: 6px;
+  padding: 0 9px 0 10px;
+}
+
+.large .pv-f {
+  height: 22px;
+  padding: 0 10px;
+  font-size: 11.5px;
+}
+
+/* ── The journal ────────────────────────────────────────────────────────── */
+
+.large .sess-journal {
+  gap: 11px;
+  padding: 12px 14px 16px;
+}
+
+/* Another journal than the one that was there: it comes in. */
+.sess-journal.pv-enter {
+  animation: rise-in 0.26s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+/* In the large panel a command is shown whole: it wraps instead of being cut. */
+.large .jr-step.command .jr-head {
+  height: auto;
+  align-items: flex-start;
+}
+
+.large .jr-step.command .jr-head > * {
+  min-height: 18px;
+  line-height: 18px;
+}
+
+.large .jr-step.command .jr-head > i,
+.large .jr-step.command .jr-head > .sess-mark {
+  margin-top: 2.5px;
+  min-height: 0;
+}
+
+.large .jr-step.command .jr-head > .at {
+  flex: 0 1 auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: visible;
+}
+
+/* How a subagent stands, in words: "running 1m 23s". */
+.pv-status {
+  flex: 0 0 auto;
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-status.running {
+  color: #9ccbff;
+}
+
+.pv-status.asking {
+  color: var(--amber);
+}
+
+.pv-status.failed {
+  color: var(--red-text);
+}
+
+/* ── Where a subagent was launched: one line of the main journal ────────── */
+
+.pv-launch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px 0 5px;
+  border: 1px solid var(--gh-edge);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  color: inherit;
+  text-align: left;
+  cursor: default;
+  user-select: none;
+  transition: background 0.12s ease-out, border-color 0.12s ease-out;
+}
+
+.pv-launch:hover {
+  background: var(--gh-plate);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.pv-launch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1.5px #5aa9ff;
+}
+
+.pv-launch.asking {
+  border-color: color-mix(in srgb, var(--amber) 34%, transparent);
+  background: color-mix(in srgb, var(--amber) 8%, transparent);
+}
+
+.pv-launch .sess-mark {
+  width: 11px;
+  height: 11px;
+}
+
+.pv-launch .sess-mark.run {
+  border-width: 1.5px;
+}
+
+.pv-launch > b {
+  flex: 0 0 auto;
+  font: 600 12px var(--font);
+  color: var(--ink);
+}
+
+.pv-launch-type {
+  flex: 0 0 auto;
+  margin-right: -2px;
+  font: 500 11.5px var(--font);
+  color: var(--gh-text);
+  white-space: nowrap;
+}
+
+.pv-launch-task {
+  flex: 0 1 auto;
+  min-width: 24px;
+  font: 400 11.5px var(--font);
+  color: var(--gh-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pv-launch-sep {
+  flex: 0 0 auto;
+  margin: 0 -2px;
+  color: var(--dim-4);
+}
+
+.pv-launch > .grow {
+  flex: 1 1 0;
+}
+
+.pv-launch-go {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--dim-3);
+  transition: transform 0.16s ease-out, color 0.12s ease-out;
+}
+
+.pv-launch:hover .pv-launch-go {
+  color: var(--ink);
+  transform: translateX(2px);
+}
+
+.large .pv-launch {
+  height: 27px;
+  padding: 0 9px 0 7px;
+}
+
+/* ── A subagent's own view ──────────────────────────────────────────────── */
+
+/* Where one is: the session, then the subagent. The arrow goes back. */
+.pv-crumb {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  height: 29px;
+  padding: 0 9px 0 5px;
+  border-bottom: 1px solid var(--gh-edge);
+  background: rgba(255, 255, 255, 0.02);
+  font: 400 11.5px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+}
+
+.large .pv-crumb {
+  height: 34px;
+  padding: 0 12px 0 8px;
+  font-size: 12.5px;
+}
+
+.pv-back {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--gh-plate);
+  color: var(--gh-text);
+  cursor: default;
+  transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.pv-back:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--ink);
+}
+
+.pv-crumb-session {
+  flex: 0 1 auto;
+  min-width: 24px;
+  max-width: 34%;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  font: inherit;
+  font-weight: 500;
+  color: var(--gh-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+.pv-crumb-session:hover {
+  background: var(--gh-hover);
+  color: var(--ink);
+}
+
+.pv-crumb-sep,
+.pv-crumb-dot {
+  flex: 0 0 auto;
+  color: var(--dim-4);
+}
+
+.pv-crumb-type {
+  flex: 0 0 auto;
+}
+
+.pv-crumb-task {
+  flex: 0 1 auto;
+  min-width: 30px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pv-crumb > .grow {
+  flex: 1 1 0;
+  min-width: 4px;
+}
+
+.pv-crumb .sess-mark {
+  width: 11px;
+  height: 11px;
+}
+
+.pv-crumb .sess-mark.run {
+  border-width: 1.5px;
+}
+
+/* What its view ends on, while it runs or waits: one line. */
+.pv-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 9px;
+  border-radius: 9px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  font: 400 11.5px var(--font);
+  color: var(--dim-2);
+}
+
+.pv-end.asking {
+  border: 1px solid color-mix(in srgb, var(--amber) 36%, transparent);
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
+}
+
+.pv-end-words {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.pv-end-words b {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pv-end.asking .pv-end-words b {
+  color: var(--amber);
+}
+
+.pv-end-words span:not(.pv-elapsed) {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pv-end-what {
+  font: 400 10.5px var(--mono);
+}
+
+.pv-end-btn {
+  flex: 0 0 auto;
+  height: 20px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--gh-plate);
+  font: 500 11px var(--font);
+  color: var(--ink);
+  white-space: nowrap;
+  cursor: default;
+  transition: background 0.12s ease-out;
+}
+
+.pv-end-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.pv-end.asking .pv-end-btn {
+  background: var(--amber);
+  color: var(--on-light);
+}
+
+/* What it came back with. */
+.pv-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px 9px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--green-2) 26%, transparent);
+  background: color-mix(in srgb, var(--green-2) 6%, transparent);
+}
+
+.pv-result.failed {
+  border-color: color-mix(in srgb, var(--red) 32%, transparent);
+  background: color-mix(in srgb, var(--red) 7%, transparent);
+}
+
+.pv-result-h {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+}
+
+.pv-result-h b {
+  font: 600 12px var(--font);
+  color: var(--ink);
+}
+
+.pv-result-h .sess-mark {
+  width: 12px;
+  height: 12px;
+}
+
+/* No agent ids: its steps cannot be told apart. */
+.pv-apart {
+  display: flex;
+  gap: 9px;
+  padding: 9px 11px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--amber) 24%, transparent);
+  color: #fbc06a;
+}
+
+.pv-apart > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.pv-apart > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pv-apart b {
+  font: 600 12px/1.35 var(--font);
+  color: var(--ink);
+}
+
+.pv-apart span {
+  font: 400 11.5px/1.4 var(--font);
+  color: var(--gh-text);
+}
+
+.pv-apart .pv-end-btn {
+  margin-top: 3px;
+}
+
+/* ── A card that asks: who is asking ────────────────────────────────────── */
+
+.pv-alert {
+  animation: rise-in 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+.pv-card-bot {
+  position: absolute;
+  left: 52px;
+  top: 50%;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+}
+
+.pv-who {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.pv-who > span {
+  white-space: nowrap;
+}
+
+/* What the subagent is doing: the first thing to keep, and the last to be cut. */
+.pv-who > .n {
+  flex: 0 1 auto;
+  min-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pv-who > .pv-of {
+  flex: 0 0 auto;
+}
+
+/* The session's folder: in the ink, set apart as a name. */
+.pv-who > .pv-proj {
+  /* A long folder name gives way before what the subagent is doing loses a letter. */
+  flex: 0 1000 auto;
+  min-width: 56px;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pv-who > .who-waiting,
+.pv-who > .q-chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.pv-maybe {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--gh-plate);
+  font: 500 10.5px var(--font);
+  color: var(--gh-text);
+}
+
+/* Behind the request on the card: the one that asked next. */
+.pv-next {
+  flex: 0 0 auto;
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pv-alert .stack > .actions,
+.pv-alert .stack > .title {
+  flex: 0 0 auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pv-panel,
+  .pv-alert,
+  .pv-subs,
+  .sess-journal.pv-enter,
+  .sess-mark.pv-needs,
+  .pv-sess .dot.calls {
+    animation: none;
+  }
+}
+
+/* A reply in the large panel: a step larger, as style.css has it for .session-view.large;
+   and the mark of a reply that waits on a decision, sized as the app's large sidebar has it. */
+.large .md {
+  font-size: 13.5px;
+}
+
+.large .sess-decide {
+  height: 17px;
+  font-size: 10.5px;
+  line-height: 17px;
+}

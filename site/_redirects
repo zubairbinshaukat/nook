@@ -1,0 +1,13 @@
+# Cloudflare Pages and Netlify redirects (GitHub Pages ignores this file).
+/download     https://github.com/zubairbinshaukat/nook/releases/latest   302
+/github       https://github.com/zubairbinshaukat/nook  302
+/issues       https://github.com/zubairbinshaukat/nook/issues  302
+/install      /guides/install/   301
+/faq          /guides/faq/       301
+/troubleshooting  /guides/troubleshooting/  301
+/windows      /   301
+/claude-code  /   301
+
+# Trailing-slash redirects such as "/guides/install /guides/install/ 301" are NOT listed:
+# GitHub Pages, Cloudflare Pages and Netlify already add the slash to a folder URL, and
+# an explicit rule can cause a redirect loop.

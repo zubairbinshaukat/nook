@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "What Nook's windows are allowed to do. Everything that touches the OS goes through Nook's own commands.",
+  "windows": ["island", "settings"],
+  "permissions": ["core:default", "autostart:default"]
+}

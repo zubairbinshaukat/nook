@@ -1,0 +1,882 @@
+/* Preview pages only (dev/home-preview, dev/compact-preview). Loaded after the
+   app's style.css: the island's surfaces, type and colours come from there;
+   this adds the page around the island and the parts that are not built yet. */
+
+/* ── The page: a scrolling document, not the app's fixed window ───────────── */
+
+html,
+body {
+  height: auto;
+  min-height: 100%;
+  overflow: auto;
+  background: #1c1e22;
+}
+
+#root.pv-root {
+  position: static;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 48px;
+  /* A page an odd number of pixels wide would centre the islands on a half pixel
+     and soften their upright edges: see snapToPixels in notch.ts. */
+  padding-right: var(--pv-odd, 0px);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* The top of a screen: the island hangs from its upper edge. */
+.pv-desk {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: hidden;
+  padding-bottom: 40px;
+  background: linear-gradient(#343842, #282b32);
+  zoom: var(--pv-zoom, 1);
+}
+
+.pv-light .pv-desk {
+  background: #eef0f3;
+}
+
+/* ── The island's outline (preview/notch.ts) ──────────────────────────────── */
+
+.pv-island {
+  position: relative;
+  z-index: 0;
+  flex: 0 0 auto;
+}
+
+.pv-notch {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  z-index: -1;
+  fill: #000;
+  pointer-events: none;
+}
+
+/* ── The real bot, mounted as island.ts mounts it ─────────────────────────── */
+
+.pv-bot {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.pv-bot canvas {
+  position: absolute;
+  pointer-events: none;
+}
+
+.pv-bot-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(6px);
+  pointer-events: none;
+  transition: opacity 0.4s ease-in-out, background 0.4s ease-in-out;
+}
+
+@keyframes pv-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes pv-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* ── Home view ────────────────────────────────────────────────────────────── */
+
+.home {
+  display: flex;
+  gap: 8px;
+  height: 100%;
+}
+
+/* Left: the main bot, and the session it speaks for. */
+.home-bot {
+  flex: 0 0 164px;
+  width: 164px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 12px 12px;
+  /* What flies out of the bot is not cut by its card. */
+  overflow: visible;
+}
+
+.home-bot.wash::after {
+  border-radius: inherit;
+  transition: background 0.4s ease-in-out;
+}
+
+.home-bot > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hb-stage {
+  flex: 0 0 76px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 6px;
+}
+
+.hb-who {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+  margin-top: 6px;
+}
+
+.hb-who .name {
+  flex: 0 0 auto;
+  max-width: 100%;
+  font: 600 12.5px var(--font);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hb-who .words {
+  flex: 0 0 auto;
+  font: 500 10.5px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+  transition: color 0.3s ease-out;
+}
+
+.hb-doing {
+  max-width: 100%;
+  margin-top: 3px;
+  font: 400 11px/14px var(--font);
+  color: var(--dim-2);
+  text-align: center;
+  /* One line as a rule; a long command gets a second before it is cut. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.hb-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  height: 26px;
+}
+
+.hb-actions .btn {
+  padding: 5px 14px;
+  font-size: 12px;
+  animation: rise-in 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+/* Middle: one mini bot per session, in lanes. */
+.home-sessions {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 10px 8px;
+}
+
+.hs-lanes {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.lane {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lane.sep {
+  margin-left: 7px;
+  padding-left: 7px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Finished ones on their own side. */
+.lane.done {
+  margin-left: auto;
+}
+
+.lane-h {
+  font: 600 9px var(--font);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--dim-3);
+  white-space: nowrap;
+  padding-left: 3px;
+}
+
+.lane-h i {
+  font-style: normal;
+  color: var(--dim);
+}
+
+.lane-bots {
+  display: flex;
+}
+
+.agent {
+  position: relative;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 52px;
+  padding: 14px 0 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: default;
+  transition: background 0.18s, transform 0.2s cubic-bezier(0.3, 1.2, 0.4, 1);
+}
+
+.agent:hover {
+  background: rgba(255, 255, 255, 0.07);
+  transform: scale(1.06);
+}
+
+.agent .mini {
+  transition: filter 0.4s ease-out, opacity 0.4s ease-out;
+}
+
+/* Finished: grey at once. The colour was a light; the light is off. */
+.agent.rest .mini {
+  filter: grayscale(1) brightness(0.9);
+  opacity: 0.45;
+}
+
+/* A result nobody has opened yet. */
+.agent .unseen {
+  position: absolute;
+  top: 9px;
+  right: 1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green-2);
+  box-shadow: 0 0 0 2px var(--card), 0 0 6px var(--green-2);
+  animation: pop-in 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+/* Its running subagents: a dot each. */
+.kids {
+  display: flex;
+  align-items: center;
+  gap: 1.5px;
+  height: 6px;
+  margin-top: 8px;
+  white-space: nowrap;
+}
+
+.kids i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 4px var(--c);
+  animation: pop-in 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+.kids i.asking {
+  animation: pv-blink 0.9s steps(2) infinite;
+}
+
+.kids small {
+  font: 600 7.5px/6px var(--font);
+  color: var(--dim-2);
+}
+
+.more {
+  flex: 0 0 auto;
+  min-width: 28px;
+  height: 20px;
+  margin: 12px 0 0 6px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 999px;
+  font: 600 10.5px var(--font);
+  color: var(--c);
+  background: var(--tint);
+  cursor: default;
+  transition: color 0.3s ease-out, background 0.3s ease-out, transform 0.2s cubic-bezier(0.3, 1.2, 0.4, 1);
+}
+
+.more:hover {
+  transform: scale(1.08);
+}
+
+.more.calls {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 50%, transparent);
+}
+
+.hs-lanes:not(:has(.lane.done:not([hidden]))) .more {
+  margin-left: auto;
+}
+
+/* What the bot under the pointer is, and what it is doing: a place kept for it. */
+.hs-foot {
+  flex: 0 0 37px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 5px 3px 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.hf-who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+}
+
+.hf-who b {
+  flex: 0 1 auto;
+  min-width: 0;
+  font: 600 12px var(--font);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hf-who em,
+.gh-row-title em {
+  flex: 0 0 auto;
+  font-style: normal;
+  color: var(--dim-3);
+  margin-left: -2px;
+}
+
+.hf-who span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.hf-who .subs {
+  color: #3b9eff;
+}
+
+.hf-doing {
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hs-foot.quiet .hf-doing {
+  white-space: normal;
+  line-height: 1.3;
+  color: var(--dim-4);
+}
+
+.hs-empty {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 16px;
+  text-align: center;
+  animation: rise-in 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+.hs-empty .title {
+  font-size: 14px;
+}
+
+.hs-empty .sub {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.hs-empty .code {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.hs-empty .btn {
+  margin-top: 6px;
+  padding: 6px 13px;
+  font-size: 12px;
+}
+
+/* Behind "+N": project, state, how long. */
+.hs-list {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: 240px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px;
+  overflow-y: auto;
+  border-radius: 13px;
+  background: #1a1c20;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.hs-list .gh-row {
+  width: 100%;
+}
+
+/* Right: resources and usage. Every value has a cell of its own width. */
+.home-res {
+  flex: 0 0 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 11px 11px 9px;
+}
+
+.home-res .lane-h {
+  padding-left: 0;
+  margin-top: 3px;
+  margin-bottom: -3px;
+}
+
+.res-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.res-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 14px;
+  min-width: 0;
+}
+
+.res-head b {
+  flex: 0 0 auto;
+  min-width: 24px;
+  font: 600 10.5px var(--font);
+  color: var(--dim);
+}
+
+.res-value {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font: 600 10.5px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* "100%" fits; "—" sits in the same cell. */
+.res-value.cpu {
+  width: 34px;
+}
+
+.res-value.blank {
+  color: var(--dim-4);
+}
+
+.res-sub {
+  min-width: 0;
+  font: 400 9.5px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.res-spark {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 14px;
+}
+
+.res-spark .line {
+  fill: none;
+  stroke: #cfe0f5;
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.85;
+}
+
+.res-spark .area {
+  fill: rgba(207, 224, 245, 0.12);
+}
+
+.res-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.res-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: rgba(241, 242, 244, 0.6);
+  transition: width 0.5s cubic-bezier(0.3, 1.2, 0.4, 1), background 0.3s ease-out;
+}
+
+.res-usage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  transition: opacity 0.4s ease-out;
+}
+
+/* Older than ten minutes: the bars dim, the age speaks up. */
+.res-usage.stale {
+  opacity: 0.4;
+}
+
+.res-none {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+}
+
+.res-none b {
+  font: 600 11.5px var(--font);
+  color: var(--ink-2);
+}
+
+.res-none span {
+  font: 400 10.5px/1.35 var(--font);
+  color: var(--dim-3);
+}
+
+.res-age {
+  flex: 0 0 12px;
+  margin-top: auto;
+  font: 400 10px var(--font);
+  color: var(--dim-3);
+  transition: color 0.3s ease-out;
+}
+
+.res-age.stale {
+  color: var(--amber);
+}
+
+/* The slot kept in the top bar for what is not decided yet. */
+.pv-reserved {
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  opacity: 0.55;
+}
+
+.pv-reserved:hover {
+  background: transparent;
+  color: var(--dim-2);
+}
+
+/* ── Compact island ───────────────────────────────────────────────────────── */
+
+.pv-island.ci {
+  position: absolute;
+  top: 0;
+  width: max-content;
+  display: flex;
+  align-items: center;
+}
+
+.ci-bot {
+  flex: 0 0 auto;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.ci-dots {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.ci-dot {
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--c);
+}
+
+.ci-dot.calls {
+  box-shadow: 0 0 6px var(--c);
+  animation: pv-pulse 1.4s ease-in-out infinite;
+}
+
+.ci-dot.rest {
+  opacity: 0.75;
+}
+
+.ci-more {
+  flex: 0 0 auto;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font: 600 9.5px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--c);
+  background: var(--tint);
+  overflow: hidden;
+}
+
+.ci-more.calls {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 50%, transparent);
+}
+
+.ci-metrics {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.ci-metric {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  color: var(--dim-3);
+  white-space: nowrap;
+}
+
+.ci-metric svg {
+  flex: 0 0 auto;
+}
+
+.ci-metric b {
+  font: 600 11px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.ci-metric b.blank {
+  color: var(--dim-4);
+}
+
+/* ── Around the islands: labels, guides, controls ─────────────────────────── */
+
+.pv-variant {
+  width: 620px;
+  margin-top: 18px;
+}
+
+.pv-label {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font: 600 12.5px var(--font);
+  color: #ecedef;
+}
+
+.pv-width {
+  font: 500 11.5px var(--mono);
+  color: var(--green-2);
+}
+
+.pv-width.over,
+.pv-verdict.over {
+  color: var(--red);
+}
+
+.pv-dropped {
+  font: 400 11.5px var(--font);
+  color: var(--amber);
+}
+
+.pv-about {
+  margin: 2px 0 7px;
+  font: 400 11.5px var(--font);
+  color: var(--dim);
+}
+
+.pv-desk.compact {
+  display: block;
+  height: 62px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+.pv-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  border: dashed rgba(255, 255, 255, 0.2);
+  border-width: 0 1px;
+  pointer-events: none;
+}
+
+.pv-guide small {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  font: 400 9.5px var(--mono);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.pv-guide.cap {
+  border-color: var(--amber);
+}
+
+.pv-guide.cap small {
+  left: 4px;
+  right: auto;
+  color: var(--amber);
+}
+
+.pv-light .pv-guide {
+  border-color: rgba(0, 0, 0, 0.3);
+}
+
+.pv-light .pv-guide small {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.pv-controls {
+  width: min(780px, 100% - 32px);
+  margin-top: 26px;
+  padding: 14px 16px 15px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+  font: 400 12.5px var(--font);
+  color: #c5c8cd;
+}
+
+.pv-controls.top {
+  margin-top: 18px;
+}
+
+.pv-controls h2 {
+  font: 600 11px var(--font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.pv-controls p {
+  margin-top: 3px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+
+.pv-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.pv-group > span:first-child {
+  flex: 0 0 86px;
+  font-size: 11.5px;
+  color: var(--dim-2);
+}
+
+.pv-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #e6e8eb;
+  padding: 5px 11px;
+  font: 500 12px var(--font);
+  cursor: pointer;
+  transition: background 0.12s ease-out, transform 0.08s ease-out;
+}
+
+.pv-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.pv-btn:active {
+  transform: scale(0.95);
+}
+
+.pv-btn.on {
+  background: #ecedef;
+  border-color: #ecedef;
+  color: #111;
+}
+
+input[type="range"].pv-slider {
+  width: 260px;
+  cursor: pointer;
+}
+
+.pv-cap-text {
+  font: 400 11.5px var(--font);
+  color: var(--dim);
+}
+
+.pv-cap-text b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.pv-verdict {
+  margin-top: 11px;
+  font: 600 12px var(--font);
+  color: var(--green-2);
+}
+
+.pv-status {
+  margin-top: 12px;
+  font: 400 11px var(--mono);
+  color: var(--dim-2);
+}
+
+.pv-note {
+  margin-top: 4px;
+  min-height: 18px;
+  color: #e6e8eb;
+}

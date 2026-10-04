@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nook Troubleshooting: Fixes for Common Problems</title>
+<meta name="description" content="Fix the usual Nook problems: SmartScreen, antivirus flags, no island, no sessions, hooks that do nothing, stale usage, shortcuts, camera, media, startup issues.">
+<link rel="canonical" href="https://nook.zubyr.dev/guides/troubleshooting/">
+<link rel="alternate" hreflang="x-default" href="https://nook.zubyr.dev/guides/troubleshooting/">
+<link rel="alternate" hreflang="en" href="https://nook.zubyr.dev/guides/troubleshooting/">
+<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">
+<meta name="author" content="Zubair Bin Shaukat">
+<meta name="application-name" content="Nook">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0B0B0F" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F5F8" media="(prefers-color-scheme: light)">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Nook">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Nook Troubleshooting: Fixes for Common Problems">
+<meta property="og:description" content="Fix the usual Nook problems: SmartScreen, antivirus flags, no island, no sessions, hooks that do nothing, stale usage, shortcuts, camera, media, startup issues.">
+<meta property="og:url" content="https://nook.zubyr.dev/guides/troubleshooting/">
+<meta property="og:image" content="https://nook.zubyr.dev/assets/img/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Nook, a Dynamic Island for Windows: Gullu the mascot beside the island showing Claude Code agents">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@zubyrdev">
+<meta name="twitter:creator" content="@zubyrdev">
+<meta name="twitter:title" content="Nook Troubleshooting: Fixes for Common Problems">
+<meta name="twitter:description" content="Fix the usual Nook problems: SmartScreen, antivirus flags, no island, no sessions, hooks that do nothing, stale usage, shortcuts, camera, media, startup issues.">
+<meta name="twitter:image" content="https://nook.zubyr.dev/assets/img/og.png">
+<meta name="twitter:image:alt" content="Nook, a Dynamic Island for Windows, showing Claude Code agents">
+<link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/img/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/assets/img/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400..650&display=swap">
+<link rel="stylesheet" href="/assets/css/site.css?v=1">
+<script>
+(function(){var r=document.documentElement;r.classList.add('js');try{var t=localStorage.getItem('nook-theme');if(t==='light'||t==='dark')r.setAttribute('data-theme',t)}catch(e){}})();
+</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://nook.zubyr.dev/#website","url":"https://nook.zubyr.dev/","name":"Nook","inLanguage":"en","publisher":{"@id":"https://nook.zubyr.dev/#author"}},{"@type":"Person","@id":"https://nook.zubyr.dev/#author","name":"Zubair Bin Shaukat","url":"https://zubyr.dev","sameAs":["https://zubyr.dev","https://github.com/zubairbinshaukat","https://www.linkedin.com/in/zubairbinshaukat","https://x.com/zubyrdev"]},{"@type":"TechArticle","@id":"https://nook.zubyr.dev/guides/troubleshooting/#article","headline":"Troubleshooting Nook","name":"Nook Troubleshooting: Fixes for Common Problems","description":"Fix the usual Nook problems: SmartScreen, antivirus flags, no island, no sessions, hooks that do nothing, stale usage, shortcuts, camera, media, startup issues.","url":"https://nook.zubyr.dev/guides/troubleshooting/","inLanguage":"en","datePublished":"2026-10-04","dateModified":"2026-10-04","image":"https://nook.zubyr.dev/assets/img/og.png","author":{"@id":"https://nook.zubyr.dev/#author"},"publisher":{"@id":"https://nook.zubyr.dev/#author"},"isPartOf":{"@id":"https://nook.zubyr.dev/#website"},"mainEntityOfPage":"https://nook.zubyr.dev/guides/troubleshooting/","about":{"@type":"SoftwareApplication","name":"Nook","url":"https://nook.zubyr.dev/"}},{"@type":"BreadcrumbList","@id":"https://nook.zubyr.dev/guides/troubleshooting/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Nook","item":"https://nook.zubyr.dev/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://nook.zubyr.dev/guides/"},{"@type":"ListItem","position":3,"name":"Troubleshooting","item":"https://nook.zubyr.dev/guides/troubleshooting/"}]}]}</script>
+</head>
+<body id="top">
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="progress" data-progress aria-hidden="true"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"/></symbol>
+<symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-4 1-4-2-6-2m12 4v-3.500c0-1 .1-1.400-.5-2 2.800-.3 5.500-1.400 5.500-6a4.600 4.600 0 0 0-1.300-3.200 4.200 4.200 0 0 0-.1-3.200s-1.100-.3-3.500 1.300a12.300 12.300 0 0 0-6.200 0C6.500 2.800 5.400 3.100 5.400 3.100a4.200 4.200 0 0 0-.1 3.200A4.600 4.600 0 0 0 4 9.500c0 4.600 2.700 5.700 5.500 6-.6.600-.6 1.200-.5 2V21"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.500A8 8 0 0 1 9.500 4 8 8 0 1 0 20 14.500z"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+<symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5m0 0l-6 6m6-6l6 6"/></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 3l10 18H2zM12 10v5m0 3h.01"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><path d="M12 8h.01M11 12h1v5h1M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.500l4.500 4.500L19 7.500"/></symbol>
+</defs></svg>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="brand" href="/" aria-label="Nook, home"><img src="/assets/img/gullu-96.png" width="32" height="32" alt="" decoding="async"><span>Nook</span></a>
+    <nav aria-label="Primary" style="display:contents">
+      <ul class="nav-links" data-nav-links id="site-menu">
+        <li><a href="/#how">How it works</a></li>
+        <li><a href="/#features">Features</a></li>
+        <li><a href="/privacy/">Privacy</a></li>
+        <li><a href="/guides/install/">Install</a></li>
+        <li><a href="/guides/" aria-current="page">Guides</a></li>
+        <li><a href="/guides/faq/">FAQ</a></li>
+      </ul>
+    </nav>
+    <div class="nav-tools">
+      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch theme"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      <button class="icon-btn nav-menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-menu" aria-label="Menu"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-menu"/></svg></button>
+      <a class="btn btn-primary nav-cta" href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+<div class="container doc-wrap">
+  <nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="/">Nook</a></li><li><a href="/guides/">Guides</a></li><li aria-current="page">Troubleshooting</li></ol></nav>
+  <header class="doc-head">
+    <p class="eyebrow">Guide</p>
+    <h1>Troubleshooting Nook</h1>
+    <p class="lede">Each problem below has a symptom, a likely cause and a fix. Where Nook cannot know for sure, this page says &ldquo;usually&rdquo;. The last section tells you how to file an issue we can act on.</p>
+    <p class="doc-meta">Last updated <time datetime="2026-10-04">2026-10-04</time> &middot; Nook 0.1.0 &middot; <a href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer">Was this helpful? Report a problem</a></p>
+  </header>
+  <div class="doc-grid">
+    <aside class="doc-side"><nav class="toc" aria-label="On this page"><p class="toc-h">On this page</p><ol><li><a href="#smartscreen">SmartScreen blocks the installer</a></li><li><a href="#antivirus">Antivirus flags nook-hook.exe</a></li><li><a href="#island-missing">The island does not appear</a></li><li><a href="#no-sessions">No sessions show up</a></li><li><a href="#hooks-nothing">Hooks are installed but nothing happens</a></li><li><a href="#questions">Permission requests or questions cannot be answered</a></li><li><a href="#usage-missing">Usage limits are missing or stale</a></li><li><a href="#high-cpu">High CPU use</a></li><li><a href="#fullscreen">The island hides in full-screen apps</a></li><li><a href="#multi-monitor">Multi-monitor, 125% scaling, blur or wrong position</a></li><li><a href="#shortcut-conflict">Shortcuts do not work</a></li><li><a href="#camera">Mirror: the camera does not work</a></li><li><a href="#media">The Media widget shows nothing</a></li><li><a href="#goto-session">“Go to session” cannot select a Windows Terminal tab</a></li><li><a href="#wont-start">Nook does not start</a></li><li><a href="#collect-logs">How to collect logs and open an issue</a></li></ol></nav></aside>
+    <article class="prose doc-body">
+
+<h2 id="smartscreen">SmartScreen blocks the installer</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>&ldquo;Windows protected your PC&rdquo; appears and there is no obvious way to run the installer.</dd></div><div><dt>Cause</dt><dd>The installer is not code-signed yet, and SmartScreen does not know new unsigned programs.</dd></div><div><dt>Fix</dt><dd><ol><li>Check the download first: <code>Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256</code>, then compare with <code>SHA256SUMS.txt</code> from the release.</li><li>Choose <strong>More info</strong>, then <strong>Run anyway</strong>.</li></ol><p>Details in the <a href="/guides/install/#smartscreen">install guide</a>. Signing through SignPath is planned.</p></dd></div></dl>
+
+<h2 id="antivirus">Antivirus flags nook-hook.exe</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>Your antivirus quarantines or warns about <code>nook-hook.exe</code>, so sessions stop showing up.</dd></div><div><dt>Cause</dt><dd>It is a small, unsigned, little-known program that other programs start often, which heuristics dislike. This is a false positive.</dd></div><div><dt>Fix</dt><dd><ol><li>Verify the file’s hash against <code>SHA256SUMS.txt</code> (it lists <code>nook-hook.exe</code> too).</li><li>Restore it from quarantine or restart Nook, which copies it back to <code>%LOCALAPPDATA%\Nook\bin</code> at launch.</li><li>Report the false positive to Microsoft at <a href="https://www.microsoft.com/wdsi/filesubmission" target="_blank" rel="noopener noreferrer">www.microsoft.com/wdsi/filesubmission</a> as &ldquo;Software developer&rdquo; and &ldquo;Incorrectly detected&rdquo;; this usually clears Microsoft Defender within days. Other vendors have similar forms.</li><li>Or build Nook from source and check the code yourself.</li></ol></dd></div></dl>
+
+<h2 id="island-missing">The island does not appear</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>Nook is running but you cannot see the island.</dd></div><div><dt>Cause</dt><dd>It usually auto-hid. The folded island hides after a while (one minute by default), leaving a hidden strip at the top of the screen. It can also be on another display, or hidden because a full-screen app is in front.</dd></div><div><dt>Fix</dt><dd><ol><li>Move the mouse to the top edge of the screen to wake it, or press <kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Alt</kbd> <kbd class="kbd">Space</kbd>.</li><li>Check the notification area for the Nook icon and choose <strong>Open Nook</strong>. If <strong>Pause</strong> was chosen, choose it again.</li><li>In <strong>Settings &rarr; General</strong>, check which display Nook uses (the main display, or the one under the cursor).</li><li>In <strong>Settings &rarr; Island</strong>, raise <em>Auto-hide the folded island after</em> or set it to never.</li><li>No tray icon at all? See <a href="#wont-start">Nook does not start</a>.</li></ol></dd></div></dl>
+
+<h2 id="no-sessions">No sessions show up</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>Claude Code is running but the island is empty.</dd></div><div><dt>Cause</dt><dd>Usually one of: the hooks are not installed; the session started before the hooks were installed; old shell-form hooks fail in PowerShell; or the relay is missing.</dd></div><div><dt>Fix</dt><dd><ol><li><strong>Install the hooks:</strong> Settings &rarr; Claude Code should say <em>Connected</em>. If it says <em>Not installed</em>, click <strong>Install hooks&hellip;</strong>.</li><li><strong>Restart the session.</strong> Hooks are read when a session starts, so a session that was already open will not report until you open a new one.</li><li><strong>PowerShell ParserError.</strong> If Claude Code reports a hook error such as <code>Unexpected token 'Stop'</code>, the hooks were written in an old shell form that only works in Git Bash. Open Settings &rarr; Claude Code and click <strong>Reinstall&hellip;</strong> (or Install hooks&hellip;) to rewrite them in the exec form. See <a href="/guides/claude-code-hooks/#what-is-written">why</a>.</li><li><strong>Relay missing.</strong> If Settings says <em>Relay missing</em>, restart Nook; it copies <code>nook-hook.exe</code> to <code>%LOCALAPPDATA%\Nook\bin</code> at launch. Antivirus may have removed it (see <a href="#antivirus">above</a>).</li><li><strong>Status line only:</strong> a relay path that contains a space or special character is refused for the usage status line, because Claude Code reads that command through a shell. Hooks themselves are fine with spaces. The status line needs a path made of letters, digits and <code>_ - . / :</code>, so a user folder with a space can block it.</li></ol></dd></div></dl>
+
+<h2 id="hooks-nothing">Hooks are installed but nothing happens</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>Settings says Connected, you started a new session, and still nothing appears.</dd></div><div><dt>Cause</dt><dd>The relay may not be reaching Nook, may be failing to start, or Claude Code may be reading a different settings file than the one Nook edited.</dd></div><div><dt>Fix</dt><dd><ol><li>Open the log, which records event names and decisions: <code>%LOCALAPPDATA%\Nook\nook.log</code>.</li><li>From the terminal where the session runs, run the diagnostic. It prints JSON and proves the relay starts: <div class="code-block"><code id="ts-where">& "$env:LOCALAPPDATA\Nook\bin\nook-hook.exe" --where</code><button class="copy-btn" type="button" data-copy="ts-where">Copy</button></div></li><li>Make sure Nook itself is running (tray icon) and not paused.</li><li>Check that <code>%USERPROFILE%\.claude\settings.json</code> contains entries whose command contains <code>nook-hook</code>.</li><li>If Nook runs elevated (as administrator) and Claude Code does not, or the other way round, the relay usually refuses the connection because the integrity levels differ. Run both normally.</li></ol></dd></div></dl>
+
+<h2 id="questions">Permission requests or questions cannot be answered</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>A request shows in the island but Allow or the answer does nothing, or a question never appears there.</dd></div><div><dt>Cause</dt><dd>Claude Code versions differ in which prompts they send through hooks. Some questions or permission types may not reach Nook, and the request times out after about two minutes.</dd></div><div><dt>Fix</dt><dd><p>Answer in the terminal: the same question is always shown there too. If it keeps happening, update Claude Code, and open an issue with your Claude Code version (<code>claude --version</code>) and the kind of prompt it was.</p></dd></div></dl>
+
+<h2 id="usage-missing">Usage limits are missing or stale</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>The usage meters are empty, show an old number, or read 0%.</dd></div><div><dt>Cause</dt><dd>Limits come from Claude Code’s status line, so they only appear if the usage status line is installed, only on subscription plans, and only update while a session runs. They are “as of the last Claude Code activity”. After a window resets, Nook shows 0% until Claude Code reports again.</dd></div><div><dt>Fix</dt><dd><ol><li>In <strong>Settings &rarr; Claude Code</strong>, install <strong>Usage limits</strong>.</li><li>Run a session; the numbers update when Claude Code reports them. Numbers older than about two hours are shown as old.</li><li>Using an API key instead of a subscription plan usually means there are no limits to show.</li><li>If another tool owns your status line, Nook chains it; if the numbers are still missing, open an issue.</li></ol></dd></div></dl>
+
+<h2 id="high-cpu">High CPU use</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>Nook shows up high in Task Manager.</dd></div><div><dt>Cause</dt><dd>Nook is a small app that mostly waits for events. Sustained high use usually comes from animation on a very busy desktop, a Shelf widget left open (Media is polled about once a second while it is on screen), or a bug.</dd></div><div><dt>Fix</dt><dd><ol><li>Fold the island and close any expanded widget, then watch Task Manager again.</li><li>In <strong>Settings &rarr; Appearance</strong>, set reduced motion to <em>on</em> and switch off playful reactions.</li><li>Check that the usage in the island’s CPU readout is not simply your own agents working.</li><li>If it stays high with everything folded, open an issue with the log and your Windows and graphics driver versions.</li></ol></dd></div></dl>
+
+<h2 id="fullscreen">The island hides in full-screen apps</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>You are watching a video, playing a game or presenting, and the island is gone.</dd></div><div><dt>Cause</dt><dd>This is a setting, on by default: Nook stays out of the way of full-screen apps. A permission request or a question still shows.</dd></div><div><dt>Fix</dt><dd><p>Turn off <strong>Settings &rarr; Island &rarr; Hide in full-screen apps</strong> if you want the island to stay visible.</p></dd></div></dl>
+
+<h2 id="multi-monitor">Multi-monitor, 125% scaling, blur or wrong position</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>The island is on the wrong monitor, off-centre, or blurry at 125% or 150% scaling.</dd></div><div><dt>Cause</dt><dd>The island sits on one display. If your displays have different scale factors, or the layout changed after Nook started, the window may need to be placed again.</dd></div><div><dt>Fix</dt><dd><ol><li>In <strong>Settings &rarr; General</strong> choose the main display or the display under the cursor.</li><li>Quit and start Nook again after changing the scale, resolution or monitor layout.</li><li>Blur usually points to a display with a different scale than the one Nook started on. Move Nook to that display via the setting, then restart it.</li><li>If it is still wrong, open an issue with your monitor layout and scale factors.</li></ol></dd></div></dl>
+
+<h2 id="shortcut-conflict">Shortcuts do not work</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd><kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Alt</kbd> <kbd class="kbd">Space</kbd> (or another Nook shortcut) does nothing.</dd></div><div><dt>Cause</dt><dd>Another app has already registered that key combination as a global shortcut, and only one app can hold it. Or the shortcut is switched off.</dd></div><div><dt>Fix</dt><dd><ol><li>Open Settings and change the shortcut to a combination nothing else uses, or switch it on if it is off.</li><li>Quit the other app to test whether it is the one holding the key. Common culprits are launchers, clipboard managers and input-method tools.</li></ol><p>The defaults are <kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Alt</kbd> <kbd class="kbd">Space</kbd> (expand or shrink), <kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Shift</kbd> <kbd class="kbd">Space</kbd> (open the panel) and <kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Alt</kbd> <kbd class="kbd">Enter</kbd> (go to the session that needs you).</p></dd></div></dl>
+
+<h2 id="camera">Mirror: the camera does not work</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>Mirror says the camera was refused, is missing or is busy.</dd></div><div><dt>Cause</dt><dd>Windows camera privacy settings, no camera detected, or another app using the camera.</dd></div><div><dt>Fix</dt><dd><ol><li><strong>Refused:</strong> Windows Settings &rarr; Privacy &amp; security &rarr; Camera: turn on camera access and let desktop apps use your camera. If you chose Block when asked, that choice is remembered; change it there and try again.</li><li><strong>Missing:</strong> plug a camera in, or check that Windows can see it in Device Manager.</li><li><strong>Busy:</strong> close the other app (a video call, a camera tool) and press <strong>Turn camera on</strong> again.</li></ol><p>The camera only runs while Mirror is open and is never recorded.</p></dd></div></dl>
+
+<h2 id="media">The Media widget shows nothing</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>Media says nothing is playing while music is playing.</dd></div><div><dt>Cause</dt><dd>Media shows what Windows’ system media controls know about. A player that does not report to Windows is invisible to it. It also only polls while a Media card is on screen.</dd></div><div><dt>Fix</dt><dd><ol><li>Open the Shelf so a Media card is visible, and start playback.</li><li>Check that Windows shows the same track in its own media overlay (volume flyout). If it does not, the player does not report to Windows; try another player or the browser.</li></ol></dd></div></dl>
+
+<h2 id="goto-session">&ldquo;Go to session&rdquo; cannot select a Windows Terminal tab</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>The jump button or <kbd class="kbd">Ctrl</kbd> <kbd class="kbd">Alt</kbd> <kbd class="kbd">Enter</kbd> brings Windows Terminal forward but not the right tab.</dd></div><div><dt>Cause</dt><dd>Nook can usually bring a window forward, but Windows Terminal does not offer a way to select a particular tab from outside. All tabs belong to one window.</dd></div><div><dt>Fix</dt><dd><p>Look for the tab with the session’s project name. Running <code>nook-hook --where</code> in a tab shows which terminal the relay detects there. Separate Windows Terminal windows, VS Code and Cursor are easier for Nook to find than tabs.</p></dd></div></dl>
+
+<h2 id="wont-start">Nook does not start</h2>
+<dl class="fix"><div><dt>Symptom</dt><dd>Double-clicking Nook does nothing, or there is no tray icon.</dd></div><div><dt>Cause</dt><dd>Usually one of: the WebView2 runtime is missing; Nook is already running (only one instance is allowed); or a previous crash left a process behind.</dd></div><div><dt>Fix</dt><dd><ol><li><strong>Already running:</strong> look in the notification area (click the ^ arrow). Starting Nook a second time just opens the one that is running. In Task Manager, end any leftover <code>nook.exe</code> and start it again.</li><li><strong>WebView2:</strong> it ships with Windows 11 and current Windows 10. If it is missing, install the Evergreen WebView2 Runtime from Microsoft and start Nook again.</li><li><strong>Security software:</strong> check that it did not quarantine <code>nook.exe</code>.</li><li>Look at <code>%LOCALAPPDATA%\Nook\nook.log</code> for the last lines.</li></ol></dd></div></dl>
+
+<h2 id="collect-logs">How to collect logs and open an issue</h2>
+<p>A good issue gets fixed faster. Open one at <a href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer">github.com/zubairbinshaukat/nook/issues/new</a> and include:</p>
+<ul>
+<li>What you expected and what happened, with steps to repeat it.</li>
+<li>Your <strong>Nook version</strong> (Settings &rarr; About; this site documents 0.1.0), your <strong>Windows version</strong> (<code>winver</code>), and your <strong>Claude Code version</strong> (<code>claude --version</code>).</li>
+<li>The last lines of <code>%LOCALAPPDATA%\Nook\nook.log</code>. The log has event names and decisions, never the content of your sessions.</li>
+<li>If it is about hooks, the output of <code>nook-hook --where</code>, and the Nook entries from <code>settings.json</code> (only those).</li>
+<li>A screenshot if the problem is visual.</li>
+</ul>
+<div class="callout callout-warn"><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg><p><strong>Redact before you post.</strong> Paths contain your Windows user name, and logs and settings can contain project names. Replace them (for example <code>C:\Users\&lt;me&gt;\&hellip;</code>) and never paste API keys. For a security problem, use a <a href="https://github.com/zubairbinshaukat/nook/security/advisories/new" target="_blank" rel="noopener noreferrer">private security advisory</a> instead of a public issue.</p></div>
+<p>A false positive from an antivirus can be reported to its vendor, see <a href="#antivirus">above</a>.</p>
+
+    </article>
+  </div>
+  <nav class="pager" aria-label="More guides"><a class="pager-a pager-prev" href="/guides/cursor/" rel="prev"><span>Previous</span><b>Cursor and Nook</b></a><a class="pager-a pager-next" href="/guides/faq/" rel="next"><span>Next</span><b>Nook FAQ</b></a></nav>
+  <aside class="card doc-feedback" aria-label="Feedback"><h2>Was this helpful?</h2><p>If something here is wrong, unclear or out of date, tell us. A short issue is enough.</p><div class="cta-row"><a class="btn btn-ghost" href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer"><svg class="i" aria-hidden="true"><use href="#i-github"/></svg>Report a problem</a><a class="btn btn-ghost" href="/guides/">All guides</a></div></aside>
+</div>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-top">
+      <div class="footer-credit">
+        <p class="by">Designed &amp; built by <span>Zubair Bin Shaukat</span></p>
+        <p>Software engineer from Lahore, at Devsmat. Nook by Zubair is a small, careful tool for people who live in Claude Code.</p>
+        <div class="social">
+          <a class="btn btn-ghost" href="https://zubyr.dev" target="_blank" rel="noopener noreferrer">zubyr.dev</a>
+          <a class="btn btn-ghost" href="https://github.com/zubairbinshaukat" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a class="btn btn-ghost" href="https://www.linkedin.com/in/zubairbinshaukat" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          <a class="btn btn-ghost" href="https://x.com/zubyrdev" target="_blank" rel="noopener noreferrer">X</a>
+        </div>
+      </div>
+      <nav class="footer-col" aria-label="Product"><h2>Product</h2><ul>
+        <li><a href="/#how">How it works</a></li><li><a href="/#features">Features</a></li><li><a href="/#privacy">Privacy</a></li><li><a href="/#gullu">Meet Gullu</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a></li></ul></nav>
+      <nav class="footer-col" aria-label="Guides"><h2>Guides</h2><ul>
+        <li><a href="/guides/">All guides</a></li><li><a href="/guides/install/">Install Nook</a></li><li><a href="/guides/first-run/">First run</a></li><li><a href="/guides/troubleshooting/">Troubleshooting</a></li><li><a href="/guides/faq/">FAQ</a></li></ul></nav>
+      <nav class="footer-col" aria-label="Project"><h2>Project</h2><ul>
+        <li><a href="https://github.com/zubairbinshaukat/nook" target="_blank" rel="noopener noreferrer">Source on GitHub</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases" target="_blank" rel="noopener noreferrer">Releases</a></li><li><a href="/changelog/">Changelog</a></li><li><a href="https://github.com/zubairbinshaukat/nook/issues" target="_blank" rel="noopener noreferrer">Report an issue</a></li><li><a href="https://github.com/zubairbinshaukat/nook/blob/main/NOTICE" target="_blank" rel="noopener noreferrer">NOTICE</a></li></ul></nav>
+      <nav class="footer-col" aria-label="Legal"><h2>Legal</h2><ul>
+        <li><a href="/privacy/">Privacy</a></li><li><a href="/terms/">Terms</a></li><li><a href="https://github.com/zubairbinshaukat/nook/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT license</a></li><li><a href="https://github.com/zubairbinshaukat/nook/blob/main/NOTICE" target="_blank" rel="noopener noreferrer">Credits</a></li></ul></nav>
+    </div>
+    <div class="footer-legal">
+      <p>Nook is an independent project and is not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks of Anthropic.<br>Based on Coucou by Louis Raillé (MIT). See <a href="https://github.com/zubairbinshaukat/nook/blob/main/NOTICE" target="_blank" rel="noopener noreferrer">NOTICE</a>. No cookies, no analytics.</p>
+      <p>Made in Lahore &middot; &copy; 2026 Zubair Bin Shaukat &middot; <a href="#top" data-top class="to-top-inline">Back to top</a></p>
+    </div>
+  </div>
+  <div class="footer-mark-wrap" aria-hidden="true">
+    <img class="footer-peek" src="/assets/img/gullu-320.png" width="160" height="160" alt="" loading="lazy">
+    <p class="footer-mark">Nook</p>
+  </div>
+</footer>
+
+<a class="btn btn-ghost to-top" href="#top" data-to-top aria-label="Back to top"><svg class="i" aria-hidden="true"><use href="#i-up"/></svg></a>
+
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.20/dist/lenis.min.js" defer></script>
+<script src="/assets/js/site.js?v=1" defer></script>
+</body>
+</html>

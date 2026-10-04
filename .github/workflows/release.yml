@@ -1,0 +1,128 @@
+name: Release
+
+# Builds the Windows installer from a `v*` tag (or by hand) and attaches it to
+# the GitHub release together with SHA256SUMS.txt. No secrets are used: the
+# only credential is the workflow's own token, and only the release job gets
+# write access to the repository.
+#
+# The build is not code-signed yet. Planned: the SignPath Foundation's free
+# programme, once the project qualifies (see README, "Code signing policy").
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: windows
+    outputs:
+      version: ${{ steps.pack.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: windows/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: windows
+
+      - run: npm ci
+
+      # Three files carry the version and they drift silently.
+      - name: Check the tag and every version agree
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $tag   = "${{ github.ref_name }}" -replace '^v', ''
+          $conf  = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          $pkg   = (Get-Content package.json | ConvertFrom-Json).version
+          $cargo = (Select-String -Path Cargo.toml -Pattern '^version\s*=\s*"(.+)"').Matches[0].Groups[1].Value
+          "tag=$tag tauri.conf=$conf package.json=$pkg Cargo.toml=$cargo"
+          $bad = @()
+          if ($tag -ne $conf)  { $bad += "tauri.conf.json says $conf" }
+          if ($tag -ne $pkg)   { $bad += "package.json says $pkg" }
+          if ($tag -ne $cargo) { $bad += "Cargo.toml says $cargo" }
+          if ($bad) { throw "tag says $tag but $($bad -join '; ')" }
+
+      # The same script a release is made with by hand: tauri build (which
+      # builds nook-hook first and bundles it), then scripts/pack.mjs.
+      - name: Build the installer
+        id: pack
+        shell: pwsh
+        run: |
+          npm run pack
+          $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      # SHA-256 of exactly what is uploaded: the installer and the two programs inside it.
+      - name: Compute SHA256SUMS.txt
+        shell: pwsh
+        run: |
+          $v = "${{ steps.pack.outputs.version }}"
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item "release/Nook-Windows-$v-setup.exe" out/
+          Copy-Item target/release/nook.exe, target/release/nook-hook.exe out/
+          Push-Location out
+          Get-ChildItem -File | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          } | Set-Content -Encoding ascii SHA256SUMS.txt
+          Get-Content SHA256SUMS.txt
+          Pop-Location
+
+      # SignPath (planned, not active): sign out/*.exe here, before the hashes above are taken.
+      # - uses: signpath/github-action-submit-signing-request@v1
+      #   with:
+      #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+      #     organization-id: <organization id>
+      #     project-slug: nook
+      #     signing-policy-slug: release-signing
+      #     github-artifact-id: <artifact id>
+      #     wait-for-completion: true
+      #     output-artifact-directory: signed
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Nook-Windows
+          path: windows/out/*
+          retention-days: 14
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Nook-Windows
+          path: out
+
+      - name: Attach to the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          v="${{ needs.build.outputs.version }}"
+          notes="Nook for Windows $v. Download Nook-Windows-$v-setup.exe and run it. It is not code-signed yet, so Windows SmartScreen shows a warning: choose More info, then Run anyway. Check the download against SHA256SUMS.txt first."
+          if ! gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            gh release create "${{ github.ref_name }}" --title "Nook $v" --notes "$notes" --verify-tag
+          fi
+          gh release upload "${{ github.ref_name }}" out/Nook-Windows-"$v"-setup.exe out/nook.exe out/nook-hook.exe out/SHA256SUMS.txt --clobber

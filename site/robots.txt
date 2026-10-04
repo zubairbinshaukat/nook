@@ -1,0 +1,31 @@
+# Nook (https://nook.zubyr.dev). Everything is public and welcome to be crawled.
+# The owner may change the AI-crawler rules below at any time.
+
+User-agent: *
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+Sitemap: https://nook.zubyr.dev/sitemap.xml

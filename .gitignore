@@ -1,0 +1,20 @@
+# Build artefacts
+*.xcuserstate
+
+# Xcode DerivedData (outside repo — listed for clarity)
+DerivedData/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# iCloud stubs
+*.icloud
+
+# Local only (never published)
+.claude/
+_prive/
+
+# Nook planning notes (local only)
+plans/

@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nook island — layout prototype</title>
+<style>
+  :root {
+    --bg: #0c0d11; --island: #000; --card: #15161b; --card-2: #1b1d23; --edge: rgba(255,255,255,.07);
+    --text: #ecedef; --dim: #9aa0aa; --faint: #6e737c;
+    --working: #3b9eff; --thinking: #8b5cf6; --question: #22d3ee; --approval: #f5a524;
+    --finished: #34d399; --error: #f4505e; --idle: #6e737c;
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #2a2d35 linear-gradient(#30343d, #23262d); color: var(--text);
+    font: 13px/1.4 "Segoe UI", system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+  /* ── The island ── */
+  .island { background: var(--island); border-radius: 0 0 22px 22px; padding: 6px 10px 10px; width: 720px; height: 330px;
+    display: flex; flex-direction: column; gap: 6px; transition: width .28s cubic-bezier(.2,.9,.3,1), height .28s cubic-bezier(.2,.9,.3,1);
+    box-shadow: 0 18px 50px rgba(0,0,0,.5); max-width: 100vw; }
+  .island.large { width: min(1120px, 96vw); height: min(640px, 82vh); }
+
+  .bar { display: flex; align-items: center; gap: 4px; height: 30px; flex: 0 0 auto; min-width: 0; }
+  .home { width: 30px; height: 26px; border-radius: 9px; color: var(--dim); display: grid; place-items: center; flex: 0 0 auto; }
+  .home.on, .home:hover { background: var(--card-2); color: var(--text); }
+  .home.slot { border: 1px dashed var(--edge); opacity: .5; cursor: default; }
+  .home.slot:hover { background: none; color: var(--dim); }
+  .icon { width: 28px; height: 26px; border-radius: 8px; color: var(--dim); display: grid; place-items: center; flex: 0 0 auto; }
+  .icon:hover { background: var(--card-2); color: var(--text); }
+  .icon svg, .home svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ── Session tabs: colour = project, dot = status ── */
+  .tabs { display: flex; gap: 4px; flex: 1 1 auto; min-width: 0; overflow: hidden; }
+  .tab { --c: #888; display: flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px 0 8px; border-radius: 9px;
+    min-width: 54px; max-width: 170px; flex: 0 1 auto; color: var(--dim); position: relative; border: 1px solid transparent; }
+  .tab::before { content: ""; width: 3px; height: 14px; border-radius: 2px; background: var(--c); flex: 0 0 auto; }
+  .tab .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .tab .n { color: var(--faint); font-weight: 500; }
+  .tab:hover { background: var(--card-2); color: var(--text); }
+  .tab.on { background: color-mix(in srgb, var(--c) 16%, var(--card)); color: var(--text); border-color: color-mix(in srgb, var(--c) 40%, transparent); }
+  .tab.rest { opacity: .55; }
+  .tab.rest::before { background: var(--idle); }
+  .st { width: 7px; height: 7px; border-radius: 50%; background: var(--s); flex: 0 0 auto; }
+  .st.pulse { animation: pulse 1.2s ease-in-out infinite; box-shadow: 0 0 0 0 var(--s); }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--s) 0%, transparent); transform: scale(1.25); } }
+  .more { height: 26px; padding: 0 9px; border-radius: 9px; color: var(--dim); background: var(--card-2); flex: 0 0 auto; display: flex; align-items: center; gap: 6px; position: relative; }
+  .more.calls { color: var(--approval); }
+  .menu { position: absolute; top: 30px; right: 0; background: #1d1f26; border: 1px solid var(--edge); border-radius: 12px; padding: 5px; z-index: 5;
+    min-width: 230px; box-shadow: 0 12px 30px rgba(0,0,0,.6); display: none; }
+  .menu.open { display: block; }
+  .menu .row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; width: 100%; text-align: left; }
+  .menu .row:hover { background: var(--card-2); }
+  .menu .row b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .menu .row span { color: var(--faint); font-size: 11.5px; white-space: nowrap; }
+
+  .stage { flex: 1 1 auto; min-height: 0; display: flex; gap: 8px; }
+  .card { background: var(--card); border: 1px solid var(--edge); border-radius: 16px; min-width: 0; min-height: 0; }
+
+  /* ── Home: 75 / 25 ── */
+  .main { flex: 3 1 0; display: flex; flex-direction: column; padding: 14px 16px 12px; gap: 12px; }
+  .aside { flex: 1 1 0; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .now { display: flex; gap: 14px; align-items: center; min-height: 0; }
+  .now .txt { min-width: 0; flex: 1; }
+  .now h2 { margin: 0; font-size: 15px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .now p { margin: 3px 0 0; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .now .chip { font-size: 11.5px; padding: 2px 8px; border-radius: 99px; background: color-mix(in srgb, var(--s) 18%, transparent); color: var(--s); font-weight: 600; }
+  .btn { height: 28px; padding: 0 12px; border-radius: 9px; background: var(--card-2); font-weight: 600; }
+  .btn.primary { background: var(--text); color: #111; }
+
+  /* The dock: who needs you, who is working, who is done — in that order */
+  .dock { flex: 1 1 auto; min-height: 0; display: flex; gap: 10px; align-items: stretch; }
+  .lane { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .lane.grow { flex: 1 1 auto; }
+  .lane h4 { margin: 0; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 650; white-space: nowrap; }
+  .lane h4 i { font-style: normal; color: var(--dim); }
+  .bots { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; overflow: hidden; }
+  .sep { width: 1px; background: var(--edge); flex: 0 0 auto; }
+  .agent { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 58px; padding: 5px 2px 4px; border-radius: 11px; }
+  .agent:hover { background: var(--card-2); }
+  .agent small { font-size: 10.5px; color: var(--dim); max-width: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .agent.rest { filter: grayscale(1); opacity: .5; }
+  .agent.rest:hover { filter: none; opacity: 1; }
+  .dense .agent { width: 40px; padding: 3px 0; }
+  .dense .agent small { display: none; }
+  .stack { align-self: center; color: var(--dim); font-weight: 650; background: var(--card-2); border-radius: 10px; padding: 6px 9px; }
+
+  /* The bot, small: cream body, dark glass screen, LED-bar eyes, antenna = status */
+  .bot { --s: var(--working); --c: #888; width: 36px; height: 30px; position: relative; flex: 0 0 auto; }
+  .bot .body { position: absolute; inset: 5px 0 0; border-radius: 10px; background: linear-gradient(#fbf9f6, #d6d0c8); box-shadow: inset 0 -2px 0 var(--c); }
+  .bot .screen { position: absolute; left: 5px; right: 5px; top: 9px; height: 15px; border-radius: 6px; background: #0e0f12; display: flex; gap: 6px; align-items: center; justify-content: center; }
+  .bot .screen i { width: 3px; height: 8px; border-radius: 2px; background: var(--s); box-shadow: 0 0 6px var(--s); }
+  .bot .ant { position: absolute; left: 50%; top: 0; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--s); box-shadow: 0 0 7px var(--s); }
+  .bot.big { transform: scale(1.7); margin: 12px 18px; }
+  .bot.work .screen i { animation: scan 1s ease-in-out infinite alternate; }
+  .bot.work .screen i + i { animation-delay: .15s; }
+  @keyframes scan { to { height: 4px; } }
+  .bot.call .ant { animation: blink .8s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: .2; } }
+  .bot.done .screen i { height: 3px; width: 7px; border-radius: 4px 4px 0 0; }
+  .bot.off .screen i { height: 2px; width: 6px; box-shadow: none; opacity: .6; }
+  .bot.off .ant { box-shadow: none; opacity: .3; }
+
+  .aside h4 { margin: 0; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+  .stat { display: flex; justify-content: space-between; color: var(--dim); }
+  .stat b { color: var(--text); }
+  .ghost { flex: 1; border: 1px dashed var(--edge); border-radius: 12px; display: grid; place-items: center; color: var(--faint); font-size: 12px; text-align: center; padding: 8px; }
+
+  /* ── Session view ── */
+  .side { width: 172px; flex: 0 0 auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+  .large .side { width: 230px; }
+  .side .who { display: flex; flex-direction: column; gap: 2px; }
+  .side .who b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .side .who span { color: var(--dim); font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .proj { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; margin: 0 -4px; scrollbar-width: thin; }
+  .proj .p { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; text-align: left; color: var(--dim); }
+  .proj .p::before { content: ""; width: 3px; height: 12px; border-radius: 2px; background: var(--c); }
+  .proj .p.on, .proj .p:hover { background: var(--card-2); color: var(--text); }
+  .proj .p b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .panel { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; }
+  .filters { display: flex; gap: 5px; align-items: center; padding: 8px 10px; border-bottom: 1px solid var(--edge); flex: 0 0 auto; overflow: hidden; }
+  .f { height: 23px; padding: 0 9px; border-radius: 99px; background: var(--card-2); color: var(--dim); font-size: 12px; white-space: nowrap; display: flex; gap: 5px; align-items: center; }
+  .f b { color: var(--text); }
+  .f.on { background: #2a2d36; color: var(--text); outline: 1px solid rgba(255,255,255,.14); }
+  .grow { flex: 1; }
+  .journal { flex: 1 1 auto; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; scrollbar-width: thin; }
+  .step { display: flex; gap: 9px; align-items: baseline; }
+  .step .k { font-weight: 650; width: 44px; flex: 0 0 auto; color: var(--dim); }
+  .step code { font: 12px var(--mono); color: #cfd3da; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .large .step code { white-space: pre-wrap; word-break: break-word; }
+  .step time { color: var(--faint); font-size: 11.5px; flex: 0 0 auto; }
+  .step.run .k { color: var(--working); }
+  .out { margin: -2px 0 2px 53px; padding: 7px 9px; border-radius: 9px; background: #0f1014; font: 11.5px/1.45 var(--mono); color: #aab0ba; white-space: pre; overflow: hidden; display: none; }
+  .large .out { display: block; }
+  .empty { margin: auto; text-align: center; color: var(--dim); }
+
+  /* ── Prototype controls (not part of the island) ── */
+  .lab { margin: 22px 0 30px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 900px; padding: 0 12px; }
+  .lab button { background: #3a3f4a; padding: 6px 12px; border-radius: 8px; }
+  .lab button:hover { background: #4a505d; }
+  .lab p { width: 100%; text-align: center; color: #b9bec8; margin: 0 0 4px; }
+</style>
+</head>
+<body>
+
+<div class="island" id="island">
+  <div class="bar">
+    <button class="home" id="home" title="Home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9H3z"/></svg></button>
+    <button class="home" title="Chat (off for now)"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></button>
+    <button class="home slot" title="Reserved — to be decided" disabled><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button>
+    <span class="grow"></span>
+    <button class="icon" id="expand" title="Larger (Ctrl+E)"></button>
+    <button class="icon" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></button>
+  </div>
+  <div class="stage" id="stage"></div>
+</div>
+
+<div class="lab">
+  <p>Prototype controls — try the edge cases</p>
+  <button data-do="add">Add a session</button>
+  <button data-do="same">Add 2nd session in same folder</button>
+  <button data-do="long">Add a very long folder name</button>
+  <button data-do="ask">Make a hidden one ask for permission</button>
+  <button data-do="finish">Finish a working one</button>
+  <button data-do="many">Jump to 14 sessions</button>
+  <button data-do="none">No sessions</button>
+  <button data-do="reset">Reset</button>
+</div>
+
+<script>
+// One hue per project folder, picked from a fixed set so colours stay apart and
+// stay the same for a folder from one day to the next (a hash of its path).
+const HUES = ["#3b9eff", "#f472b6", "#a3e635", "#fb923c", "#8b5cf6", "#2dd4bf", "#facc15", "#f87171"];
+const hue = (path) => { let h = 0; for (const ch of path) h = (Math.imul(31, h) + ch.charCodeAt(0)) | 0; return HUES[Math.abs(h) % HUES.length]; };
+const STATUS = {
+  approval: { c: "var(--approval)", words: "needs permission", rank: 0, calls: true },
+  question: { c: "var(--question)", words: "is asking you", rank: 0, calls: true },
+  error:    { c: "var(--error)", words: "stopped on an error", rank: 1 },
+  working:  { c: "var(--working)", words: "working", rank: 2 },
+  thinking: { c: "var(--thinking)", words: "thinking", rank: 2 },
+  finished: { c: "var(--finished)", words: "done", rank: 3 },
+  idle:     { c: "var(--idle)", words: "at rest", rank: 4 },
+};
+const seed = () => [
+  { id: 1, cwd: "D:/work/personal/nook", title: "Nook setup and planning", state: "working", doing: "Shell · cargo test --workspace" },
+  { id: 2, cwd: "D:/work/acme/api", title: "Fix the invoice rounding bug", state: "approval", doing: "Bash · rm -rf dist && npm run build" },
+  { id: 3, cwd: "D:/work/acme/web", title: "Checkout page", state: "finished", doing: "3 files changed" },
+];
+let sessions = seed(), front = null, large = false, nextId = 10, menuOpen = false;
+
+const folder = (s) => s.cwd.split("/").pop();
+// Two sessions in one folder share its colour; a number tells them apart.
+const label = (s) => { const twins = sessions.filter((x) => x.cwd === s.cwd); return twins.length > 1 ? `${folder(s)} <span class="n">·${twins.indexOf(s) + 1}</span>` : folder(s); };
+const resting = (s) => s.state === "idle" || s.state === "finished";
+const ordered = () => [...sessions].sort((a, b) => STATUS[a.state].rank - STATUS[b.state].rank || a.id - b.id);
+const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstChild; };
+const botClass = (s) => STATUS[s.state].calls ? "call" : s.state === "working" || s.state === "thinking" ? "work" : s.state === "finished" ? "done" : s.state === "idle" ? "off" : "";
+const bot = (s, big) => `<div class="bot ${big ? "big" : ""} ${botClass(s)}" style="--s:${STATUS[s.state].c};--c:${hue(s.cwd)}"><div class="ant"></div><div class="body"></div><div class="screen"><i></i><i></i></div></div>`;
+
+function home() {
+  const stage = document.getElementById("stage");
+  if (!sessions.length) {
+    stage.innerHTML = `<div class="card main"><div class="empty"><div style="display:inline-block">${bot({ state: "idle", cwd: "" }, true)}</div><h2 style="margin:6px 0 2px">No Claude Code sessions</h2><div>Start <code>claude</code> in any project and it shows up here.</div></div></div>${aside()}`;
+    return;
+  }
+  const first = ordered()[0], st = STATUS[first.state];
+  const lanes = [
+    ["Needs you", sessions.filter((s) => STATUS[s.state].calls || s.state === "error")],
+    ["Working", sessions.filter((s) => s.state === "working" || s.state === "thinking")],
+    ["Done", sessions.filter(resting)],
+  ];
+  // Room for about 9 full-size agents; past that they lose their names, and
+  // past 16 the quiet ones fold into a count.
+  const dense = sessions.length > 9;
+  const lane = ([name, list], i) => {
+    if (!list.length) return "";
+    const cap = name === "Done" && sessions.length > 16 ? 4 : list.length;
+    const cells = list.slice(0, cap).map((s) => `<button class="agent ${resting(s) ? "rest" : ""}" data-id="${s.id}" title="${s.cwd}\n${s.title} — ${STATUS[s.state].words}">${bot(s)}<small>${folder(s)}</small></button>`).join("");
+    const rest = list.length > cap ? `<div class="stack">+${list.length - cap}</div>` : "";
+    return `${i ? '<div class="sep"></div>' : ""}<div class="lane ${name === "Working" ? "grow" : ""}"><h4>${name} <i>${list.length}</i></h4><div class="bots">${cells}${rest}</div></div>`;
+  };
+  stage.innerHTML = `<div class="card main">
+      <div class="now">${bot(first, true)}<div class="txt"><h2><span style="color:${hue(first.cwd)}">${folder(first)}</span> <span class="chip" style="--s:${st.c}">${st.words}</span></h2><p>${first.doing}</p></div>
+      ${st.calls ? '<button class="btn">Deny</button><button class="btn primary">Allow</button>' : '<button class="btn" id="open">Open</button>'}</div>
+      <div class="dock ${dense ? "dense" : ""}">${lanes.filter((l) => l[1].length).map(lane).join("")}</div>
+    </div>${aside()}`;
+  stage.querySelectorAll(".agent").forEach((a) => (a.onclick = () => { front = sessions.find((s) => s.id == a.dataset.id); render(); }));
+  const open = stage.querySelector("#open"); if (open) open.onclick = () => { front = first; render(); };
+}
+const aside = () => `<div class="card aside"><h4>Today</h4>
+  <div class="stat"><span>Sessions</span><b>${sessions.length}</b></div>
+  <div class="stat"><span>Waiting for you</span><b>${sessions.filter((s) => STATUS[s.state].calls).length}</b></div>
+  <div class="stat"><span>Projects</span><b>${new Set(sessions.map((s) => s.cwd)).size}</b></div>
+  <div class="ghost">Reserved<br>(usage limits later)</div></div>`;
+
+function session() {
+  const s = front, st = STATUS[s.state];
+  const projects = ordered().map((x) => `<button class="p ${x === s ? "on" : ""}" style="--c:${hue(x.cwd)}" data-id="${x.id}"><b>${folder(x)}</b><span class="st ${STATUS[x.state].calls ? "pulse" : ""}" style="--s:${STATUS[x.state].c}"></span></button>`).join("");
+  document.getElementById("stage").innerHTML = `
+    <div class="card side"><div style="align-self:center">${bot(s, true)}</div>
+      <div class="who"><b style="color:${hue(s.cwd)}">${folder(s)}</b><span>${s.title}</span></div>
+      <h4 style="margin:4px 0 0;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)">Sessions</h4>
+      <div class="proj">${projects}</div></div>
+    <div class="card panel">
+      <div class="filters"><span class="f on">All <b>21</b></span><span class="f">Edits <b>3</b></span><span class="f">Commands <b>6</b></span><span class="f">Reads <b>9</b></span><span class="f">Searches <b>3</b></span>
+        <span class="grow"></span><span class="f" style="--s:${st.c};color:${st.c}">${st.words}</span><span class="f">3 files</span></div>
+      <div class="journal">
+        <div class="step"><span class="k">Grep</span><code>fn hook_command|entry_is_current</code><time>05:21</time></div>
+        <div class="step"><span class="k">Read</span><code>windows/src-tauri/src/hooks.rs</code><time>05:22</time></div>
+        <div class="step"><span class="k">Edit</span><code>windows/src-tauri/src/hooks.rs  +34 −9</code><time>05:23</time></div>
+        <div class="step"><span class="k">Shell</span><code>cargo test --workspace</code><time>05:24</time></div>
+        <div class="out">test result: ok. 61 passed; 0 failed\ntest result: ok. 12 passed; 0 failed</div>
+        <div class="step run"><span class="k">Shell</span><code>${s.doing}</code><time>now</time></div>
+      </div></div>`;
+  document.querySelectorAll(".proj .p").forEach((p) => (p.onclick = () => { front = sessions.find((x) => x.id == p.dataset.id); render(); }));
+}
+
+function render() {
+  if (front && !sessions.includes(front)) front = null;
+  document.getElementById("island").classList.toggle("large", large);
+  document.getElementById("home").classList.toggle("on", !front);
+  document.getElementById("expand").innerHTML = large
+    ? '<svg viewBox="0 0 24 24"><path d="M9 3v6H3M15 21v-6h6M9 9L3 3M15 15l6 6"/></svg>'
+    : '<svg viewBox="0 0 24 24"><path d="M3 9V3h6M21 15v6h-6M3 3l6 6M21 21l-6-6"/></svg>';
+  document.getElementById("expand").title = large ? "Smaller (Esc)" : "Larger (Ctrl+E)";
+  front ? session() : home();
+}
+document.getElementById("home").onclick = () => { front = null; render(); };
+document.getElementById("expand").onclick = () => { large = !large; render(); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && large) { large = false; render(); } if (e.key.toLowerCase() === "e" && e.ctrlKey) { e.preventDefault(); large = !large; render(); } });
+document.addEventListener("click", (e) => { if (menuOpen && !e.target.closest(".more")) { menuOpen = false; render(); } });
+
+const NAMES = ["billing", "docs-site", "ml-pipeline", "infra", "mobile-app", "design-system", "scraper", "auth", "search", "notebooks", "cli"];
+const STATES = ["working", "thinking", "working", "finished", "idle", "working"];
+const add = (cwd, state) => sessions.push({ id: nextId++, cwd, title: "New task", state: state ?? STATES[nextId % STATES.length], doing: "Read · src/index.ts" });
+document.querySelector(".lab").onclick = (e) => {
+  const act = e.target.dataset?.do; if (!act) return;
+  if (act === "add") add("D:/work/" + NAMES[nextId % NAMES.length]);
+  if (act === "same") add("D:/work/personal/nook", "thinking");
+  if (act === "long") add("D:/work/client-with-an-unreasonably-long-repository-name-2026", "working");
+  if (act === "ask") { const s = sessions[sessions.length - 1]; if (s) { s.state = "approval"; s.doing = "Bash · git push --force"; } }
+  if (act === "finish") { const s = sessions.find((x) => x.state === "working"); if (s) { s.state = "finished"; s.doing = "Turn finished"; } }
+  if (act === "many") { while (sessions.length < 14) add("D:/work/" + NAMES[sessions.length % NAMES.length] + (sessions.length > 10 ? "-2" : "")); }
+  if (act === "none") { sessions = []; front = null; }
+  if (act === "reset") { sessions = seed(); front = null; large = false; }
+  render();
+};
+render();
+</script>
+</body>
+</html>

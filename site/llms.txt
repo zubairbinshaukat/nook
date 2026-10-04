@@ -1,0 +1,32 @@
+# Nook
+
+> Nook is a free, open-source Dynamic Island for Claude Code agents on Windows 10 and 11. It shows every running Claude Code session at the top of your screen, with approvals and answers from the island. It is 100% local: no network calls, no telemetry, no account. Version 0.1.0, MIT-licensed, by Zubair Bin Shaukat. Not affiliated with Anthropic.
+
+Nook listens to Claude Code through its hooks and a small local relay (nook-hook.exe) over a named pipe. It never approves anything without a click and never blocks Claude Code. It also shows Cursor agent sessions next to Claude Code ones, status only (new in v0.1.x, unreleased build).
+
+## Guides
+
+- [Install Nook on Windows](https://nook.zubyr.dev/guides/install/): Download, verify, install and uninstall Nook. SmartScreen, checksums and where the files live.
+- [First run: hooks, shortcuts and a tour](https://nook.zubyr.dev/guides/first-run/): Install the Claude Code hooks, start a session and learn the island, the Shelf and the shortcuts.
+- [How Nook talks to Claude Code](https://nook.zubyr.dev/guides/claude-code-hooks/): Hooks, the nook-hook relay and the named pipe: what is written to settings.json and what is never done.
+- [Shelf widgets](https://nook.zubyr.dev/guides/shelf-widgets/): To-do, Timer, Reminders, Media, Mirror and Projects: what each does and what it keeps.
+- [Cursor and Nook](https://nook.zubyr.dev/guides/cursor/): Cursor agent sessions next to Claude Code ones, status only, and how to turn them on.
+- [Troubleshooting Nook](https://nook.zubyr.dev/guides/troubleshooting/): SmartScreen, antivirus, a missing island, no sessions, shortcuts, camera and how to file a useful issue.
+- [Nook FAQ](https://nook.zubyr.dev/guides/faq/): Plain answers on privacy, safety, hooks, signing, platforms and who makes Nook.
+
+## Key pages
+
+- [Nook for Windows (home)](https://nook.zubyr.dev/): What Nook is, how it works, features, privacy and install in three steps.
+- [All guides](https://nook.zubyr.dev/guides/): Index of every guide.
+- [Privacy policy](https://nook.zubyr.dev/privacy/): No network, no telemetry, what is stored locally and where.
+- [Terms of use](https://nook.zubyr.dev/terms/): MIT license, as is, no affiliation with Anthropic or Cursor.
+- [Changelog](https://nook.zubyr.dev/changelog/): Release notes for 0.1.0, the unreleased build (Cursor sessions) and what is planned.
+- [Download](https://github.com/zubairbinshaukat/nook/releases/latest): Latest release on GitHub.
+- [Source code](https://github.com/zubairbinshaukat/nook): Open-source repository.
+
+## Optional
+
+- [Full site text in one file](https://nook.zubyr.dev/llms-full.txt): Every page of this site as Markdown.
+- [Report an issue](https://github.com/zubairbinshaukat/nook/issues/new): Bugs, questions, feature requests.
+- [Security advisories](https://github.com/zubairbinshaukat/nook/security/advisories/new): Report a security problem privately.
+- [Sitemap](https://nook.zubyr.dev/sitemap.xml): All indexable URLs.

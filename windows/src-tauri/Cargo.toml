@@ -1,0 +1,61 @@
+[package]
+name = "nook"
+description = "Nook shows your Claude Code sessions at the top of your screen and lets you answer their permission requests and questions."
+authors = ["Louis Raille", "Edurique", "Zubair Bin Shaukat"]
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "nook_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-single-instance = "2"
+tauri-plugin-autostart = "2"
+# The two global shortcuts (shortcut.rs): Tauri's own plugin over RegisterHotKey.
+# Registered from Rust only: no page is given any of its permissions.
+tauri-plugin-global-shortcut = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1", features = ["net", "io-util", "sync", "time", "rt"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  # The display a window is on, for "Hide in full-screen apps" (platform/windows.rs).
+  "Win32_Graphics_Gdi",
+  "Win32_Security",
+  "Win32_Security_Authorization",
+  # The GPU's use, from the performance counters Task Manager reads (platform/windows.rs).
+  "Win32_System_Performance",
+  "Win32_System_SystemInformation",
+  "Win32_System_Threading",
+  # SHQueryUserNotificationState: the shell's word on a full-screen app or a presentation.
+  "Win32_UI_Shell",
+  "Win32_UI_WindowsAndMessaging",
+  # The media keys, for a player that will not take the session's own call (platform/media_windows.rs).
+  "Win32_UI_Input_KeyboardAndMouse",
+  # The Media widget (media.rs): what any player tells Windows it is playing, its
+  # album art, the controls — and the master volume through Core Audio.
+  "Media_Control",
+  "Foundation",
+  "Foundation_Collections",
+  "Storage_Streams",
+  "Win32_Media_Audio",
+  "Win32_Media_Audio_Endpoints",
+  "Win32_System_Com",
+  # IMMDevice::Activate takes a PROPVARIANT.
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant",
+] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+# The GTK that Tauri already runs on, to reach its window for layer-shell and
+# the input region. libgtk-layer-shell itself is called directly (platform/linux.rs).
+gtk = "0.18"

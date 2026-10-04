@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Nook — bot preview</title>
+    <style>
+      /* A plain dark page: the bot as the island draws it, on the island's black. */
+      html, body { margin: 0; background: #0e0f12; color: #ecedef; font: 13px system-ui, "Segoe UI", sans-serif; }
+      main { max-width: 900px; margin: 0 auto; padding: 24px 20px 40px; }
+      h1 { margin: 0 0 4px; font-size: 20px; }
+      p { margin: 0 0 16px; color: #9a9fa8; }
+      code { color: #c5c8cd; }
+      #stages { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+      .stage { background: #000; border-radius: 16px; padding: 12px 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+      .stage small { color: #6e737c; font-size: 11px; }
+      .slot { position: relative; cursor: pointer; }
+      .slot canvas { position: absolute; pointer-events: none; }
+      .slot .glow { position: absolute; border-radius: 50%; filter: blur(6px); pointer-events: none; transition: opacity 0.4s ease-in-out, background 0.4s ease-in-out; }
+      .minis { display: flex; align-items: center; gap: 10px; padding: 8px 4px; }
+      /* As in src/style.css: the slot is the body, the canvas overflows it. */
+      .mini { position: relative; display: inline-block; flex: 0 0 auto; }
+      .mini canvas { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+      h2 { margin: 22px 0 8px; font-size: 13px; color: #9a9fa8; font-weight: 600; }
+      .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+      button { appearance: none; border: 1px solid #2a2c33; background: transparent; color: inherit; border-radius: 999px; padding: 6px 12px 6px 9px; font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+      button:hover { background: #22242a; }
+      button.on { background: #ecedef; color: #111; border-color: #ecedef; }
+      button i { width: 9px; height: 9px; border-radius: 50%; background: var(--c, #6e737c); display: inline-block; }
+      #loop { margin-top: 18px; color: #6e737c; }
+      #loop b { color: #c5c8cd; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Nook Buddy</h1>
+      <p>
+        The real <code>BotEngine</code> at the sizes the island uses, to compare by eye with
+        <code>design/prototype/nook-buddy.html</code>. The eyes follow the mouse; click a bot to annoy it,
+        three times fast to make it dizzy.
+      </p>
+      <div id="stages"></div>
+      <h2>States</h2>
+      <div class="btns" id="states"></div>
+      <h2>Emotes</h2>
+      <div class="btns" id="emotes"></div>
+      <h2>Body theme</h2>
+      <div class="btns" id="themes"></div>
+      <div id="loop"></div>
+    </main>
+    <script type="module" src="./bot-preview.ts"></script>
+  </body>
+</html>

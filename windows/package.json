@@ -1,0 +1,25 @@
+{
+  "name": "nook",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "icons": "node scripts/gen-icons.mjs",
+    "fake-session": "node scripts/fake-session.mjs",
+    "tauri": "tauri",
+    "predev": "cargo build --release -p nook-hook",
+    "prebuild": "cargo build --release -p nook-hook",
+    "pack": "tauri build && node scripts/pack.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "typescript": "^5.6.0",
+    "vite": "^6"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2"
+  }
+}

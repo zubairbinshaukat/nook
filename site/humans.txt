@@ -1,0 +1,20 @@
+/* TEAM */
+Creator: Zubair Bin Shaukat
+Role: Design, engineering, writing
+Site: https://zubyr.dev
+GitHub: https://github.com/zubairbinshaukat
+LinkedIn: https://www.linkedin.com/in/zubairbinshaukat
+X: https://x.com/zubyrdev
+Location: Lahore, Pakistan
+
+/* THANKS */
+Louis Raillé: Coucou, the project Nook is a fork of (MIT)
+Edurique: the Windows multi-session work Nook builds on
+Lucide: interface icons (ISC)
+Simple Icons: brand marks (CC0)
+
+/* SITE */
+Last update: 2026/10/04
+Language: English
+Standards: HTML5, CSS3, vanilla JavaScript, no cookies, no analytics
+Software: Nook https://github.com/zubairbinshaukat/nook

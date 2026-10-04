@@ -1,0 +1,5682 @@
+/* Nook for Windows — same palette, sizes and type scale as the macOS island.
+   Every colour below is copied from the Swift views. */
+
+:root {
+  color-scheme: dark;
+
+  --font: system-ui, "Segoe UI Variable Text", "Segoe UI", "Segoe UI Emoji", sans-serif;
+  --mono: "Cascadia Mono", "Consolas", ui-monospace, monospace;
+
+  --ink: #f5f6f8;        /* primary text */
+  --ink-2: #f1f2f4;
+  --dim: #9398a1;
+  --dim-2: #8e939c;
+  --dim-3: #6b7079;
+  --dim-4: #5f646d;
+  --dim-5: #4b5563;
+  --card: #141518;
+  --card-flat: #0e0f11;
+  --tab-on: #1d1f23;
+  --hairline: rgba(255, 255, 255, 0.035);
+  --red: #ff6b7a;
+  --red-text: #ff8d97;
+  --green: #22c55e;
+  --green-2: #4fd69c;
+  --amber: #ffb547;
+  --cyan: #38cfe0;
+  --indigo: #6366f1;
+  --pink: #f472b6;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: var(--font);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+#root {
+  position: fixed;
+  inset: 0;
+}
+
+/* Invisible strip that wakes the island when it is hidden. */
+#wake-strip {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  height: 6px;
+  background: transparent;
+}
+
+/* ── Island ─────────────────────────────────────────────────────────────── */
+
+/* The island has no ground of its own: its outline is one SVG path
+   (#island-shape, island/notch.ts) — the body, an ear flaring into the top
+   edge on each side, and its two lower corners — drawn under everything. */
+#island {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  border-radius: 0 0 16px 16px;
+  overflow: visible;
+  will-change: width, height, transform;
+}
+
+#island-shape {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  fill: #000;
+  pointer-events: none;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+#island-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+#bot-canvas,
+#greeting-canvas {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* With the island open the bot fades as it goes and comes — the Shelf has
+   none; folding or retracting, it is gone at once (island.ts). */
+#bot-canvas.fades {
+  transition: opacity 0.16s ease-in;
+}
+
+#bot-glow {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(6px);
+  transition: opacity 0.4s ease-in-out, background 0.4s ease-in-out;
+}
+
+#countdown {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.35);
+  width: 0;
+}
+
+/* ── The folded island (island/compact.ts) ───────────────────────────────────
+   Fixed slots, left to right: the bot (drawn over the first one by the
+   island), a dot per session, the metric cells. Each has its own width; the
+   island is as wide as what it holds. */
+#compact {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 38px;
+  width: max-content;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease-in;
+}
+
+#compact.on {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.25s ease-out 0.12s;
+}
+
+/* Out of sight, nothing in it pulses for nobody. */
+#compact:not(.on) *,
+#compact:not(.on) *::after {
+  animation-play-state: paused !important;
+}
+
+.ci-bot {
+  flex: 0 0 auto;
+  height: 100%;
+}
+
+.ci-dots {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.ci-dot {
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--c);
+  transition: background 0.3s ease-out;
+}
+
+.ci-dot.calls {
+  box-shadow: 0 0 6px var(--c);
+  animation: dot-pulse 1.4s ease-in-out infinite;
+}
+
+.ci-dot.rest {
+  opacity: 0.75;
+}
+
+/* Its last reply waits on a decision. Purple alone reads as "thinking": this
+   dot has a ring of its own, that opens slowly and fades, and no other dot
+   has one. The style sheet's own animation: no frame of the island's is drawn
+   for it. With motion reduced the ring is there, and still. */
+.ci-dot.decide {
+  position: relative;
+  opacity: 1;
+  box-shadow: 0 0 5px color-mix(in srgb, var(--c) 70%, transparent);
+}
+
+.ci-dot.decide::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1.5px solid var(--c);
+  animation: dot-ring 2.4s ease-out infinite;
+}
+
+@keyframes dot-ring {
+  0% {
+    transform: scale(0.62);
+    opacity: 0.95;
+  }
+  70%,
+  100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
+:root[data-motion="reduce"] .ci-dot.decide::after {
+  animation: none;
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .ci-dot.decide::after {
+    animation: none;
+    opacity: 0.85;
+  }
+}
+
+.ci-more {
+  flex: 0 0 auto;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  font: 600 10.5px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--c);
+  background: var(--tint);
+  overflow: hidden;
+}
+
+.ci-more.calls {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 50%, transparent);
+}
+
+.ci-metrics {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.ci-metric {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: var(--dim-2);
+  white-space: nowrap;
+}
+
+.ci-metric svg {
+  flex: 0 0 auto;
+}
+
+.ci-metric b {
+  font: 500 12px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  transition: color 0.3s ease-out;
+}
+
+/* How much of a usage window is gone: calm, warming, nearly all of it. */
+.ci-metric b[data-level="calm"] {
+  color: var(--green-2);
+}
+
+.ci-metric b[data-level="warm"] {
+  color: var(--amber);
+}
+
+.ci-metric b[data-level="hot"] {
+  color: var(--red-text);
+}
+
+.ci-metric b.blank {
+  color: var(--dim-4);
+}
+
+/* A usage window that has reset, or a number hours old: there, and quiet. */
+.ci-metric b.dim {
+  color: var(--dim-3);
+}
+
+@keyframes dot-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes kid-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* A mini bot: the slot is the body, the canvas is larger and overflows it so
+   its sprout and the glow of its leaves are not cut off. */
+.mini {
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.mini canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* ── Content shell (expanded) ───────────────────────────────────────────── */
+
+#content {
+  position: absolute;
+  inset: 0;
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* Keep it light: 0 % CPU when the island is hidden. Folded or hidden, the
+   views are invisible but still in the page, and an animation with no end — a
+   shimmering line, a pulsing dot, a turning ring — would go on being computed
+   for nobody. They all stop, and pick up when the island unfolds. */
+#content.away * {
+  animation-play-state: paused !important;
+}
+
+#header {
+  height: 34px;
+  flex: 0 0 34px;
+  display: flex;
+  align-items: center;
+  margin: 0 -10px;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.tabs {
+  display: flex;
+  gap: 5px;
+  padding-left: 14px;
+}
+
+.tab {
+  width: 30px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  border-radius: 11px;
+  color: var(--dim-2);
+  cursor: default;
+}
+
+/* A tab with its name beside its icon: Home, Shelf. */
+.tab.named {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px 0 8px;
+  font: 600 11px var(--font);
+}
+
+.tab:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #b0b5be;
+}
+
+.tab.on {
+  background: var(--tab-on);
+  color: var(--ink);
+}
+
+.header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 10px;
+}
+
+/* Settings, sound and the panel's size: a 28 px round hit area around the glyph. */
+.header-actions button.ha {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  transition: background 0.15s ease-out, color 0.15s ease-out;
+}
+
+.header-actions button.ha:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+}
+
+.header-actions button.ha:active {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+/* The strip of numbers between the tabs and the buttons. It is its own size
+   container: how much of it shows follows the width the island gives it. */
+.hstats {
+  flex: 1 1 0;
+  min-width: 0;
+  container-type: inline-size;
+  padding: 0 8px;
+}
+
+.hs-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 11px;
+  height: 22px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.hs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hs[hidden] {
+  display: none;
+}
+
+.hs-label {
+  font: 600 10px var(--font);
+  letter-spacing: 0.02em;
+  color: var(--dim-3);
+}
+
+.hs-icon {
+  display: none;
+  color: var(--dim-3);
+}
+
+.hs-icon svg {
+  display: block;
+}
+
+.hs .hs-bar {
+  width: 22px;
+  height: 3px;
+  flex: 0 0 auto;
+}
+
+.hs .hs-bar i {
+  transition: none;
+}
+
+/* Calm under 60 %, warm to 85 %, hot past it — on the machine's fill only. */
+.hs[data-level="warm"] .hs-bar i {
+  background: var(--amber);
+}
+
+.hs[data-level="hot"] .hs-bar i {
+  background: var(--red);
+}
+
+.hs .res-value.hs-value {
+  width: 26px;
+  margin: 0;
+  font-size: 10.5px;
+}
+
+.hs-usage .res-bar i {
+  background-image: linear-gradient(90deg, var(--green-2) 0%, var(--green-2) 42%, var(--amber) 70%, var(--red) 94%);
+  background-size: calc(100% / max(var(--used, 1), 0.02)) 100%;
+  background-repeat: no-repeat;
+}
+
+.hs-usage.dim {
+  opacity: 0.45;
+}
+
+@container (max-width: 419px) {
+  .hs-7d { display: none; }
+}
+
+@container (max-width: 334px) {
+  .hs-gpu { display: none; }
+}
+
+@container (max-width: 254px) {
+  .hs-label { display: none; }
+  .hs-icon { display: block; }
+}
+
+@container (max-width: 189px) {
+  .hs .hs-bar { display: none; }
+}
+
+@container (max-width: 139px) {
+  .hs-usage { display: none; }
+}
+
+.header-actions button {
+  border: 0;
+  background: transparent;
+  color: var(--dim-2);
+  display: grid;
+  place-items: center;
+  cursor: default;
+}
+
+.header-actions button.on {
+  color: var(--ink);
+}
+
+/* The session panel's size: the glyph stays as small as its neighbours, and
+   takes a click anywhere in the 32 px around it. That reaches 9.5 px past the
+   glyph, short of the 14 px to the next button, so no two overlap. */
+.header-actions button.expand {
+  position: relative;
+}
+
+.header-actions button.expand::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+}
+
+#views {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.view {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: scale(0.97);
+  pointer-events: none;
+  transition: opacity 0.16s ease-in;
+}
+
+.view.on {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+  transition: opacity 0.3s ease-out 0.16s, transform 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) 0.16s;
+}
+
+/* A view that is not on is only transparent, not gone: an infinite animation
+   inside it would keep the webview repainting every frame for as long as the
+   app runs, island hidden or not. */
+.view:not(.on) * {
+  animation-play-state: paused;
+}
+
+/* The two tabs paging (island.ts `pageTo`, the swipe): both on the stage side by
+   side, moved by the island each frame — nothing here may ease them. */
+/* A view that is not on show takes nothing, and neither does anything in it:
+   a child that asks for the mouse itself (the Shelf's cards do) would take it
+   through its view, from whatever is on show under it. */
+.view:not(.on),
+.view:not(.on) * {
+  pointer-events: none !important;
+}
+
+#views.pg .view {
+  transition: none !important;
+  pointer-events: none !important;
+  will-change: transform;
+}
+/* With motion reduced nothing travels: the two tabs cross-fade, briefly. */
+.view.tab-cut {
+  transform: none;
+  transition: opacity 0.12s linear;
+}
+
+/* ── The Shelf: a row of small cards ────────────────────────────────────── */
+
+/* The row scrolls sideways and comes to rest on a card's left edge. Its cards
+   are --shelf-card-w wide and --shelf-card-gap apart (layout.ts, by way of
+   views/shelf.ts): three stand in the row and the fourth shows its edge. */
+.shelf-row {
+  height: 100%;
+  display: flex;
+  gap: var(--shelf-card-gap);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  border-radius: 18px;
+}
+
+/* Moved by the island, step by step, with a swipe (views/shelf.ts `scrollRow`):
+   no snapping until the swipe has paused, or each step would be pulled back. */
+.shelf-row.swiping {
+  scroll-snap-type: none;
+}
+
+/* More cards past an edge: that edge fades. */
+.shelf-row.more-right {
+  mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+}
+
+.shelf-row.more-left {
+  mask-image: linear-gradient(to right, transparent, #000 12px);
+}
+
+.shelf-row.more-left.more-right {
+  mask-image: linear-gradient(to right, transparent, #000 12px, #000 calc(100% - 16px), transparent);
+}
+
+/* The Shelf has two layers: the row of small cards, and the expanded widget.
+   One is on show at a time and the other is only transparent, not gone. */
+.shelf-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease-in;
+}
+
+.shelf-layer.on {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.3s ease-out 0.16s;
+}
+
+/* A press on the row is the script's (widgets/gestures.ts): a finger pans it by itself. */
+.shelf-row {
+  touch-action: pan-x;
+}
+
+/* A drag in progress, or a card being carried: the row moves freely, and snaps again when it is let go. */
+.shelf-row.reordering {
+  scroll-snap-type: none;
+}
+
+.shelf-row.dragging {
+  cursor: grabbing;
+}
+
+/* A small card: dark, like the expanded views. The widget's colour (--c) is on
+   its mark, in a thin border and in a faint glow inside it — nowhere else.
+   --shelf-card-w wide: three stand in the row and the fourth shows its edge. */
+.wmini {
+  position: relative;
+  flex: 0 0 var(--shelf-card-w);
+  width: var(--shelf-card-w);
+  min-width: 0;
+  height: 100%;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 9px 10px 10px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid color-mix(in srgb, var(--c) 24%, rgba(255, 255, 255, 0.03));
+  box-shadow: inset 0 0 24px -15px var(--c);
+  color: var(--ink);
+  overflow: hidden;
+  transition:
+    transform 0.24s cubic-bezier(0.3, 1.2, 0.4, 1),
+    scale 0.16s ease-out,
+    border-color 0.16s ease-out,
+    box-shadow 0.16s ease-out;
+}
+
+.wmini:hover {
+  border-color: color-mix(in srgb, var(--c) 44%, rgba(255, 255, 255, 0.03));
+}
+
+/* Picked up after a long press: it follows the pointer, the others step aside. */
+.wmini.lifted {
+  z-index: 3;
+  scale: 0.95;
+  border-color: color-mix(in srgb, var(--c) 70%, #fff);
+  box-shadow: inset 0 0 24px -15px var(--c), 0 8px 22px rgba(0, 0, 0, 0.6);
+  transition: scale 0.16s ease-out, border-color 0.16s ease-out, box-shadow 0.16s ease-out;
+}
+
+.shelf-row.no-shift .wmini {
+  transition: none;
+}
+
+.wmini-head {
+  flex: 0 0 22px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.wmini-head > b {
+  font: 600 12px var(--font);
+  white-space: nowrap;
+}
+
+/* The widget's mark: the one place its colour is worn in full. */
+.w-mark {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--c) 18%, transparent);
+  color: color-mix(in srgb, var(--c) 85%, #fff);
+}
+
+.wmini-expand {
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dim-4);
+  display: grid;
+  place-items: center;
+  cursor: default;
+  transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.wmini:hover .wmini-expand {
+  color: var(--dim-2);
+}
+
+.wmini-expand:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink) !important;
+}
+
+.wmini-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wmini-btn {
+  align-self: flex-start;
+  min-width: 70px;
+  justify-content: center;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+/* `.island-field` comes later in the sheet and says `flex: 1 1 auto`: in a column it would
+   grow into a tall pill. The extra class keeps this one at its own height. */
+.wmini .wmini-field {
+  flex: 0 0 26px;
+  width: 100%;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11.5px;
+}
+
+.wmini-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.wmini-none {
+  padding: 4px 5px;
+  font: 400 11.5px var(--font);
+  color: var(--dim-3);
+}
+
+/* Every widget switched off in Settings. */
+.shelf-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  text-align: center;
+}
+
+.shelf-empty .title {
+  font-size: 13px;
+}
+
+.shelf-empty .sub {
+  font-size: 12px;
+}
+
+.shelf-empty .link-btn {
+  margin-top: 6px;
+  padding: 2px 6px;
+  color: var(--dim);
+}
+
+.shelf-empty .link-btn:hover {
+  color: var(--ink);
+}
+
+/* ── An expanded widget ─────────────────────────────────────────────────── */
+
+/* A widget expanded is the whole island: the bar steps aside. */
+#content.bare #header {
+  flex-basis: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* While a shared-element transition holds the picture, the page under it is
+   already in its final state: nothing in it fades on its own. */
+#island.no-anim .view,
+#island.no-anim .shelf-layer,
+#island.no-anim #header {
+  transition: none !important;
+}
+
+/* Dark, with the widget's colour as a tint behind what it holds and a thin border. */
+.focus-card {
+  display: none;
+  flex-direction: column;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 9%, var(--card)) 0%, var(--card) 62%);
+  border-color: color-mix(in srgb, var(--c) 22%, transparent);
+}
+
+.focus-card.on {
+  display: flex;
+}
+
+/* The app's wash is a fixed 280 px circle for an 84 px card: these cards are
+   larger, and the wash grows with them. */
+.focus-card.wash::after {
+  background: radial-gradient(78% 80% at 50% 128%, var(--wash) 0%, rgba(0, 0, 0, 0) 72%);
+}
+
+.fc-head {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 30px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px 0 8px;
+  min-width: 0;
+}
+
+.fc-head > b {
+  font: 600 12.5px var(--font);
+  white-space: nowrap;
+}
+
+.back-pill {
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 9px 0 5px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--ink-2);
+  font: 500 11px var(--font);
+  cursor: default;
+  transition: background 0.12s ease-out, transform 0.08s ease-out;
+}
+
+.back-pill:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.back-pill:active {
+  transform: scale(0.94);
+}
+
+.fc-mark {
+  width: 20px;
+  height: 20px;
+  margin-left: 3px;
+}
+
+.fc-aside {
+  margin-left: auto;
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+}
+
+.fc-body {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 8px 12px 12px;
+}
+
+.fc-col {
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fc-list {
+  padding: 0;
+  gap: 2px;
+}
+
+.fc-add {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fc-add .btn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.fc-select {
+  flex: 0 0 auto;
+  height: 28px;
+  padding: 0 22px 0 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  /* The browser's own arrow is dropped for a small one drawn here, and the list it opens
+     is told to be dark: left alone it comes up white, with white text on it. */
+  appearance: none;
+  -webkit-appearance: none;
+  color-scheme: dark;
+  background-color: rgba(255, 255, 255, 0.06);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--dim-2) 50%),
+    linear-gradient(135deg, var(--dim-2) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  color: var(--ink);
+  font: 400 12px var(--font);
+  outline: none;
+  cursor: default;
+  transition: border-color 0.12s ease-out, background-color 0.12s ease-out;
+}
+
+.fc-select:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.fc-select:focus-visible {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+/* The open list: dark, the text light, the choice under the pointer lit. */
+.fc-select option {
+  background: #1b1c20;
+  color: #f1f2f4;
+}
+
+.fc-select option:checked,
+.fc-select option:hover {
+  background: #2b2d34;
+  color: #fff;
+}
+
+.fc-note {
+  flex: 0 0 auto;
+  font: 400 10.5px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fc-label {
+  flex: 0 0 auto;
+  font: 600 9.5px var(--font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim-3);
+}
+
+/* A line with a box to tick, in either size. The box and the words are one button. */
+.check-row {
+  width: 100%;
+  gap: 2px;
+  padding: 0;
+}
+
+.wmini .check-main {
+  padding: 3px 5px;
+}
+
+.check-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: default;
+}
+
+.check-main.bare {
+  flex: 0 0 auto;
+  padding-right: 2px;
+}
+
+.check {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--dim-3);
+  display: grid;
+  place-items: center;
+  color: var(--on-light);
+  transition: background 0.15s ease-out, border-color 0.15s ease-out;
+}
+
+.check.square {
+  border-radius: 4px;
+}
+
+.check-main:hover .check {
+  border-color: var(--dim);
+}
+
+.check-row.done .check {
+  background: #cfd2d8;
+  border-color: #cfd2d8;
+}
+
+.check-row.done .gh-row-title,
+.check-row.done .row-edit {
+  color: var(--dim-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--dim-4);
+}
+
+.row-x {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-right: 4px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--dim-4);
+  display: grid;
+  place-items: center;
+  cursor: default;
+  opacity: 0;
+  transition: opacity 0.12s ease-out, background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.gh-row:hover .row-x,
+.row-x:focus-visible {
+  opacity: 1;
+}
+
+.row-x:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink);
+}
+
+.chip-btn {
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--gh-plate);
+  color: var(--gh-text);
+  font: 500 10.5px var(--font);
+  white-space: nowrap;
+  cursor: default;
+  transition: background 0.12s ease-out, color 0.12s ease-out, transform 0.08s ease-out;
+}
+
+.chip-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--ink);
+}
+
+.chip-btn:active {
+  transform: scale(0.94);
+}
+
+/* To-do: the whole list, and the notes */
+.wbody-todo {
+  gap: 4px;
+}
+
+.todo {
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 12px;
+  min-height: 0;
+}
+
+.note-text {
+  flex: 1 1 auto;
+  min-height: 0;
+  resize: none;
+  padding: 9px 11px;
+  border: 1px solid var(--gh-edge);
+  border-radius: 12px;
+  background: var(--card-flat);
+  color: var(--gh-text);
+  font: 400 12.5px/1.5 var(--font);
+  outline: none;
+  user-select: text;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.note-text:focus {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Motion: the morph between a widget's two sizes ─────────────────────── */
+
+/* For one transition the script gives `view-transition-name: w-…` to the card
+   and to each element the two sizes share (the mark, the name, the controls,
+   the list's lines); the browser then moves each from where it was to where it
+   is. Every box moves on the island's own spring (written into --vt-spring by
+   the script, from anim.ts's Spring) when expanding, and on its closing curve
+   when going back. */
+html.vt-open::view-transition-group(*) {
+  animation-duration: var(--vt-spring-ms, 600ms);
+  animation-timing-function: var(--vt-spring, ease-out);
+}
+
+html.vt-back::view-transition-group(*) {
+  animation-duration: 340ms;
+  animation-timing-function: cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+/* The island keeps its shape while it changes size: black, square on top,
+   round below, and what it holds is cut at its edge and never stretched. */
+::view-transition-group(island) {
+  overflow: clip;
+  border-radius: 0 0 22px 22px;
+  background: #000;
+}
+
+::view-transition-old(island),
+::view-transition-new(island) {
+  height: 100%;
+  object-fit: none;
+  object-position: 50% 0;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(island) {
+  animation: vt-out 0.14s ease-in both;
+}
+
+::view-transition-new(island) {
+  animation: vt-in 0.24s ease-out 0.1s both;
+}
+
+/* The card itself: a dark box that grows from the small card's place to the
+   expanded view's (and back). What only one size has is inside its picture,
+   kept at its own size from the top left corner — never stretched — and fades
+   in as the box opens over it. */
+::view-transition-group(w-card) {
+  overflow: clip;
+  border-radius: 20px;
+  background: #141518;
+}
+
+::view-transition-old(w-card),
+::view-transition-new(w-card) {
+  height: 100%;
+  object-fit: none;
+  object-position: 0 0;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(w-card) {
+  animation: vt-out 0.16s ease-out both;
+}
+
+::view-transition-new(w-card) {
+  animation: vt-in 0.26s ease-out 0.08s both;
+}
+
+/* Words and lines (data-vtc="text"): moved, not stretched. The two pictures
+   keep their own size, from the left, and one gives way to the other.
+   Round controls and the countdown have no such class: they scale. */
+::view-transition-old(.w-text),
+::view-transition-new(.w-text) {
+  height: 100%;
+  object-fit: none;
+  object-position: 0 50%;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(.w-text) {
+  animation: vt-out 0.16s ease-out 0.06s both;
+}
+
+::view-transition-new(.w-text) {
+  animation: vt-in 0.2s ease-out both;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.2s;
+}
+
+@keyframes vt-out {
+  to { opacity: 0; }
+}
+
+@keyframes vt-in {
+  from { opacity: 0; }
+}
+
+/* Reduced motion (the system's, or Settings'): no shared element, no spring;
+   the two layers cross-fade in 120 ms and nothing else moves. */
+:root[data-motion="reduce"] .shelf-layer,
+:root[data-motion="reduce"] .shelf-layer.on {
+  transition: opacity 0.12s linear;
+}
+
+:root[data-motion="reduce"] .wmini,
+:root[data-motion="reduce"] .wmini.lifted {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .shelf-layer,
+  :root:not([data-motion="full"]) .shelf-layer.on {
+    transition: opacity 0.12s linear;
+  }
+
+  :root:not([data-motion="full"]) .wmini,
+  :root:not([data-motion="full"]) .wmini.lifted {
+    transition: none;
+  }
+}
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+
+.card {
+  position: relative;
+  height: 100%;
+  border-radius: 20px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  overflow: hidden;
+}
+
+.card.wash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    280px 280px at 50% 130%,
+    var(--wash) 0%,
+    rgba(0, 0, 0, 0) 70%
+  );
+  pointer-events: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  display: inline-block;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+
+.btn {
+  font: 500 12.5px var(--font);
+  padding: 7px 13px;
+  border: 0;
+  border-radius: 999px;
+  cursor: default;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: transform 0.08s ease-out, background 0.12s ease-out;
+}
+
+.btn:active {
+  transform: scale(0.94);
+}
+
+.btn.primary {
+  background: var(--ink);
+  color: #0b0c0e;
+}
+
+.btn.secondary {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--ink-2);
+}
+
+.btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn .kbd {
+  font-size: 10.5px;
+  padding: 0 4px;
+  border-radius: 4px;
+  opacity: 0.55;
+}
+
+.btn.primary .kbd {
+  border: 1px solid rgba(0, 0, 0, 0.4);
+}
+
+.btn.secondary .kbd {
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.link-btn {
+  border: 0;
+  background: transparent;
+  font: 500 11px var(--font);
+  cursor: default;
+}
+
+.icon-btn {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--dim-4);
+  display: grid;
+  place-items: center;
+  cursor: default;
+}
+
+/* ── Overview ───────────────────────────────────────────────────────────── */
+
+.overview {
+  display: flex;
+  gap: 10px;
+  height: 100%;
+}
+
+.overview > .left {
+  flex: 0 0 322px;
+  width: 322px;
+}
+
+.overview > .right {
+  flex: 1 1 auto;
+}
+
+.card-body {
+  position: relative;
+  z-index: 1;
+  padding-top: 10px;
+}
+
+.who {
+  padding: 0 36px 0 108px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.who .name {
+  font: 600 12px var(--font);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.who .tool {
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+}
+
+.who .count {
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.jump {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 2;
+}
+
+/* ── Agent pills ────────────────────────────────────────────────────────── */
+
+.pills {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 28px;
+  gap: 4px;
+  align-content: center;
+  padding: 0 8px;
+}
+
+.pill {
+  position: relative;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--card-flat);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  display: flex;
+  align-items: center;
+  cursor: default;
+  transition: transform 0.2s cubic-bezier(0.3, 1.2, 0.4, 1), background 0.18s, border-color 0.18s,
+    box-shadow 0.18s, filter 0.18s;
+}
+
+.pill .mini {
+  margin-left: 7px;
+}
+
+.pill .lbl {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font: 600 10px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 6px;
+  pointer-events: none;
+}
+
+.pill:hover {
+  transform: scale(1.04);
+  filter: brightness(1.06);
+}
+
+.pill-badge {
+  position: absolute;
+  top: -3px;
+  right: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #0b0c0e;
+  display: grid;
+  place-items: center;
+}
+
+.pill-badge i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #000;
+}
+
+.pill-badge svg {
+  width: 6px;
+  height: 6px;
+}
+
+/* ── Home view (views/home.ts) ───────────────────────────────────────────────
+   Three columns: the bot's card, a mini bot per session in lanes, resources. */
+
+.home {
+  display: flex;
+  gap: 8px;
+  height: 100%;
+}
+
+/* Left: the main bot, and the session it speaks for. */
+.home-bot {
+  flex: 0 0 164px;
+  width: 164px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 12px 12px;
+  /* What flies out of the bot is not cut by its card. */
+  overflow: visible;
+}
+
+.home-bot.wash::after {
+  border-radius: inherit;
+  transition: background 0.4s ease-in-out;
+}
+
+.home-bot > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hb-stage {
+  flex: 0 0 76px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 6px;
+}
+
+.hb-who {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+  margin-top: 6px;
+}
+
+.hb-who .name {
+  flex: 0 0 auto;
+  max-width: 100%;
+  font: 600 12.5px var(--font);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hb-who .words {
+  flex: 0 0 auto;
+  font: 500 10.5px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+  transition: color 0.3s ease-out;
+}
+
+.hb-doing {
+  max-width: 100%;
+  margin-top: 3px;
+  font: 400 11px/14px var(--font);
+  color: var(--dim-2);
+  text-align: center;
+  /* One line as a rule; a long command gets a second before it is cut. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.hb-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  height: 26px;
+}
+
+.hb-actions .btn {
+  padding: 5px 14px;
+  font-size: 12px;
+  animation: rise-in 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+/* Middle: one mini bot per session, in lanes. */
+.home-sessions {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 10px 8px;
+}
+
+.hs-lanes {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.lane {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lane.sep {
+  margin-left: 7px;
+  padding-left: 7px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Finished ones on their own side. */
+.lane.done {
+  margin-left: auto;
+}
+
+.lane-h {
+  font: 600 9px var(--font);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--dim-3);
+  white-space: nowrap;
+  padding-left: 3px;
+}
+
+.lane-h i {
+  font-style: normal;
+  color: var(--dim);
+}
+
+.lane-bots {
+  display: flex;
+}
+
+.agent {
+  position: relative;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 52px;
+  padding: 14px 0 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: default;
+  transition: background 0.18s, transform 0.2s cubic-bezier(0.3, 1.2, 0.4, 1);
+}
+
+.agent:hover {
+  background: rgba(255, 255, 255, 0.07);
+  transform: scale(1.06);
+}
+
+.agent .mini {
+  transition: filter 0.4s ease-out, opacity 0.4s ease-out;
+}
+
+/* Finished: grey at once. The colour was a light; the light is off. */
+.agent.rest .mini {
+  filter: grayscale(1) brightness(0.9);
+  opacity: 0.45;
+}
+
+/* A result nobody has opened yet. */
+.agent .unseen {
+  position: absolute;
+  top: 9px;
+  right: 1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green-2);
+  box-shadow: 0 0 0 2px var(--card), 0 0 6px var(--green-2);
+  animation: pop-in 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+.agent .unseen svg {
+  display: none;
+}
+
+/* Its reply waits on a decision: the same corner, larger, in that colour, with a "!". */
+.agent .unseen.decide {
+  top: 6px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--purple);
+  color: var(--on-light);
+  box-shadow: 0 0 0 2px var(--card), 0 0 7px color-mix(in srgb, var(--purple) 70%, transparent);
+}
+
+.agent .unseen.decide[hidden] {
+  display: none;
+}
+
+.agent .unseen.decide svg {
+  display: block;
+}
+
+/* Its running subagents: a dot each. */
+.kids {
+  display: flex;
+  align-items: center;
+  gap: 1.5px;
+  height: 6px;
+  margin-top: 8px;
+  white-space: nowrap;
+}
+
+.kids i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 4px var(--c);
+  animation: pop-in 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+.kids i.asking {
+  animation: kid-blink 0.9s steps(2) infinite;
+}
+
+.kids small {
+  font: 600 7.5px/6px var(--font);
+  color: var(--dim-2);
+}
+
+/* "+N", the sessions that have no room in the lanes. Its class is its own:
+   `more` alone is also what a list with more below it (.gh-list.more) and a
+   journal line that got something more (.jr.more) are marked with, and a rule
+   on that name would dress them as this pill. */
+.hs-more {
+  flex: 0 0 auto;
+  min-width: 28px;
+  height: 20px;
+  margin: 12px 0 0 6px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 999px;
+  font: 600 10.5px var(--font);
+  color: var(--c);
+  background: var(--tint);
+  cursor: default;
+  transition: color 0.3s ease-out, background 0.3s ease-out, transform 0.2s cubic-bezier(0.3, 1.2, 0.4, 1);
+}
+
+.hs-more:hover {
+  transform: scale(1.08);
+}
+
+.hs-more.calls {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 50%, transparent);
+}
+
+.hs-lanes:not(:has(.lane.done:not([hidden]))) .hs-more {
+  margin-left: auto;
+}
+
+/* What the bot under the pointer is, and what it is doing: a place kept for it. */
+.hs-foot {
+  flex: 0 0 37px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 5px 3px 0;
+  border-top: 1px solid var(--hairline);
+}
+
+.hf-who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+}
+
+.hf-who b {
+  flex: 0 1 auto;
+  min-width: 0;
+  font: 600 12px var(--font);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hf-who em,
+.gh-row-title em {
+  flex: 0 0 auto;
+  font-style: normal;
+  color: var(--dim-3);
+  margin-left: -2px;
+}
+
+.hf-who span {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.hf-who .subs {
+  color: #3b9eff;
+}
+
+.hf-doing {
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hs-foot.quiet .hf-doing {
+  white-space: normal;
+  line-height: 1.3;
+  color: var(--dim-4);
+}
+
+.hs-empty {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 16px;
+  text-align: center;
+  animation: rise-in 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+.hs-empty .title {
+  font-size: 14px;
+}
+
+.hs-empty .sub {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.hs-empty .code {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.hs-empty .btn {
+  margin-top: 6px;
+  padding: 6px 13px;
+  font-size: 12px;
+}
+
+/* Behind "+N": project, state, how long. */
+.hs-list {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  bottom: 8px;
+  width: 240px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px;
+  overflow-y: auto;
+  border-radius: 13px;
+  background: #1a1c20;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.hs-list .gh-row {
+  width: 100%;
+}
+
+/* Right: resources and usage. Every value has a cell of its own width. */
+.home-res {
+  flex: 0 0 168px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 11px 11px 9px;
+}
+
+.home-res .lane-h {
+  padding-left: 0;
+  margin-top: 3px;
+  margin-bottom: -3px;
+}
+
+.res-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.res-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 14px;
+  min-width: 0;
+}
+
+.res-head b {
+  flex: 0 0 auto;
+  min-width: 24px;
+  font: 600 10.5px var(--font);
+  color: var(--dim);
+}
+
+.res-head svg {
+  flex: 0 0 auto;
+  margin-right: -1px;
+  color: var(--dim-3);
+}
+
+/* The machine: a line each — what it is, how full, and the figure. */
+.res-machine {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.res-machine .res-bar {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.res-value {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font: 600 10.5px var(--font);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* "100%" fits; "—" sits in the same cell. */
+.res-value.pct {
+  width: 30px;
+  margin-left: 0;
+}
+
+/* A usage figure wears its level's colour, like the leading edge of its bar. */
+.res-value[data-level="calm"] {
+  color: var(--green-2);
+}
+
+.res-value[data-level="warm"] {
+  color: var(--amber);
+}
+
+.res-value[data-level="hot"] {
+  color: var(--red-text);
+}
+
+.res-value.blank {
+  color: var(--dim-4);
+}
+
+.res-sub {
+  min-width: 0;
+  font: 400 9.5px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+.res-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.res-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: rgba(241, 242, 244, 0.6);
+  transition: width 0.5s cubic-bezier(0.3, 1.2, 0.4, 1), background 0.3s ease-out;
+}
+
+/* A usage bar: one gradient the length of the whole bar — calm, warming
+   through amber, red where the window is nearly used up — of which the fill
+   shows its own share, so its leading edge is the colour of where it stands.
+   `--used` is that share, 0…1. */
+.res-usage .res-bar i {
+  background-image: linear-gradient(90deg, var(--green-2) 0%, var(--green-2) 42%, var(--amber) 70%, var(--red) 94%);
+  background-size: calc(100% / max(var(--used, 1), 0.02)) 100%;
+  background-repeat: no-repeat;
+}
+
+.res-usage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  transition: opacity 0.4s ease-out;
+}
+
+/* A window that has reset, or numbers more than two hours old: that row dims.
+   A few minutes old is what usage always is, and is not dimmed. */
+.res-usage .res-row {
+  transition: opacity 0.4s ease-out;
+}
+
+.res-usage .res-row.dim {
+  opacity: 0.45;
+}
+
+.res-none {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+}
+
+.res-none b {
+  font: 600 11.5px var(--font);
+  color: var(--ink-2);
+}
+
+.res-none span {
+  font: 400 10.5px/1.35 var(--font);
+  color: var(--dim-3);
+}
+
+.res-age {
+  flex: 0 0 12px;
+  margin-top: auto;
+  display: flex;
+  min-width: 0;
+  font: 400 10px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+  transition: color 0.3s ease-out;
+}
+
+/* "as of last Claude Code activity · 16 min ago": in a narrow column the
+   first part gives way, the age stays; the tooltip has it whole. */
+.res-age .what {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.res-age .when {
+  flex: 0 0 auto;
+}
+
+.res-age.old {
+  color: var(--amber);
+}
+
+/* The bot's card opens the session it speaks for. */
+.home-bot.opens {
+  cursor: default;
+}
+
+/* The island's own bot stands here: the card only keeps the room (layout.ts
+   VIEW_LAYOUTS.overview). */
+.home-bot {
+  padding-bottom: 8px;
+}
+
+.hb-stage {
+  flex-basis: 73px;
+}
+
+.hb-who {
+  margin-top: 3px;
+}
+
+/* The model a session runs on: a quiet word, cut before it pushes anything out. */
+.hb-who .model,
+.hf-who .model {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dim-3);
+}
+
+.hb-who .model {
+  font: 400 9.5px/11px var(--font);
+}
+
+.hf-who .model {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 15px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--dim-2);
+}
+
+.agent:focus {
+  outline: none;
+}
+
+.agent:focus-visible {
+  box-shadow: inset 0 0 0 1.5px #5aa9ff;
+}
+/* ── Generic text blocks ────────────────────────────────────────────────── */
+
+.title {
+  font: 600 15px var(--font);
+}
+
+.sub {
+  font: 400 13px var(--font);
+  color: var(--dim);
+}
+
+.detail {
+  font: 400 12px var(--font);
+  color: var(--red-text);
+}
+
+.who-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 400 12px var(--font);
+  color: var(--dim-2);
+}
+
+.who-row .n {
+  font: 600 12px var(--font);
+  color: var(--ink);
+}
+
+.code {
+  font: 400 12px var(--mono);
+  color: #e8e9ec;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 5px 10px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: text;
+}
+
+/* What a permission request asks, whole: a long command wraps and, past a few
+   lines, scrolls — never cut short with an ellipsis, since Allow allows all of it. */
+.code.asked {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  max-height: 7.6em;
+  overflow-y: auto;
+  line-height: 1.45;
+  scrollbar-width: thin;
+}
+
+/* In place of Allow and Deny, for a request too long to show here. */
+.too-long {
+  font-size: 12px;
+  color: var(--amber);
+}
+
+.stack {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+}
+
+/* ── Settings view (in-island) ──────────────────────────────────────────── */
+
+.settings-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 400 12.5px var(--font);
+  color: #c5c8cd;
+}
+
+.switch {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.15);
+  flex: 0 0 32px;
+  transition: background 0.18s;
+  cursor: default;
+  border: 0;
+}
+
+.switch.on {
+  background: var(--green);
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.18s;
+}
+
+.switch.on::after {
+  transform: translateX(14px);
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2);
+  width: 72px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.seg {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.seg button {
+  font: 400 11px var(--font);
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dim-3);
+  cursor: default;
+}
+
+.seg button.on {
+  background: #252830;
+  color: var(--ink);
+}
+
+/* ── Utility ────────────────────────────────────────────────────────────── */
+
+.grow {
+  flex: 1 1 auto;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* ── A pill's card with no session to show (overview, left card) ────────── */
+
+.left-body {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+}
+
+.int-card {
+  padding: 10px 12px 0 108px;
+  display: flex;
+  flex-direction: column;
+}
+
+.int-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-right: 24px;
+}
+
+.int-head b {
+  font: 600 12px var(--font);
+  color: var(--ink);
+}
+
+.int-head > span {
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+}
+
+.int-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-top: 4px;
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+}
+
+.int-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+}
+
+.int-ago {
+  font: 400 10px var(--font);
+  color: var(--dim-3);
+  flex: 0 0 auto;
+}
+
+.int-empty {
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+  padding-left: 8px;
+}
+
+.int-card.detail {
+  padding-top: 8px;
+}
+
+/* ── The session panel (session view) ───────────────────────────────────── */
+
+/* The panel's own tones, on top of the island's palette: each written once.
+   White laid over the dark ground comes in a few strengths, named for what
+   they are used for; the last block is an editor's colours, for a file's
+   code. */
+:root {
+  --gh-text: #c5c8cd;      /* a line's words: between the ink and the dims */
+  --gh-edge: rgba(255, 255, 255, 0.05);   /* the panel's border */
+  --gh-hover: rgba(255, 255, 255, 0.05);  /* a line under the mouse */
+  --gh-plate: rgba(255, 255, 255, 0.07);  /* a round button, the step on show, a tag */
+
+  --blue: #5aa9ff;         /* at work; a note; a file to open */
+  --blue-text: #9ccbff;    /* words in that blue, on a wash of it */
+  --purple: #b794f6;       /* a reply that waits on a decision; an IMPORTANT alert */
+
+  --on-light: #0b0c0e;       /* a mark or a word on a light or a coloured ground */
+
+  --code: #d6d9df;
+  --code-keyword: #c792ea;
+  --code-string: #c3e88d;
+  --code-call: #82aaff;      /* a call, a property */
+  --code-constant: #f78c6c;  /* a number, a constant */
+  --code-type: #ffcb6b;
+  --code-comment: #5c6370;
+  --code-added: #6ee7b7;     /* the number and the sign of a line added */
+  --code-gone: #b86f78;      /* the words of a line removed */
+}
+
+/* The panel stays in the page while another view is up, and it holds
+   animations with no end. They stop while it is not the view on show, and
+   pick up when it is back. (Folded or hidden, #content.away stops them with
+   everything else.) */
+.gh-view:not(.on) * {
+  animation-play-state: paused !important;
+}
+
+/* The sidebar on the left — the bot, whose session this is, and the tree of
+   the sessions and their subagents — and the screen itself in a darker panel
+   on the right. */
+.gh-card {
+  display: flex;
+}
+
+.gh-side-who {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.gh-side-who b {
+  font: 600 14px var(--font);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gh-side-who span {
+  font: 400 12px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The panel wears the colour of the screen on it — on its tab, as an editor
+   marks the tab that is open: a rule under it, a breath of the colour in it,
+   and the head's line taking the colour along. Sharp marks on a sharp panel;
+   a glow behind the head said the same thing, but as a smudge. Registering
+   --accent as a colour lets it glide from one screen's colour to the next
+   instead of switching; unregistered, a custom property can't be
+   interpolated. Transparent on the lists, where nothing is open. */
+@property --accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(0, 0, 0, 0);
+}
+
+.gh-main {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 7px 8px 7px 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  background: var(--card-flat);
+  border: 1px solid var(--gh-edge);
+  overflow: hidden;
+  transition: --accent 0.35s ease-out;
+}
+
+.gh-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 0 0 auto;
+  height: 25px;
+  padding: 0 4px 0 7px;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 38%, var(--gh-edge));
+}
+
+/* What is open, as an editor names its file: a tab standing on the head's
+   line, with a mark and a name. */
+.gh-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 0 1 auto;
+  align-self: flex-end;
+  height: 22px;
+  padding: 0 10px 0 6px;
+  border-radius: 7px 7px 0 0;
+  background:
+    linear-gradient(color-mix(in srgb, var(--accent) 13%, transparent) 0 0),
+    rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 -1px 0 var(--accent);
+  /* The rule takes the tab's last pixel: its mark and its name are centred in
+     what is left above it, not pressed against it. */
+  padding-bottom: 1px;
+}
+
+/* A file's name, in the face its code is set in — as an editor's tab has it. */
+.gh-tab b.file {
+  font: 400 11px var(--mono);
+}
+
+.gh-head .gh-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.gh-tab b {
+  font: 600 12px var(--font);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.gh-head-badge {
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  flex: 0 0 auto;
+}
+
+/* Beside the tab: what happened to a file, and its lines added and removed. */
+.gh-head-aside {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.gh-head-aside:empty {
+  display: none;
+}
+
+/* Where it sits, on the right, like the file's path. */
+.gh-sub {
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
+  padding-right: 2px;
+}
+
+/* A file's path, as an editor writes it. */
+.gh-sub.path {
+  font: 400 10.5px var(--mono);
+}
+
+.gh-icon {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--gh-plate);
+  color: var(--dim-2);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  cursor: default;
+  transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.gh-icon:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--ink);
+}
+
+.gh-icon.spin svg {
+  animation: gh-spin 0.8s linear infinite;
+}
+
+@keyframes gh-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* The panel's column. */
+.gh-col {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gh-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 6px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* Like the overview ticker, a row cut by the bottom edge fades out — but only
+   while there is more below. At the end of the list nothing is hidden. */
+.gh-list.more {
+  -webkit-mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
+}
+
+.gh-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: default;
+}
+
+.gh-row:hover {
+  background: var(--gh-hover);
+}
+
+.gh-row-icon {
+  width: 14px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+/* The title keeps its room; the repository gives way first. */
+.gh-row-title {
+  font: 500 11.5px var(--font);
+  color: var(--gh-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.gh-row-where {
+  font: 400 10.5px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 100 auto;
+}
+
+.gh-row .int-ago {
+  margin-left: auto;
+  padding-left: 6px;
+  min-width: 30px;
+  text-align: right;
+}
+
+/* Projects: the right-hand columns line up from row to row. */
+.gh-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+/* When it was, in a column wide enough for the longest it says ("just now"):
+   a row pushed a minute ago would otherwise push its marks out of line. */
+.gh-right .int-ago {
+  margin-left: 0;
+  min-width: 50px;
+}
+
+/* ── The panel: moving between screens ──────────────────────────────────── */
+
+/* The island's own entrance curve and rhythm (.view.on): another screen
+   comes from the right. */
+.gh-list.gh-from-right {
+  animation: gh-from-right 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+@keyframes gh-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── The panel: a file's code ───────────────────────────────────────────── */
+
+/* The lines added and removed. */
+.gh-pm {
+  flex: 0 0 auto;
+  font: 500 10.5px var(--mono);
+  white-space: nowrap;
+}
+
+
+/* A file's kind as an editor's tab shows it: its letters on its language's
+   colour. */
+.gh-ext {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  min-width: 17px;
+  height: 13px;
+  padding: 0 3px;
+  border-radius: 3.5px;
+  background: var(--c);
+  color: #fff;
+  font: 700 7.5px/1 var(--font);
+  font-style: normal;
+  white-space: nowrap;
+  /* Centred on the line's box, a badge reads as standing on the name's
+     baseline: a name's weight is in its lower-case letters, which sit below
+     the middle of the line. A pixel down puts both on one axis. */
+  translate: 0 1px;
+}
+
+.gh-ext.dark {
+  color: var(--card);
+}
+
+
+/* Badges are wider than the other rows' marks: the names still line up. */
+.gh-file .gh-row-icon {
+  width: 24px;
+  justify-items: start;
+}
+
+/* What happened to the file, in a word: grey for "modified", its colour for
+   the rest (see statusWord). */
+.gh-file-status {
+  flex: 0 0 auto;
+  font: 500 10px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+}
+
+/* That word, then the lines added and removed, sit at the row's right edge,
+   each in a column of its own: down the list they read like a table, instead
+   of trailing wherever each path happens to end. */
+.gh-file .gh-file-status {
+  margin-left: auto;
+  padding-left: 8px;
+  min-width: 52px;
+  text-align: right;
+}
+
+.gh-file .gh-pm {
+  padding-left: 4px;
+}
+
+.gh-file .gh-pm > span {
+  display: inline-block;
+  min-width: 4ch;
+  text-align: right;
+}
+
+.gh-file .gh-pm > .gh-add {
+  min-width: 5ch;
+}
+
+/* The panel is the editor: the code runs from one edge to the other. */
+.gh-list.gh-edge {
+  padding: 0;
+}
+
+.gh-code {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 9px 0 10px;
+}
+
+.gh-diff {
+  font: 400 10.5px/16px var(--mono);
+  color: var(--code);
+  user-select: text;
+}
+
+/* One gutter of numbers, the sign, the code. The left border is the bar a
+   changed line wears. */
+.gh-diff-line {
+  display: grid;
+  grid-template-columns: 34px 16px 1fr;
+  border-left: 2px solid transparent;
+}
+
+.gh-diff-line .n {
+  text-align: right;
+  color: var(--dim-5);
+  user-select: none;
+}
+
+.gh-diff-line .s {
+  text-align: center;
+  user-select: none;
+}
+
+.gh-diff-line .t {
+  min-width: 0;
+  padding: 0 10px 0 4px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.gh-diff-line.add {
+  background: color-mix(in srgb, var(--green-2) 10%, transparent);
+  border-left-color: var(--green-2);
+}
+
+.gh-diff-line.add .n,
+.gh-diff-line.add .s {
+  color: var(--code-added);
+}
+
+/* A line that is gone: struck through, its colours drained to the red. */
+.gh-diff-line.del {
+  background: color-mix(in srgb, var(--red) 13%, transparent);
+  border-left-color: var(--red);
+}
+
+.gh-diff-line.del .n,
+.gh-diff-line.del .s {
+  color: var(--red-text);
+}
+
+.gh-diff-line.del .t {
+  color: var(--code-gone);
+}
+
+.gh-diff-line.del .gone {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--red-text) 50%, transparent);
+}
+
+/* Lines skipped: a quiet break, with where the next ones sit. */
+.gh-diff-line.hunk {
+  margin: 4px 0;
+  color: var(--dim-4);
+}
+
+.gh-diff-line.hunk .t {
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* An editor's colours (see code.ts): keyword, string, key, number or
+   constant, call, type, comment. */
+.gh-diff .hl-k { color: var(--code-keyword); }
+.gh-diff .hl-s { color: var(--code-string); }
+.gh-diff .hl-p { color: var(--code-call); }
+.gh-diff .hl-c { color: var(--code-constant); }
+.gh-diff .hl-f { color: var(--code-call); }
+.gh-diff .hl-y { color: var(--code-type); }
+.gh-diff .hl-m { color: var(--code-comment); font-style: italic; }
+
+.gh-add {
+  color: var(--green-2);
+}
+
+.gh-del {
+  color: var(--red-text);
+}
+
+/* ── A Claude Code session, driven from the island ─────────────────────────
+   Windows only for now. A question answered here, what the session changed. */
+
+/* The question as a title of two lines at most: its options must stay on show. */
+.q-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.q-options {
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.q-opt {
+  max-width: 100%;
+  padding: 6px 12px;
+}
+
+.q-opt > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One of several picked: the question's cyan, as the bot wears it. */
+.q-opt.on {
+  background: color-mix(in srgb, var(--cyan) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cyan) 55%, transparent);
+  color: var(--ink);
+}
+
+.q-opt.other {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  color: var(--dim);
+}
+
+.q-opt.other:hover {
+  color: var(--ink-2);
+}
+
+.q-chip {
+  font: 500 10.5px var(--font);
+  color: var(--cyan);
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cyan) 14%, transparent);
+}
+
+.q-count {
+  color: var(--dim-3);
+}
+
+/* Under the options: what the one under the mouse means, and the ways out. */
+.q-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 16px;
+}
+
+.q-hint {
+  font: 400 11.5px var(--font);
+  color: var(--dim);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.q-link {
+  flex: 0 0 auto;
+  color: var(--dim-3);
+  white-space: nowrap;
+}
+
+.q-link:hover {
+  color: var(--ink-2);
+}
+
+/* A session at work is its card: the whole of it opens the session panel. */
+.card.opens:hover {
+  background: color-mix(in srgb, var(--card), #fff 2.5%);
+}
+
+.who .gh-pm.count {
+  font-size: 10.5px;
+}
+
+/* The line that says what is asked never gives its height to the diff under it. */
+.proposed ~ .actions,
+.stack > .code {
+  flex: 0 0 auto;
+}
+
+/* What an edit asking for permission would do: its diff, in the approval card,
+   between the file's name and Deny / Allow. */
+.proposed {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 2px 0;
+  border-radius: 10px;
+  border: 1px solid var(--gh-edge);
+  background: var(--card-flat);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+/* How something stands, as a small round mark: done, going, failed. */
+.sess-mark {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.sess-mark.done {
+  background: var(--green-2);
+  color: var(--on-light);
+}
+
+.sess-mark.failed {
+  background: var(--red);
+  color: var(--on-light);
+}
+
+/* Going: a ring that turns (and stops with everything else when out of sight). */
+.sess-mark.run {
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-top-color: var(--ink);
+  animation: gh-spin 0.9s linear infinite;
+}
+
+/* A line of an edit not typed yet takes no room: the file grows as it is written. */
+.gh-diff-line.untyped {
+  display: none;
+}
+
+.sess-caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 1.1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: var(--ink);
+}
+
+/* The way to every file the session changed, in the panel's head. */
+.sess-files {
+  flex: 0 0 auto;
+  height: 17px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--gh-plate);
+  color: var(--gh-text);
+  font: 500 10.5px var(--font);
+  cursor: default;
+}
+
+.sess-files:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--ink);
+}
+
+.sess-back {
+  margin-right: 2px;
+}
+
+/* The name — a conversation's title can be long — keeps the row's room: what
+   follows it gives way first, and is gone before the name loses a letter. */
+.who .name {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.who .tool {
+  flex: 0 1000 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* What Claude said to end its turn, and above it what it was asked. */
+.sess-talk {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 4px 8px 6px;
+  user-select: text;
+}
+
+.sess-talk p {
+  font: 400 12.5px/1.45 var(--font);
+  color: var(--gh-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sess-asked {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: 5px 10px;
+  border-radius: 11px;
+  background: var(--gh-plate);
+  font: 400 12px/1.4 var(--font);
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* What Claude said, on the finished card: the whole of it is in the session
+   panel, here it is two lines and the buttons keep their place. */
+.title.said {
+  font: 500 13px/1.35 var(--font);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+/* A text field of the island's own — a typed answer to a question, at a
+   card's scale. */
+.island-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
+  font: 400 12.5px var(--font);
+  outline: none;
+}
+
+.island-field::placeholder {
+  color: var(--dim-3);
+}
+
+.island-field:focus {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Options that explain themselves: one to a line, its name then what it means,
+   always on show — a choice is read before it is made. */
+.q-options.q-list {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.q-row {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(96px, max-content) 1fr;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  text-align: left;
+  cursor: default;
+  transition: background 0.12s ease-out;
+}
+
+.q-row:hover {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.q-row > b {
+  font: 600 12.5px var(--font);
+  color: var(--ink);
+  max-width: 190px;
+}
+
+.q-row > span {
+  font: 400 11.5px/1.3 var(--font);
+  color: var(--dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.q-row.on {
+  background: color-mix(in srgb, var(--cyan) 20%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cyan) 55%, transparent);
+}
+
+/* Under a list, "Other…" and Send, side by side at its foot. */
+.q-tail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.q-tail:empty {
+  display: none;
+}
+
+.q-tail .btn {
+  padding: 5px 11px;
+  font-size: 12px;
+}
+
+/* The question keeps its lines: it is the list that gives way, and scrolls. */
+.q-title,
+.q-foot {
+  flex: 0 0 auto;
+}
+
+/* Skip is a real way out of a question, so it is a real button. */
+.q-skip {
+  flex: 0 0 auto;
+  padding: 5px 11px;
+  font-size: 12px;
+}
+
+/* Whose words these are, over a reply: Claude's, and how old. */
+.sess-said {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+}
+
+.sess-said b {
+  font: 600 11.5px var(--font);
+  color: var(--ink);
+}
+
+/* An answer as Claude wrote it: Markdown, at the island's scale. Everything
+   in it is sized from the body's own letters (em), so the large panel, where
+   the body is a step larger, keeps the same proportions. */
+.md {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font: 400 12.5px/1.45 var(--font);
+  color: var(--gh-text);
+  overflow-wrap: anywhere;
+}
+
+.session-view.large .md {
+  font-size: 13.5px;
+}
+
+.md p {
+  white-space: pre-line;
+}
+
+.md b {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* The bold words an item of a list opens on: its name, a touch above the rest. */
+.md b.md-lead {
+  font-weight: 650;
+  color: #fff;
+}
+
+/* A piece of code in a line: a soft chip. A short one stays in one piece; a
+   long one may break, anywhere. */
+.md code,
+.md-path {
+  font: 400 0.9em var(--mono);
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.md code.long,
+.md-path.long {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* A file the answer names, in a session that runs in an editor: the chip
+   opens it there. It reads as something to click: an edge, the editor's blue. */
+.md-path {
+  position: relative;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blue) 34%, transparent);
+  background: color-mix(in srgb, var(--blue) 13%, transparent);
+  color: var(--blue-text);
+  cursor: pointer;
+  transition: background 0.12s ease-out, box-shadow 0.12s ease-out, color 0.12s ease-out;
+}
+
+/* A link whose target is a file: its words, not its path. */
+.md-path.link {
+  font-family: var(--font);
+  font-size: 1em;
+}
+
+.md-path:hover {
+  background: color-mix(in srgb, var(--blue) 24%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--blue) 60%, transparent);
+  color: #fff;
+}
+
+/* It could not be opened: the chip says so for a moment, where it stands. */
+.md-path.miss {
+  background: color-mix(in srgb, var(--red) 16%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 50%, transparent);
+  color: transparent;
+  transition: none;
+}
+
+.md-path.miss::after {
+  content: "not found";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+  font: 500 0.95em var(--font);
+  color: var(--red-text);
+  animation: md-miss 0.18s ease-out;
+}
+
+@keyframes md-miss {
+  from { opacity: 0; }
+}
+
+.md-link {
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-decoration-color: var(--dim-3);
+  text-underline-offset: 2px;
+}
+
+/* Headings, in four steps: `#` and `##` larger and at full white, `##` under
+   a thin line; `###` a little above the body; anything deeper the body, bold. */
+.md-h {
+  margin-top: 0.3em;
+  font: 600 1em/1.3 var(--font);
+  color: var(--ink);
+}
+
+.md-h.h1 {
+  margin-top: 0.7em;
+  font-size: 1.3em;
+  font-weight: 650;
+  color: #fff;
+  letter-spacing: -0.005em;
+}
+
+.md-h.h2 {
+  margin-top: 0.7em;
+  font-size: 1.16em;
+  font-weight: 650;
+  color: #fff;
+}
+
+/* Not above the very first thing an answer says. */
+.md > .md-h.h2:not(:first-child) {
+  margin-top: 0.55em;
+  padding-top: 0.75em;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.md-h.h3 {
+  margin-top: 0.45em;
+  font-size: 1.04em;
+}
+
+.md-h.h4 {
+  color: var(--gh-text);
+}
+
+.md > .md-h:first-child {
+  margin-top: 0;
+}
+
+.md-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.md-item {
+  display: flex;
+  gap: 8px;
+}
+
+.md-item > i {
+  flex: 0 0 auto;
+  min-width: 10px;
+  font-style: normal;
+  color: var(--dim-3);
+}
+
+.md-item > span {
+  min-width: 0;
+}
+
+.md-code {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--card-flat);
+  border: 1px solid var(--gh-edge);
+  font: 400 0.92em/1.45 var(--mono);
+  color: var(--code);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.md-table {
+  border-collapse: collapse;
+  font-size: 0.96em;
+}
+
+.md-table th,
+.md-table td {
+  padding: 4px 9px;
+  border: 1px solid var(--gh-edge);
+  text-align: left;
+  vertical-align: top;
+}
+
+.md-table th {
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--gh-plate);
+}
+
+.md-rule {
+  border: 0;
+  border-top: 1px solid var(--gh-edge);
+  margin: 2px 0;
+}
+
+/* Something quoted: a rule on its left, and quieter words. */
+.md-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 1px 0 1px 10px;
+  border-left: 2px solid rgba(255, 255, 255, 0.16);
+  color: var(--dim);
+}
+
+.md-quote b {
+  color: var(--gh-text);
+}
+
+/* GitHub's alerts: a quote that opens on [!NOTE], [!TIP], [!IMPORTANT],
+   [!WARNING] or [!CAUTION]. Each in its colour — on its left edge, its icon
+   and its title — over a faint wash of it; what it says stays in the body's
+   own light grey, a touch brighter, so it reads on the wash. */
+.md-callout {
+  --c: var(--blue);
+  --t: var(--blue-text);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 10px 8px 10px;
+  border-left: 3px solid var(--c);
+  border-radius: 3px 8px 8px 3px;
+  background: color-mix(in srgb, var(--c) 10%, transparent);
+  color: #d6d9de;
+}
+
+.md-callout.tip {
+  --c: var(--green-2);
+  --t: #6fe0af;
+}
+
+.md-callout.important {
+  --c: var(--purple);
+  --t: #c9adfb;
+}
+
+.md-callout.warning {
+  --c: var(--amber);
+  --t: #ffc266;
+}
+
+.md-callout.caution {
+  --c: var(--red);
+  --t: var(--red-text);
+}
+
+.md-callout-h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--t);
+}
+
+.md-callout-h svg {
+  flex: 0 0 auto;
+}
+
+.md-callout-h b {
+  font: 650 0.94em/1.3 var(--font);
+  color: inherit;
+  letter-spacing: 0.01em;
+}
+
+/* A very long answer, cut: a decision asked for in what was left out is said, and the way to all of it. */
+.md-skip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  font: 500 0.82em var(--font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dim-3);
+}
+
+.md-skip::before,
+.md-skip::after {
+  content: "";
+  flex: 1 1 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.md-skip::before {
+  flex: 0 0 14px;
+}
+
+.md-more {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: 1px;
+  height: 22px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--gh-plate);
+  font: 400 0.88em/22px var(--font);
+  color: var(--dim-2);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s ease-out;
+}
+
+.md-more b {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.md-more:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+
+/* Several Claude Code sessions at once: where a session is shown, a chip with
+   how many there are, that leads to the list of them. */
+.sess-chip {
+  flex: 0 0 auto;
+  height: 17px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--gh-plate);
+  color: var(--gh-text);
+  font: 500 10.5px var(--font);
+  white-space: nowrap;
+  cursor: default;
+  transition: color 0.3s ease-out, background 0.3s ease-out;
+}
+
+.sess-chip:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--ink);
+}
+
+/* One of the sessions behind wants looking at: the chip says so in its colour. */
+.sess-chip.calls {
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+}
+
+/* In the card's first line the chip sits at the right, before what was written. */
+.who > .sess-chip {
+  margin-left: auto;
+}
+
+.who > .sess-chip + .count {
+  margin-left: 0;
+}
+
+/* A card about a session names the conversation: a long title gives way to what follows it. */
+.who-row .n {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.who-row > span:not(.n),
+.who-row > .dot {
+  flex: 0 0 auto;
+}
+
+.who-waiting {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font: 500 10.5px var(--font);
+  color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 14%, transparent);
+}
+
+/* What a session is doing now, as the prototype draws it: the step by its
+   icon and its name with what it is at, and under it a look at what it did. */
+.now-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 12px 0 108px;
+  min-width: 0;
+  flex: 0 0 16px;
+}
+
+/* The session's card fills its height, with the same air under its last line
+   as above its first: the look at what the step did takes what is left. */
+.card-body.sess-card {
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 11px 0;
+}
+
+.sess-card > .who {
+  flex: 0 0 auto;
+}
+
+.now-line > i {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--dim);
+}
+
+.now-line > b {
+  flex: 0 0 auto;
+  font: 600 12px var(--font);
+  color: var(--ink);
+}
+
+.now-line > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dim-2);
+}
+
+/* A file or a command, as it is typed; Claude's words, as they are said. */
+.now-line > .at {
+  font: 400 10.5px var(--mono);
+}
+
+.now-line > .said {
+  font: 400 11.5px var(--font);
+}
+
+.now-box {
+  flex: 1 1 0;
+  min-height: 0;
+  margin: 0 12px 0 108px;
+  padding: 3px 0;
+  border-radius: 8px;
+  background: var(--card-flat);
+  overflow: hidden;
+}
+
+.now-box .gh-diff-line {
+  grid-template-columns: 26px 12px 1fr;
+}
+
+.now-box .gh-diff-line .t,
+.now-box .term-line .t {
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.now-words {
+  padding: 0 9px;
+  font: 400 11px/16px var(--font);
+  color: var(--dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* A terminal's lines: the prompt and the command, then what it printed. */
+.term-line {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  color: var(--dim);
+}
+
+.term-line .p {
+  text-align: right;
+  padding-right: 4px;
+  color: var(--dim-4);
+  user-select: none;
+}
+
+.term-line .t {
+  min-width: 0;
+  padding-right: 10px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.term-line.cmd .t {
+  color: var(--ink-2);
+}
+
+.step-preview.failed .term-line:not(.cmd) .t {
+  color: var(--red-text);
+}
+
+/* The session's journal: what was asked, each thing Claude did, what it said —
+   one under the other, in the order they happened. */
+.sess-journal {
+  gap: 9px;
+  padding: 9px 9px 12px;
+  user-select: text;
+}
+
+.jr {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.jr-asked {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.jr-reply {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 2px 4px;
+}
+
+/* A word from Claude Code between two steps: a subagent, a notification. */
+.jr-note {
+  padding: 0 4px;
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+}
+
+.jr-note.failed {
+  color: var(--red-text);
+}
+
+/* A step: its icon, its name and what it is at, then what it did. */
+.jr-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 18px;
+  padding: 0 4px;
+}
+
+.jr-head > i {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--dim);
+}
+
+.jr-head > b {
+  flex: 0 0 auto;
+  font: 600 12px var(--font);
+  color: var(--ink);
+}
+
+.jr-head > .at {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 10.5px var(--mono);
+  color: var(--dim-2);
+}
+
+.jr-head > .grow {
+  flex: 1 1 0;
+}
+
+.jr-time {
+  flex: 0 0 auto;
+  font: 400 10px var(--font);
+  color: var(--dim-4);
+}
+
+.jr-chip {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font: 500 10px var(--font);
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+}
+
+.jr-body {
+  margin-top: 4px;
+  padding: 4px 0;
+  border-radius: 8px;
+  border: 1px solid var(--gh-edge);
+  background: var(--card);
+  overflow: hidden;
+}
+
+.jr-step.failed .jr-body {
+  border-color: color-mix(in srgb, var(--red) 35%, transparent);
+}
+
+/* A question Claude asked: its words, its options, the ones picked lit. */
+.jr-asks {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 22%, transparent);
+  background: color-mix(in srgb, var(--cyan) 6%, transparent);
+}
+
+.jr-q {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.jr-q-title {
+  font: 500 12px/1.35 var(--font);
+  color: var(--ink-2);
+}
+
+.jr-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.jr-option {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--gh-edge);
+  font: 500 10.5px var(--font);
+  color: var(--dim-3);
+}
+
+.jr-option.on {
+  color: var(--on-light);
+  background: var(--cyan);
+  border-color: var(--cyan);
+}
+
+.jr-option.typed {
+  border-radius: 8px;
+}
+
+.jr-waiting {
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+}
+
+/* ── How a session's states come and go ─────────────────────────────────────
+   Nothing a session shows changes at a stroke. What is new comes in the way a
+   view of the island does — a short rise with the same overshoot — and what
+   changes colour takes a moment to. All of it runs once and stops. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.985);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+/* The overview's step and what it did: the next one rises into place. */
+.now-in {
+  animation: rise-in 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+/* A line of the journal that is new; in one that got something more — what a
+   tool gave back, what was decided — only that. */
+.jr.in,
+.jr.more > .jr-body,
+.jr.more > .jr-asks {
+  animation: rise-in 0.32s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+.jr.more .jr-chip,
+.jr.more .jr-option.on,
+.jr.more > .sess-mark {
+  animation: pop-in 0.3s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+.jr-body,
+.jr-asks {
+  transition: border-color 0.3s ease-out;
+}
+
+/* A stack whose middle stretches (an approval's diff) would fill its card to
+   the brim: it keeps the air the other cards have above and below. Over the
+   padding the stack is built with, which is set on the element. */
+.stack.airy {
+  padding-top: 20px !important;
+  padding-bottom: 20px !important;
+}
+
+/* ── The session panel: the sidebar ─────────────────────────────────────── */
+
+.sess-rail {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 6px 8px 11px;
+  transition: flex-basis 0.3s cubic-bezier(0.3, 1.2, 0.4, 1);
+}
+
+.session-view.large .sess-rail {
+  flex-basis: 276px;
+  padding: 6px 8px 12px 14px;
+}
+
+/* The bot is drawn by the island (layout.ts SESSION_BOT): this keeps its room.
+   Its box is its canvas, wider than its body: the slot takes the body's
+   height and lets the rest overhang, so the name sits close beside it. */
+.sess-bot-slot {
+  flex: 0 0 auto;
+  width: 70px;
+  height: 58px;
+}
+
+.session-view.large .sess-bot-slot {
+  width: auto;
+  height: 112px;
+}
+
+/* At the panel's normal size the session's name sits beside the bot, and the
+   tree under them keeps the height; in the large panel it sits under it. */
+.sess-rail-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.session-view.large .sess-rail-head {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.sess-rail .gh-side-who {
+  flex: 1 1 auto;
+}
+
+.sess-rail .gh-side-who b {
+  font-size: 13px;
+}
+
+.session-view.large .sess-rail .gh-side-who b {
+  font-size: 14px;
+}
+
+/* A conversation's title gets a second line before it is cut. */
+.sess-rail .gh-side-who span {
+  font-size: 11.5px;
+  line-height: 1.25;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* The session's name, and beside it the model it runs on: the name gives way first. */
+.sess-name-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sess-name-row b {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sess-rail .gh-side-who .sess-name-model {
+  flex: 0 0 auto;
+  display: block;
+  font: 400 10px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+}
+
+/* Large, the line above the journal has room for it, as a chip: said once. */
+.session-view.large .sess-name-model,
+.session-view:not(.large) .sess-filters .sess-model {
+  display: none;
+}
+
+/* The tree: sessions, and under each the subagents it launched. */
+.sess-tree {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 4px 0 0 -5px;
+  padding: 5px 0 2px;
+  border-top: 1px solid var(--gh-edge);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.session-view.large .sess-tree {
+  margin-top: 14px;
+  padding-top: 8px;
+}
+
+.sess-ti {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-radius: 7px;
+  color: var(--dim-2);
+  cursor: default;
+  outline: none;
+  user-select: none;
+  transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.sess-ti:hover {
+  background: var(--gh-hover);
+  color: var(--gh-text);
+}
+
+/* The line the keyboard is on. */
+/* The ring is the keyboard's: worn once an arrow has moved through the tree,
+   never because a click, or the panel opening, put the focus somewhere. */
+.session-view:focus {
+  outline: none;
+}
+
+.sess-tree.kbd .sess-ti:focus {
+  box-shadow: inset 0 0 0 1.5px #5aa9ff;
+  color: var(--ink);
+}
+
+/* A session: its project's colour as a thin stripe, the arrow to its
+   subagents, its folder, how many subagents, its state as a dot. */
+.sess-node {
+  gap: 5px;
+  height: 23px;
+  padding: 0 7px 0 5px;
+}
+
+.session-view.large .sess-node {
+  height: 27px;
+}
+
+.sess-node::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--c);
+  opacity: 0.85;
+}
+
+.sess-node b {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 500 11.5px var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-view.large .sess-node b {
+  font-size: 12.5px;
+}
+
+/* The session in front, with one of its subagents on show. */
+.sess-node.front {
+  color: var(--gh-text);
+}
+
+.sess-ti.on {
+  background: var(--gh-plate);
+  color: var(--ink);
+}
+
+.sess-node.on b,
+.sess-node.front b {
+  font-weight: 600;
+}
+
+.sess-twisty {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 17px;
+  margin: 0 -2px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  color: var(--dim-3);
+  transition: transform 0.2s cubic-bezier(0.3, 1.2, 0.4, 1), color 0.12s ease-out;
+}
+
+.sess-twisty:not(.none):hover {
+  color: var(--ink);
+}
+
+.sess-node[aria-expanded="true"] .sess-twisty {
+  transform: rotate(90deg);
+}
+
+/* How many subagents it has: lit while one runs, amber while one waits. */
+.sess-count {
+  flex: 0 0 auto;
+  min-width: 15px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--gh-plate);
+  font: 600 9.5px/14px var(--font);
+  text-align: center;
+  color: var(--dim-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.sess-count.going {
+  background: color-mix(in srgb, #5aa9ff 22%, transparent);
+  color: #9ccbff;
+}
+
+.sess-count.asking {
+  background: color-mix(in srgb, var(--amber) 24%, transparent);
+  color: var(--amber);
+}
+
+/* The way to where a session runs, on its own line of the sidebar. At the
+   panel's normal size the line is narrow: it shows when the line is pointed
+   at or has the focus, so the name keeps its room. In the large panel it is
+   always there. */
+.sess-goto {
+  flex: 0 0 auto;
+  display: none;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  margin: 0 -2px;
+  border-radius: 5px;
+  color: var(--dim-2);
+  transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.sess-node:hover .sess-goto,
+.sess-node:focus .sess-goto,
+.session-view.large .sess-goto {
+  display: grid;
+}
+
+.sess-goto:hover {
+  background: var(--gh-plate);
+  color: var(--ink);
+}
+
+/* Nowhere to go: the island blinks once, and says no more. */
+#island-clip.nowhere {
+  animation: island-nowhere 0.45s ease-in-out;
+}
+
+@keyframes island-nowhere {
+  40% {
+    opacity: 0.55;
+  }
+}
+
+/* A session at work that nothing was heard from for a long while: a quiet word
+   under its line. Not an alert: it does not move, and takes no click. */
+.sess-quiet {
+  flex: 0 0 auto;
+  margin-top: -3px;
+  padding: 0 7px 2px 24px;
+  font: 400 9.5px/12px var(--font);
+  color: var(--dim-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+  user-select: none;
+}
+
+/* Its last reply waits on a decision: a mark under its line, in that colour.
+   It does not move and makes no sound; a click reads the reply. */
+.sess-decide {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  max-width: calc(100% - 22px);
+  height: 15px;
+  margin: -2px 0 3px 22px;
+  padding: 0 6px 0 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--purple) 16%, transparent);
+  font: 600 9.5px/15px var(--font);
+  color: #c9adfb;
+  white-space: nowrap;
+  cursor: default;
+  user-select: none;
+  transition: background 0.12s ease-out;
+}
+
+.sess-decide:hover {
+  background: color-mix(in srgb, var(--purple) 28%, transparent);
+}
+
+.sess-decide svg {
+  flex: 0 0 auto;
+}
+
+.sess-decide span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-view.large .sess-decide {
+  height: 17px;
+  font-size: 10.5px;
+  line-height: 17px;
+}
+
+/* A session waiting for an answer: its dot calls. */
+.sess-node .dot.calls {
+  animation: sess-call 1.3s ease-in-out infinite;
+}
+
+@keyframes sess-call {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 60%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 5px transparent; }
+}
+
+.sess-subs {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+/* A subagent, on two lines: how it stands and what it was launched to do;
+   under that, quieter, which agent it is and the model it runs on. */
+.sess-sub {
+  gap: 5px;
+  height: 31px;
+  padding: 0 7px 0 21px;
+  font: 400 11px var(--font);
+}
+
+.session-view.large .sess-sub {
+  height: 35px;
+  padding-left: 24px;
+  font-size: 11.5px;
+}
+
+/* The mark stands beside the first line. */
+.sess-sub > .sess-mark {
+  align-self: flex-start;
+  margin-top: 5px;
+}
+
+.session-view.large .sess-sub > .sess-mark {
+  margin-top: 6px;
+}
+
+.sess-sub-words {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 13px;
+}
+
+.session-view.large .sess-sub-words {
+  line-height: 14px;
+}
+
+.sess-sub .sess-mark,
+.sess-launch .sess-mark,
+.sess-crumb .sess-mark {
+  width: 11px;
+  height: 11px;
+}
+
+.sess-sub .sess-mark.run,
+.sess-launch .sess-mark.run,
+.sess-crumb .sess-mark.run {
+  border-width: 1.5px;
+}
+
+/* "<type> · <model>", cut as a whole when it is too long: the tooltip has all of it. */
+.sess-sub-meta {
+  min-width: 0;
+  font-size: 9.5px;
+  color: var(--dim-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-view.large .sess-sub-meta {
+  font-size: 10.5px;
+}
+
+.sess-sub-task {
+  min-width: 0;
+  color: var(--gh-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sess-sub.on .sess-sub-task {
+  color: var(--ink);
+}
+
+/* Finished: still there, and out of the way. */
+.sess-sub.done > *,
+.sess-sub.failed > * {
+  opacity: 0.55;
+}
+
+.sess-sub.failed .sess-mark {
+  opacity: 0.9;
+}
+
+.sess-sub.on > * {
+  opacity: 1;
+}
+
+/* Waiting for the user: the line is amber. */
+.sess-sub.asking {
+  background: color-mix(in srgb, var(--amber) 13%, transparent);
+}
+
+.sess-sub.asking:hover,
+.sess-sub.asking.on {
+  background: color-mix(in srgb, var(--amber) 21%, transparent);
+}
+
+.sess-sub.asking .sess-sub-task,
+.sess-sub.asking .sess-sub-meta {
+  color: var(--amber);
+}
+
+.sess-sub.asking .sess-sub-meta {
+  opacity: 0.75;
+}
+
+/* "needs me", said in words where there is the room for it. */
+/* The model a session or a subagent runs on: a quiet chip, cut before it
+   pushes a name out. Never there for one no event named. */
+.sess-model {
+  flex: 0 1 auto;
+  min-width: 0;
+  height: 17px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  font: 500 10px/17px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* In a subagent's own view and on the line it was launched from, the chip keeps its width: the task gives way. */
+.sess-crumb .sess-model,
+.sess-launch .sess-model {
+  flex: 0 0 auto;
+}
+
+.sess-sub-needs {
+  display: none;
+  flex: 0 0 auto;
+  font: 600 9.5px var(--font);
+  color: var(--amber);
+  white-space: nowrap;
+}
+
+.session-view.large .sess-sub-needs {
+  display: block;
+}
+
+.sess-mark.needs {
+  background: var(--amber);
+  color: var(--on-light);
+  animation: sess-call 1.3s ease-in-out infinite;
+  --c: var(--amber);
+}
+
+/* ── The session panel: the filter chips, in the panel's head ───────────── */
+
+.sess-filters {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 31px;
+  padding: 0 6px 0 7px;
+  border-bottom: 1px solid var(--gh-edge);
+  overflow: hidden;
+}
+
+.sess-f {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 19px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dim-2);
+  font: 500 10.5px var(--font);
+  white-space: nowrap;
+  cursor: default;
+  transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.sess-f b {
+  font-weight: 600;
+  color: var(--dim-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.sess-f:hover {
+  background: var(--gh-hover);
+  color: var(--gh-text);
+}
+
+.sess-f.on {
+  background: var(--gh-plate);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.sess-f.on b {
+  color: var(--gh-text);
+}
+
+.sess-filters > .grow {
+  flex: 1 1 0;
+  min-width: 2px;
+}
+
+.sess-filters .jr-chip,
+.sess-filters .sess-files {
+  white-space: nowrap;
+}
+
+/* Where the session is at; while it waits for an answer, the way to its card. */
+.sess-filters .jr-chip.opens:hover {
+  background: color-mix(in srgb, var(--c) 26%, transparent);
+}
+
+.sess-filters .gh-icon {
+  width: 19px;
+  height: 19px;
+  margin-left: 2px;
+}
+
+.session-view.large .sess-filters {
+  height: 36px;
+  gap: 6px;
+  padding: 0 9px 0 10px;
+}
+
+.session-view.large .sess-f {
+  height: 22px;
+  padding: 0 10px;
+  font-size: 11.5px;
+}
+
+/* ── The session panel: the journal ─────────────────────────────────────── */
+
+.session-view.large .sess-journal {
+  gap: 11px;
+  padding: 12px 14px 16px;
+}
+
+/* A subagent's journal in place of the session's, or the way back: it comes in. */
+.sess-journal.sess-enter {
+  animation: rise-in 0.26s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+/* In the large panel a command is shown whole: it wraps instead of being cut. */
+.session-view.large .jr-step.command .jr-head {
+  height: auto;
+  align-items: flex-start;
+}
+
+.session-view.large .jr-step.command .jr-head > * {
+  min-height: 18px;
+  line-height: 18px;
+}
+
+.session-view.large .jr-step.command .jr-head > i,
+.session-view.large .jr-step.command .jr-head > .sess-mark {
+  margin-top: 2.5px;
+  min-height: 0;
+}
+
+.session-view.large .jr-step.command .jr-head > .at {
+  flex: 0 1 auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: visible;
+}
+
+/* How a subagent stands, in words: "running 1m 23s". */
+.sess-status {
+  flex: 0 0 auto;
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sess-status.running {
+  color: #9ccbff;
+}
+
+.sess-status.asking {
+  color: var(--amber);
+}
+
+.sess-status.failed {
+  color: var(--red-text);
+}
+
+/* Where a subagent was launched: one line of the main journal. */
+.sess-launch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  padding: 0 6px 0 5px;
+  border: 1px solid var(--gh-edge);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  color: inherit;
+  text-align: left;
+  cursor: default;
+  user-select: none;
+  transition: background 0.12s ease-out, border-color 0.12s ease-out;
+}
+
+.sess-launch:hover {
+  background: var(--gh-plate);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.sess-launch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1.5px #5aa9ff;
+}
+
+.sess-launch.asking {
+  border-color: color-mix(in srgb, var(--amber) 34%, transparent);
+  background: color-mix(in srgb, var(--amber) 8%, transparent);
+}
+
+.sess-launch > b {
+  flex: 0 0 auto;
+  font: 600 12px var(--font);
+  color: var(--ink);
+}
+
+.sess-launch-type {
+  flex: 0 0 auto;
+  margin-right: -2px;
+  font: 500 11.5px var(--font);
+  color: var(--gh-text);
+  white-space: nowrap;
+}
+
+.sess-launch-task {
+  flex: 0 1 auto;
+  min-width: 24px;
+  font: 400 11.5px var(--font);
+  color: var(--gh-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sess-launch-sep {
+  flex: 0 0 auto;
+  margin: 0 -2px;
+  color: var(--dim-4);
+}
+
+.sess-launch > .grow {
+  flex: 1 1 0;
+}
+
+.sess-launch-go {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  color: var(--dim-3);
+  transition: transform 0.16s ease-out, color 0.12s ease-out;
+}
+
+.sess-launch:hover .sess-launch-go {
+  color: var(--ink);
+  transform: translateX(2px);
+}
+
+.session-view.large .sess-launch {
+  height: 27px;
+  padding: 0 9px 0 7px;
+}
+
+/* ── The session panel: a subagent's own view ───────────────────────────── */
+
+/* Where one is: the session, then the subagent. The arrow goes back. */
+.sess-crumb {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  height: 29px;
+  padding: 0 9px 0 5px;
+  border-bottom: 1px solid var(--gh-edge);
+  background: rgba(255, 255, 255, 0.02);
+  font: 400 11.5px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+}
+
+.session-view.large .sess-crumb {
+  height: 34px;
+  padding: 0 12px 0 8px;
+  font-size: 12.5px;
+}
+
+.sess-crumb-back {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--gh-plate);
+  color: var(--gh-text);
+  cursor: default;
+  transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+
+.sess-crumb-back:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--ink);
+}
+
+.sess-crumb-session {
+  flex: 0 1 auto;
+  min-width: 24px;
+  max-width: 34%;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  font: inherit;
+  font-weight: 500;
+  color: var(--gh-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+
+.sess-crumb-session:hover {
+  background: var(--gh-hover);
+  color: var(--ink);
+}
+
+.sess-crumb-sep,
+.sess-crumb-dot {
+  flex: 0 0 auto;
+  color: var(--dim-4);
+}
+
+.sess-crumb-type {
+  flex: 0 0 auto;
+}
+
+.sess-crumb-task {
+  flex: 0 1 auto;
+  min-width: 30px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sess-crumb > .grow {
+  flex: 1 1 0;
+  min-width: 4px;
+}
+
+/* What its view ends on, while it runs or waits: one line. */
+.sess-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 9px;
+  border-radius: 9px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  font: 400 11.5px var(--font);
+  color: var(--dim-2);
+  user-select: none;
+}
+
+.sess-end.asking {
+  border: 1px solid color-mix(in srgb, var(--amber) 36%, transparent);
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
+}
+
+.sess-end-words {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sess-end-words b {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sess-end.asking .sess-end-words b {
+  color: var(--amber);
+}
+
+.sess-end-words span:not(.sess-elapsed) {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sess-end-what {
+  font: 400 10.5px var(--mono);
+}
+
+.sess-end-btn {
+  flex: 0 0 auto;
+  height: 20px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--gh-plate);
+  font: 500 11px var(--font);
+  color: var(--ink);
+  white-space: nowrap;
+  cursor: default;
+  transition: background 0.12s ease-out;
+}
+
+.sess-end-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.sess-end.asking .sess-end-btn {
+  background: var(--amber);
+  color: var(--on-light);
+}
+
+/* What it came back with. */
+.sess-result {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px 9px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--green-2) 26%, transparent);
+  background: color-mix(in srgb, var(--green-2) 6%, transparent);
+}
+
+.sess-result.failed {
+  border-color: color-mix(in srgb, var(--red) 32%, transparent);
+  background: color-mix(in srgb, var(--red) 7%, transparent);
+}
+
+.sess-result-h {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+}
+
+.sess-result-h b {
+  font: 600 12px var(--font);
+  color: var(--ink);
+}
+
+.sess-result-h .sess-mark {
+  width: 12px;
+  height: 12px;
+}
+
+/* No agent ids: its steps cannot be told apart. */
+.sess-apart {
+  display: flex;
+  gap: 9px;
+  padding: 9px 11px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--amber) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--amber) 24%, transparent);
+  color: #fbc06a;
+}
+
+.sess-apart > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.sess-apart > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sess-apart b {
+  font: 600 12px/1.35 var(--font);
+  color: var(--ink);
+}
+
+.sess-apart span {
+  font: 400 11.5px/1.4 var(--font);
+  color: var(--gh-text);
+}
+
+.sess-apart .sess-end-btn {
+  margin-top: 3px;
+}
+
+/* ── A card that asks: who is asking ────────────────────────────────────── */
+
+/* A subagent asks: what it was launched to do, its kind, and whose it is. */
+.who-asker {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.who-asker > span {
+  white-space: nowrap;
+}
+
+/* What the subagent is doing: the first thing to keep, and the last to be cut. */
+.who-asker > .n {
+  flex: 0 1 auto;
+  min-width: 60px;
+}
+
+/* The session's folder: in the ink, set apart as a name. A long one gives way
+   before what the subagent is doing loses a letter. */
+.who-proj {
+  flex: 0 1000 auto;
+  min-width: 56px;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A request that does not say who it comes from, while subagents are at work. */
+.who-maybe {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--gh-plate);
+  font: 500 10.5px var(--font);
+  color: var(--gh-text);
+  white-space: nowrap;
+}
+
+/* Behind the request on the card: the one that asked next. */
+.who-next {
+  flex: 0 0 auto;
+  font: 400 11px var(--font);
+  color: var(--dim-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Reduced motion, as Settings resolved it (the island sets data-motion): the
+   OS's own preference only decides when Settings says "system". */
+:root[data-motion="reduce"] .sess-journal.sess-enter,
+:root[data-motion="reduce"] .sess-mark.needs,
+:root[data-motion="reduce"] .sess-node .dot.calls {
+  animation: none;
+}
+
+/* ── Shelf widget: Timer ────────────────────────────────────────────────── */
+
+.wbody-timer {
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.wmini .timer-time {
+  font: 600 27px/1.15 var(--font);
+}
+
+.wmini .timer-sub {
+  font: 400 10.5px var(--font);
+  white-space: nowrap;
+}
+
+.timer {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.timer-face {
+  position: relative;
+  width: 150px;
+  height: 150px;
+}
+
+.timer-dial {
+  display: block;
+  color: var(--ink-2);
+}
+
+.timer-ring {
+  transition: stroke-dashoffset 0.4s linear;
+}
+
+.timer-read {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-time {
+  font: 600 30px var(--font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.timer-time.long {
+  font-size: 25px;
+}
+
+.timer-sub {
+  font: 400 11px var(--font);
+  color: var(--dim-3);
+}
+
+/* Time's up: the countdown wears the widget's colour. */
+.timer.done .timer-dial,
+.timer.done .timer-time {
+  color: color-mix(in srgb, var(--c) 85%, #fff);
+}
+
+.wmini.done .timer-time {
+  color: color-mix(in srgb, var(--c) 85%, #fff);
+}
+
+.timer-set {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.timer-presets {
+  margin-left: 0;
+}
+
+.timer-presets button {
+  padding: 4px 10px;
+}
+
+.timer-presets button:hover {
+  color: var(--ink-2);
+}
+
+.timer-own {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timer-custom {
+  flex: 0 0 58px;
+  width: 58px;
+  height: 24px;
+  padding: 0 9px;
+  font-size: 11.5px;
+  appearance: textfield;
+}
+
+.timer-custom::-webkit-inner-spin-button,
+.timer-custom::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.timer .actions .btn {
+  min-width: 82px;
+  justify-content: center;
+}
+
+:root[data-motion="reduce"] .timer-ring {
+  transition: none;
+}
+
+/* ── Shelf widget: Reminders ────────────────────────────────────────────── */
+
+.wbody-reminders {
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.next-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.next-row .check-main {
+  align-items: flex-start;
+}
+
+.next-row .check {
+  margin-top: 1px;
+}
+
+.next-text {
+  font: 500 11.5px/15px var(--font);
+  color: var(--gh-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.next-when {
+  padding-left: 27px;
+  font: 400 10.5px var(--font);
+  color: var(--dim-3);
+}
+
+/* Due, and not yet ticked: its time is in the widget's colour. */
+.next-row.due .next-when,
+.rem-row.due .rem-when {
+  color: color-mix(in srgb, var(--c) 85%, #fff);
+}
+
+.wmini-addrow {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+}
+
+.wmini .wmini-addrow .wmini-field {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+.wmini-when {
+  flex: 0 0 auto;
+  width: 68px;
+  height: 26px;
+  padding: 0 18px 0 10px;
+  background-position: calc(100% - 11px) 50%, calc(100% - 7px) 50%;
+  font-size: 11.5px;
+}
+
+/* A reminder's words, editable where they stand. */
+.row-edit {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 22px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gh-text);
+  font: 500 11.5px var(--font);
+  outline: none;
+  user-select: text;
+  text-overflow: ellipsis;
+}
+
+.row-edit:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.row-edit:focus {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.rem-row .rem-when {
+  min-width: 52px;
+  background: transparent;
+  color: var(--dim-3);
+}
+
+.rem-row .rem-when:hover {
+  background: var(--gh-plate);
+  color: var(--ink);
+}
+
+.rem-row.missed .rem-when {
+  color: #f3a6a6;
+}
+
+.rem-time {
+  flex: 0 0 auto;
+  width: 176px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 10.5px;
+  color-scheme: dark;
+}
+
+/* ── Shelf widget: Media ────────────────────────────────────────────────── */
+
+.wbody-media {
+  justify-content: space-between;
+}
+
+.wmini .media-now {
+  padding: 2px 2px 0;
+  min-width: 0;
+}
+
+.wmini .media-title {
+  font: 600 12.5px var(--font);
+}
+
+.wmini .media-artist {
+  font: 400 11px var(--font);
+}
+
+.wmini .media-ctl {
+  margin: 0;
+  gap: 12px;
+}
+
+.wmini .media-skip {
+  width: 28px;
+  height: 28px;
+}
+
+.wmini .media-play {
+  width: 32px;
+  height: 32px;
+}
+
+.media {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.media-cover {
+  position: relative;
+  flex: 0 0 116px;
+  height: 116px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: linear-gradient(140deg, color-mix(in srgb, var(--c) 34%, #1b1d22), #1b1d22);
+  color: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 8px 22px -8px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.media-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.media-side {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.media-title {
+  font: 600 15px var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.media-artist {
+  margin-top: 1px;
+  font: 400 12px var(--font);
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.media-bar {
+  margin-top: 11px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.media-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--ink-2);
+  transition: width 0.3s linear;
+}
+
+.media-times {
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+  font: 400 10px var(--font);
+  color: var(--dim-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.media-foot {
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.media-ctl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.media-skip,
+.media-play {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: default;
+  transition: transform 0.08s ease-out, background 0.12s ease-out, opacity 0.12s ease-out;
+}
+
+.media-skip {
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.media-skip:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.media-play {
+  width: 38px;
+  height: 38px;
+  background: var(--ink);
+  color: var(--on-light);
+}
+
+.media-skip:active:not(:disabled),
+.media-play:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+/* Nothing to control: the buttons stay, and say so. */
+.media-skip:disabled,
+.media-play:disabled {
+  opacity: 0.3;
+}
+
+.media-volume {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--dim-2);
+}
+
+.media-vol-icon {
+  display: grid;
+  place-items: center;
+}
+
+.media-vol {
+  width: 84px;
+}
+
+:root[data-motion="reduce"] .media-bar > i {
+  transition: none;
+}
+
+/* ── Shelf widget: Mirror ───────────────────────────────────────────────── */
+
+.wbody-mirror {
+  justify-content: space-between;
+  padding: 0 2px;
+}
+
+.wmini-note {
+  padding-top: 2px;
+  font: 400 11px/15px var(--font);
+  color: var(--dim-2);
+}
+
+/* The preview and nothing else: the back pill floats over it. */
+.focus-card.bare .fc-head {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 0;
+}
+
+.focus-card.bare .fc-head > b,
+.focus-card.bare .fc-mark {
+  display: none;
+}
+
+.focus-card.bare .back-pill {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+.focus-card.bare .fc-body {
+  padding: 0;
+}
+
+.mirror {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.mirror-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* A mirror: left is left. */
+  transform: scaleX(-1);
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+}
+
+.mirror.live .mirror-video {
+  opacity: 1;
+}
+
+.mirror-ph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 48px;
+  text-align: center;
+}
+
+.mirror-ph .sub {
+  max-width: 400px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--dim-2);
+}
+
+.mirror-ph .btn {
+  margin-top: 10px;
+}
+
+.mirror.live .mirror-ph {
+  display: none;
+}
+
+.mirror-ph-mark {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--c) 16%, transparent);
+  color: color-mix(in srgb, var(--c) 82%, #fff);
+}
+
+/* ── Shelf widget: Projects ─────────────────────────────────────────────── */
+
+.wbody-projects .wmini-list {
+  justify-content: space-between;
+  padding: 2px 0 1px;
+}
+
+.wmini-proj {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-left: 5px;
+}
+
+.wmini-proj > b {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 600 11.5px var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.proj-row {
+  gap: 7px;
+  padding: 5px 6px 5px 8px;
+}
+
+.proj-who {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.proj-name {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.proj-name b {
+  font: 600 12px var(--font);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.proj-name .int-ago {
+  margin-left: 0;
+  padding-left: 0;
+  text-align: left;
+}
+
+.proj-who .gh-sub {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A button that launches something: its mark turns to a tick for a moment. */
+.launch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px 0 7px;
+}
+
+.launch-icon {
+  display: grid;
+  place-items: center;
+}
+
+.launch.done {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--ink);
+}
+
+/* It did not start (no VS Code, no Windows Terminal): said, in the words and a cross. */
+.launch.failed {
+  background: rgba(243, 166, 166, 0.16);
+  color: #f3a6a6;
+}
+
+
+/* ── Which tool a session belongs to: a mark and a name, never a state colour ── */
+
+.tool-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  vertical-align: -1px;
+  margin-right: 4px;
+  line-height: 0;
+}
+
+.tool-mark.cursor {
+  color: #f4f4f5;
+}
+
+/* A mini bot's corner: small, over the bot's foot, not in the way of the unseen mark. */
+.agent .tool-mark.corner {
+  position: absolute;
+  left: 1px;
+  bottom: 2px;
+  margin: 0;
+  padding: 1.5px;
+  border-radius: 50%;
+  background: rgba(16, 16, 20, 0.82);
+}
+
+.hb-who .who-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin-right: 5px;
+  font: 500 11px var(--font);
+  opacity: 0.72;
+  white-space: nowrap;
+}
+
+.hb-who .who-tool:empty {
+  display: none;
+}
+
+.hf-who .tool-mark,
+.sess-node .tool-mark,
+.sess-name-row b .tool-mark {
+  margin-right: 0;
+}
+
+/* The folded island: Claude Code's dot is solid, Cursor's has a hole in it. */
+.ci-dot.cursor {
+  position: relative;
+}
+
+.ci-dot.cursor::before {
+  content: "";
+  position: absolute;
+  inset: 31%;
+  border-radius: 50%;
+  background: #0b0b0e;
+}
+
+/* The filter of the session list: All · Claude Code · Cursor. */
+.sess-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 6px 2px;
+}
+
+.sess-tools[hidden] {
+  display: none;
+}
+
+.sess-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  padding: 0 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: 500 10px var(--font);
+  opacity: 0.7;
+  cursor: default;
+}
+
+.sess-tool .tool-mark {
+  margin: 0;
+}
+
+.sess-tool.on {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.28);
+}
