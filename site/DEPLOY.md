@@ -2,31 +2,22 @@
 
 The site is plain static files (no build step). Everything in this folder is the site. The domain is `nook.zubyr.dev`.
 
-## Option A: GitHub Pages (recommended, already set up)
+## Option A: Vercel (in use)
 
-The workflow `.github/workflows/pages.yml` (repo root) publishes this folder whenever something under `site/` changes on `main`, and on demand (Actions tab, Run workflow). It leaves out `DEPLOY.md` and the `og.html` source file.
+The site is deployed on Vercel, connected directly to this repo.
 
-1. Push the repo to GitHub (`zubairbinshaukat/nook`).
-2. Repository **Settings > Pages > Build and deployment > Source: GitHub Actions**.
-3. Run the workflow once (Actions > Deploy site to GitHub Pages > Run workflow), or push a change under `site/`.
-4. **Custom domain.** Settings > Pages > Custom domain: enter `nook.zubyr.dev` and save. The `CNAME` file in this folder keeps the setting after each deploy.
-5. **DNS** at the provider of `zubyr.dev`: add one record
-   - Type `CNAME`, Name `nook`, Value `zubairbinshaukat.github.io` (no trailing path; if the provider wants a dot, `zubairbinshaukat.github.io.`).
-   - If the domain is on Cloudflare DNS, set the record to **DNS only** (grey cloud) until the certificate is issued.
-6. Wait for the DNS check to go green, then tick **Enforce HTTPS** (certificate issuing can take up to an hour).
-7. Open https://nook.zubyr.dev/ and https://nook.zubyr.dev/guides/install/ to check.
-
-Notes for GitHub Pages
-- `_headers` and `_redirects` are ignored there. The site works without them; they are only needed on Cloudflare Pages or Netlify.
-- `404.html` is served automatically for unknown URLs.
-- `.well-known/security.txt` is a dotfile folder. The workflow pins `actions/upload-pages-artifact@v3`, which keeps it. After the first deploy, open https://nook.zubyr.dev/.well-known/security.txt to confirm. If it 404s, move to a newer action version that includes hidden files, or serve it from Cloudflare Pages.
+1. Vercel dashboard > the project > Settings > General > Root Directory: `site`. Framework preset: **Other** (static files, no build step).
+2. Settings > Domains > add `nook.zubyr.dev`. Vercel shows the DNS record to add at the provider of `zubyr.dev` (usually a `CNAME` to `cname.vercel-dns.com`, or an `A` record if it's the apex domain).
+3. Every push to `main` that touches `site/` redeploys automatically; no CNAME file or GitHub workflow is needed — Vercel manages the domain and TLS certificate itself.
+4. `_headers` and `_redirects` are read natively by Vercel (same syntax as Netlify/Cloudflare Pages), so security headers and the `/download` redirect apply as-is.
+5. Open https://nook.zubyr.dev/ and https://nook.zubyr.dev/guides/install/ to check.
 
 ## Option B: Cloudflare Pages
 
 1. Cloudflare dashboard > Workers & Pages > Create > Pages > Connect to Git, pick the repo.
 2. Framework preset: **None**. Build command: empty. Build output directory: `site`.
 3. Custom domains > add `nook.zubyr.dev`. If zubyr.dev DNS is on Cloudflare this is one click.
-4. `_headers` and `_redirects` are applied automatically (security headers, caching, /download redirect). Remove the `CNAME` file from deployments if you like; it is harmless.
+4. `_headers` and `_redirects` are applied automatically (security headers, caching, /download redirect).
 
 ## Search engines
 
