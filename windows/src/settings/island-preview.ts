@@ -1,5 +1,6 @@
-// The folded island, as the Island section shows it: a schematic at the real
-// size, with sample sessions and sample numbers.
+// The folded (compact) island, as the Island and Look pages show it: a
+// schematic at the real size, with sample sessions and sample numbers, Gullu
+// in the colour picked.
 //
 // It is laid out by the island's own arithmetic — core/layout.ts
 // `compactLayout` and its COMPACT_* slots — and drawn like island/compact.ts:
@@ -24,16 +25,16 @@ import { LUCIDE, lucide } from "../views/iconset";
 import type { Bot } from "./bots";
 
 /**
- * Each cell as island/compact.ts `METRIC` has it — its fixed width, its name,
- * its icon — with a sample of what it says.
+ * Each cell as island/compact.ts `METRIC` has it — its fixed width, its name
+ * in plain words and in short, its icon — with a sample of what it says.
  */
-export const COMPACT_CELLS: Record<CompactMetric, { width: number; name: string; icon: string; sample: string }> = {
-  cpu: { width: 52, name: "CPU", icon: LUCIDE.cpu, sample: "31%" },
-  gpu: { width: 52, name: "GPU", icon: LUCIDE.gpu, sample: "18%" },
-  ram: { width: 52, name: "RAM", icon: LUCIDE.memoryStick, sample: "70%" },
-  usage5h: { width: 52, name: "5-hour usage", icon: LUCIDE.timer, sample: "38%" },
-  usage7d: { width: 52, name: "7-day usage", icon: LUCIDE.calendarDays, sample: "12%" },
-  waiting: { width: 38, name: "Sessions waiting", icon: LUCIDE.bell, sample: "1" },
+export const COMPACT_CELLS: Record<CompactMetric, { width: number; name: string; short: string; icon: string; sample: string }> = {
+  cpu: { width: 52, name: "Processor (CPU)", short: "CPU", icon: LUCIDE.cpu, sample: "31%" },
+  gpu: { width: 52, name: "Graphics (GPU)", short: "GPU", icon: LUCIDE.gpu, sample: "18%" },
+  ram: { width: 52, name: "Memory (RAM)", short: "RAM", icon: LUCIDE.memoryStick, sample: "70%" },
+  usage5h: { width: 52, name: "5-hour usage limit", short: "5-hour", icon: LUCIDE.timer, sample: "38%" },
+  usage7d: { width: 52, name: "Weekly usage limit", short: "Weekly", icon: LUCIDE.calendarDays, sample: "12%" },
+  waiting: { width: 38, name: "Sessions waiting for you", short: "Waiting", icon: LUCIDE.bell, sample: "1" },
 };
 /** The size the island draws a cell's icon at. */
 const COMPACT_ICON = 14;
@@ -155,11 +156,11 @@ export function islandPreview(bot: Bot): IslandPreview {
         requestAnimationFrame(frame);
       }
       draw();
-      const names = on.map((k) => COMPACT_CELLS[k].name);
-      words.textContent = names.length ? `Bot · sessions · ${names.join(" · ")}` : "Bot · sessions — no metrics, so the island is narrower";
+      const names = on.map((k) => COMPACT_CELLS[k].short);
+      words.textContent = names.length ? `Gullu · sessions · ${names.join(" · ")}` : "Gullu · sessions — no numbers, so the island is narrower";
       // Its length along the edge, ears included; on a side, the column's width beside it.
       width.textContent = side ? `${COMPACT_COLUMN_W} × ${wanted + 2 * EAR_COMPACT} px` : `${wanted + 2 * EAR_COMPACT} px`;
-      desk.setAttribute("aria-label", `Preview of the folded island, with sample values: ${words.textContent}`);
+      desk.setAttribute("aria-label", `Preview of the compact island, with sample values: ${on.map((k) => COMPACT_CELLS[k].name).join(", ") || "no numbers"}`);
     },
     run() {
       let tick = 0;

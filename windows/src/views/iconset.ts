@@ -48,6 +48,24 @@ export const LUCIDE = {
   palette: '<path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z"/><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>',
   /** lucide: info (from Feather, MIT) */
   info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  /** lucide: plug (ISC) */
+  plug: '<path d="M12 22v-5"/><path d="M15 8V2"/><path d="M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z"/><path d="M9 8V2"/>',
+  /** lucide: keyboard (ISC) */
+  keyboard: '<path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/>',
+  /** lucide: list (from Feather, MIT) */
+  list: '<path d="M3 5h.01"/><path d="M3 12h.01"/><path d="M3 19h.01"/><path d="M8 5h13"/><path d="M8 12h13"/><path d="M8 19h13"/>',
+
+  // ── The settings window: search, reset, details ──
+  /** lucide: search (from Feather, MIT) */
+  search: '<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
+  /** lucide: x (from Feather, MIT) */
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  /** lucide: rotate-ccw (from Feather, MIT) */
+  rotateCcw: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  /** lucide: chevron-down (from Feather, MIT) */
+  chevronDown: '<path d="m6 9 6 6 6-6"/>',
+  /** lucide: arrow-right (from Feather, MIT) */
+  arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
 
   // ── The settings window: where something stands ──
   /** lucide: circle-check (ISC) */

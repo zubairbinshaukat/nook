@@ -313,23 +313,40 @@ pub fn apply_geometry(app: &AppHandle, pref: &str, dock: Dock, collapsed: bool) 
     #[cfg(target_os = "linux")]
     let _ = win.set_resizable(true);
     // A window resized keeps its top-left corner. At the top that corner is
-    // where it stays, as it always did. Elsewhere it moves between the strip
-    // and the panel, and the window is kept on its display at every step: in
-    // first when it grows (put where the panel goes, then grown), shrunk first
-    // when it collapses (then put where the strip goes). Grown first at the
-    // bottom, it would hang below the display for a frame, onto one under it.
+    // where it stays, as it always did. Elsewhere the window is kept on its
+    // display at every step: shrunk first when it gets smaller (then moved),
+    // moved first when it grows (then grown) — whatever made it change: the
+    // strip and the panel, a work area that moved, a new scale. Grown first at
+    // the bottom, or moved first while still large, it would hang off the
+    // display for a frame, onto one beside it. Not known how large it is now:
+    // as it always was, shrunk first only when it collapses.
     let size = PhysicalSize::new(pw, ph);
     let at = PhysicalPosition::new(x, y);
-    if dock == Dock::Top || collapsed {
-        let _ = win.set_size(size);
-        let _ = win.set_position(at);
-    } else {
-        let _ = win.set_position(at);
-        let _ = win.set_size(size);
+    let first = match win.outer_size() {
+        Ok(now) => size_before_move(dock, (now.width, now.height), (pw, ph)),
+        Err(_) => (dock == Dock::Top || collapsed).then_some((pw, ph)),
+    };
+    if let Some((w, h)) = first {
+        let _ = win.set_size(PhysicalSize::new(w, h));
     }
-    // Moving across displays can rescale the window: re-assert the physical size.
+    let _ = win.set_position(at);
+    // Grown to its size, and — moving across displays can rescale the window —
+    // the physical size re-asserted.
     let _ = win.set_size(size);
     let _ = win.set_always_on_top(true);
+}
+
+/// The size the window takes before it is moved, if any: what of it shrinks,
+/// so that no step leaves it larger than both where it was and where it goes.
+/// At the top it is sized first, as it always was. Only growing: moved first,
+/// then grown. Narrower but taller (or the other way): shrunk where it shrinks,
+/// moved, then grown where it grows.
+fn size_before_move(dock: Dock, now: (u32, u32), next: (u32, u32)) -> Option<(u32, u32)> {
+    if dock == Dock::Top {
+        return Some(next);
+    }
+    let first = (now.0.min(next.0), now.1.min(next.1));
+    (first != now).then_some(first)
 }
 
 /// Position, size, work area and scale of the monitor the island lives on. Any
@@ -508,6 +525,28 @@ pub fn set_ignore_cursor(app: &AppHandle, ignore: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Off the top, a window that gets smaller is shrunk before it moves, and
+    /// one that gets larger is moved before it grows: it never hangs off its
+    /// display. At the top it is sized first, as it always was.
+    #[test]
+    fn a_window_shrinks_before_it_moves_and_moves_before_it_grows() {
+        let panel = (720, 600);
+        let strip = (720, 6);
+        for dock in [Dock::Bottom, Dock::Left, Dock::Right] {
+            // Collapsing, or a work area that got smaller while open.
+            assert_eq!(size_before_move(dock, panel, strip), Some(strip));
+            assert_eq!(size_before_move(dock, panel, (700, 580)), Some((700, 580)));
+            // Opening: moved first.
+            assert_eq!(size_before_move(dock, strip, panel), None);
+            // The same size: only moved.
+            assert_eq!(size_before_move(dock, panel, panel), None);
+            // Wider but shorter: shrunk in height only, moved, then widened.
+            assert_eq!(size_before_move(dock, (600, 600), (700, 500)), Some((600, 500)));
+        }
+        assert_eq!(size_before_move(Dock::Top, strip, panel), Some(panel));
+        assert_eq!(size_before_move(Dock::Top, panel, strip), Some(strip));
+    }
 
     /// A hidden window keeps the gate shut, whatever the island wishes, and
     /// showing it opens the gate again if the island wanted it open.

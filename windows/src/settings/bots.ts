@@ -108,6 +108,17 @@ export function startBots(still: () => boolean) {
   window.addEventListener("blur", () => (moved = false));
   document.addEventListener("visibilitychange", wake);
 
+  // The first look is drawn at once, whether the window has the keyboard or
+  // not: no bot is an empty square until the mouse comes by.
+  for (const b of bots) {
+    b.engine.update(0);
+    const ctx = b.canvas.getContext("2d");
+    if (!ctx) continue;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    wipe(ctx);
+    b.engine.draw(ctx, b.size, b.size + OVERHANG);
+  }
+
   let last = performance.now();
   const frame = (nowMs: number) => {
     if (!onShow()) {

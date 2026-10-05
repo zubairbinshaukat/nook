@@ -1,26 +1,39 @@
-// The settings window: a sidebar of sections — Claude Code, General, Island,
-// Shelf, Appearance, About — and one section on show at a time.
+// The settings window: a sidebar of categories in small groups — Connect; the
+// Island, Look and colours, Sounds; the Agents list, Shortcuts, Shelf widgets;
+// About — a search above them, and one category on show at a time.
+//
+// Every category is built once, when the window opens, and kept: another
+// category shows one and hides the rest, and a search moves the rows that
+// match — the very elements, their controls working — into a list of results,
+// then back where they were when it is cleared. Nothing is built twice, so no
+// control and no id exists twice either.
 //
 // Every setting applies at once. Only what writes to Claude Code's
-// settings.json asks first: Nook shows the diff, and nothing is written until
-// the button under it is pressed — with the fingerprint of the diff on show,
-// so a file that changed in between is refused by Rust rather than written over.
+// settings.json (or its CLAUDE.md, or Cursor's hooks.json) asks first: Nook
+// shows the diff, and nothing is written until the button under it is pressed
+// — with the fingerprint of the diff on show, so a file that changed in
+// between is refused by Rust rather than written over.
 
 import "./settings.css";
 import type { AboutLink, CursorStatus, DataPaths, HookPreview, HookStatus, ReplyFormatAction, ReplyFormatStatus, ShortcutName, ShortcutStatus, UsageStatus } from "../core/bridge";
 import { COMPACT_METRICS, DEFAULT_SETTINGS, FADE_MAX, FADE_MIN, FOLDED_AUTO_HIDE, MAX_COMPACT_METRICS, compactMetrics, foldedAutoHide, type CompactMetric, type Settings } from "../core/state";
 import { BOT_THEMES } from "../bot/engine";
-import { clear, h } from "../views/dom";
+import { clear, h, replay } from "../views/dom";
 import { BRANDS, LUCIDE, brand } from "../views/iconset";
 import { connect, type Backend } from "./backend";
 import { isBotTheme, mountBot, refreshBots, startBots, wearBotTheme } from "./bots";
 import { COMPACT_BOT, COMPACT_CELLS, cellIcon, islandPreview } from "./island-preview";
-import { SPRING, flip, icon, reorderable, segmented, slider, toggle, type Segmented, type Toggle } from "./ui";
+import { SPRING, flip, icon, reorderable, segmented, slider, toggle, type Toggle } from "./ui";
 
 // ── What the window knows ─────────────────────────────────────────────────────
 
-const SECTIONS = ["claude", "general", "island", "shelf", "appearance", "about"] as const;
+const SECTIONS = ["connect", "island", "look", "sounds", "agents", "shortcuts", "shelf", "about"] as const;
 type Section = (typeof SECTIONS)[number];
+/** What the categories were called before they were regrouped: an old link still lands. */
+const OLD_SECTIONS: Record<string, Section> = { claude: "connect", general: "island", appearance: "look" };
+const sectionNamed = (name: string | null | undefined): Section | null =>
+  !name ? null : (SECTIONS as readonly string[]).includes(name) ? (name as Section) : OLD_SECTIONS[name] ?? null;
+
 type Theme = Settings["theme"];
 type Motion = Settings["reduceMotion"];
 
@@ -35,13 +48,49 @@ let cursor: CursorStatus | null = null;
 let wasCreated = false;
 let paths: DataPaths | null = null;
 let shortcutsNow: Record<ShortcutName, ShortcutStatus> | null = null;
-let section: Section = "claude";
+let section: Section = "connect";
 
 const page = document.documentElement;
 const root = document.getElementById("settings-root")!;
 
 /** What Rust, or the bridge, refused with — as a sentence, without the "Error:" a thrown one carries. */
 const reason = (err: unknown) => (err instanceof Error ? err.message : String(err)).replace(/^Error:\s*/, "");
+
+/** Each category: its name, its mark, the group of the sidebar it stands in, and what it is for, in a sentence. */
+const INFO: Record<Section, { name: string; icon: string; group: string; lede: string }> = {
+  connect: {
+    name: "Connect", icon: LUCIDE.plug, group: "Setup",
+    lede: "Link Nook to Claude Code and Cursor. Nothing on your computer is changed until you have seen the change and said yes.",
+  },
+  island: {
+    name: "Island", icon: LUCIDE.panelTop, group: "The island",
+    lede: "Where the island sits on your screen, when it gets out of the way, and what it shows.",
+  },
+  look: {
+    name: "Look and colours", icon: LUCIDE.palette, group: "The island",
+    lede: "Gullu's colour, the colours of this window, and how lively things are.",
+  },
+  sounds: {
+    name: "Sounds", icon: LUCIDE.volume2, group: "The island",
+    lede: "Hear when Claude needs you, without keeping an eye on the island.",
+  },
+  agents: {
+    name: "Agents list", icon: LUCIDE.list, group: "Extras",
+    lede: "A small window that stays on top, with a row for each project Claude is working on.",
+  },
+  shortcuts: {
+    name: "Shortcuts", icon: LUCIDE.keyboard, group: "Extras",
+    lede: "Key combinations that work from any app. Click one, then press the new keys.",
+  },
+  shelf: {
+    name: "Shelf widgets", icon: LUCIDE.layoutGrid, group: "Extras",
+    lede: "The small tools in the island's Shelf tab: which ones are on, and their order.",
+  },
+  about: {
+    name: "About and privacy", icon: LUCIDE.info, group: "",
+    lede: "Nook keeps everything on this computer. Here is where, and who made it.",
+  },
+};
 
 // ── Saving: at once, and in step with the island ──────────────────────────────
 
@@ -65,15 +114,21 @@ function change(patch: Partial<Settings>, soon = false) {
   const now = performance.now();
   for (const key of Object.keys(patch)) touched.set(key, now);
   applyAppearance();
+  paintResets();
   if (!soon) return save();
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(save, 140);
 }
 
-/** What the section on show does when the settings change under it. Emptied when another takes its place. */
-let followers: (() => void)[] = [];
-/** What it must stop when it goes. */
-let leavers: (() => void)[] = [];
+/**
+ * What every category does when the settings change under it. Every category
+ * is built once and kept, so these are kept too: one shown later is already
+ * up to date, and a row moved into the search results goes on following.
+ */
+const followers: (() => void)[] = [];
+const follow = () => {
+  for (const f of followers) f();
+};
 
 /**
  * `settings-changed`: Rust has saved — this window's own change coming back,
@@ -89,7 +144,8 @@ function settingsChanged(next: Settings) {
   }
   settings = { ...settings, ...next, ...(mine as Partial<Settings>) };
   applyAppearance();
-  for (const follow of followers) follow();
+  follow();
+  paintResets();
 }
 
 // ── Theme and motion ──────────────────────────────────────────────────────────
@@ -122,30 +178,37 @@ aboutBot.setState("idle");
 
 // ── The window ────────────────────────────────────────────────────────────────
 
-const TABS: Record<Section, { name: string; icon: string }> = {
-  claude: { name: "Claude Code", icon: LUCIDE.squareTerminal },
-  general: { name: "General", icon: LUCIDE.slidersHorizontal },
-  island: { name: "Island", icon: LUCIDE.panelTop },
-  shelf: { name: "Shelf", icon: LUCIDE.layoutGrid },
-  appearance: { name: "Appearance", icon: LUCIDE.palette },
-  about: { name: "About", icon: LUCIDE.info },
-};
+type Kid = Node | string | null | undefined | false;
 
-const navMark = h("i", { class: "sp-nav-mark" });
-const nav = h("div", { class: "sp-nav", role: "tablist", "aria-orientation": "vertical", "aria-label": "Settings sections" }, navMark);
+/** A category's mark: its icon on a tile of its own colour (settings.css `[data-hue]`). */
+const tile = (id: Section, size: number, extra = "") =>
+  h("span", { class: `sp-tile ${extra}`, "data-hue": id, "aria-hidden": "true" }, icon(INFO[id].icon, size, 2));
+
+const app = h("div", { class: "sp-app" });
+const navMark = h("i", { class: "sp-nav-mark", "aria-hidden": "true" });
+const nav = h("div", { class: "sp-nav", role: "tablist", "aria-orientation": "vertical", "aria-label": "Settings categories" }, navMark);
 const tabs = new Map<Section, HTMLButtonElement>();
-for (const id of SECTIONS) {
-  const tab = h("button", {
-    class: "sp-tab", type: "button", role: "tab", id: `tab-${id}`, "aria-controls": "sp-pane",
-    // The name stays on the tab when the sidebar folds to its icons.
-    "aria-label": TABS[id].name, title: TABS[id].name,
-  }, icon(TABS[id].icon, 17, 1.9), h("span", { text: TABS[id].name }));
-  tab.addEventListener("click", () => setSection(id));
-  tabs.set(id, tab);
-  nav.append(tab);
+{
+  let lastGroup: string | null = null;
+  for (const id of SECTIONS) {
+    const { name, group: label } = INFO[id];
+    if (label !== lastGroup) {
+      // Out of the accessibility tree: a tablist holds tabs, and each tab's name says enough.
+      nav.append(h("div", { class: label ? "sp-nav-group" : "sp-nav-gap", "aria-hidden": "true", text: label || undefined }));
+      lastGroup = label;
+    }
+    const tab = h("button", {
+      class: "sp-tab", type: "button", role: "tab", id: `tab-${id}`, "aria-controls": `pane-${id}`, "data-hue": id,
+      // The name stays on the tab when the sidebar folds to its icons.
+      "aria-label": name, title: name,
+    }, tile(id, 15), h("span", { class: "sp-tab-name", text: name }));
+    tab.addEventListener("click", () => setSection(id));
+    tabs.set(id, tab);
+    nav.append(tab);
+  }
 }
 
-// One stop in the tab order: Up, Down, Home and End move between the sections.
+// One stop in the tab order: Up, Down, Home and End move between the categories.
 nav.addEventListener("keydown", (e) => {
   const at = SECTIONS.indexOf(section);
   const to =
@@ -160,31 +223,62 @@ nav.addEventListener("keydown", (e) => {
   tabs.get(SECTIONS[to])!.focus();
 });
 
+/** The marker of the category on show, beside its tab: where the tab is, whatever the group labels above it take. */
+const placeMark = () => {
+  const tab = tabs.get(section);
+  if (tab) navMark.style.setProperty("--y", `${tab.offsetTop + (tab.offsetHeight - 16) / 2}px`);
+};
+// The sidebar folds to its icons, and back: the tabs move, and the marker with them.
+new ResizeObserver(placeMark).observe(nav);
+
 const main = h("main", { class: "sp-main" });
 /** Says what a move or a refusal did, to a screen reader. */
 const live = h("div", { class: "sp-sr", role: "status", "aria-live": "polite" });
 const say = (text: string) => (live.textContent = text);
 const versionLine = h("span");
 
-// ── Small pieces every section uses ───────────────────────────────────────────
+// ── Small pieces every category uses ──────────────────────────────────────────
 
-type Kid = Node | string | null | undefined | false;
+/** A category's title: its mark, its name, and what it is for. */
+const heads = new Map<Section, HTMLElement>();
+function head(id: Section): HTMLElement {
+  const el = h("header", { class: "sp-head" },
+    tile(id, 20, "big"),
+    h("div", { class: "sp-head-text" },
+      h("h1", { class: "sp-title", text: INFO[id].name }),
+      h("p", { class: "sp-lede", text: INFO[id].lede })));
+  heads.set(id, el);
+  return el;
+}
 
-const title = (text: string, lede?: string): Kid[] => [
-  h("h1", { class: "sp-title", text }),
-  lede ? h("p", { class: "sp-lede", text: lede }) : null,
-];
-
+/** Settings that belong together: a small heading, and a card the rows sit on. */
 const group = (label: string | null, ...kids: Kid[]) =>
-  h("section", { class: "sp-group" }, label ? h("h2", { class: "sp-group-label", text: label }) : null, ...kids);
+  h("section", { class: "sp-group" }, label ? h("h2", { class: "sp-group-label", text: label }) : null, h("div", { class: "sp-box" }, ...kids));
 
-/** A setting: its name and help on the left, its control on the right. */
-const row = (label: string, help: string | null, control: Kid, extra = "") =>
-  h("div", { class: `sp-row ${extra}` },
-    h("div", { class: "sp-row-text" },
-      h("div", { class: "sp-row-label", text: label }),
-      help ? h("p", { class: "sp-help", text: help }) : null),
-    control);
+/** The same, for what brings its own card or tray. */
+const bare = (label: string | Node | null, ...kids: Kid[]) =>
+  h("section", { class: "sp-group" }, label ? h("h2", { class: "sp-group-label" }, label) : null, ...kids);
+
+const rowText = (label: string, help: string | null, ...more: Kid[]) =>
+  h("div", { class: "sp-row-text" },
+    h("div", { class: "sp-row-label", text: label }),
+    help ? h("p", { class: "sp-help", text: help }) : null,
+    ...more);
+
+/** A setting: its name and help on the left, its control on the right. A search finds it by any of those words, or `keys`. */
+const row = (label: string, help: string | null, control: Kid, keys = "", ...more: Kid[]) =>
+  findable(h("div", { class: "sp-row" }, rowText(label, help, ...more), control), label, help, keys);
+
+/** The same, with a control too wide to sit beside its name: it goes under it. */
+const stackRow = (label: string, help: string | null, keys: string, ...controls: Kid[]) =>
+  findable(h("div", { class: "sp-row stack" }, rowText(label, help), ...controls), label, help, keys);
+
+/** Why a control is greyed out — another setting is off — said under its name, and only then. */
+const needs = () => h("p", { class: "sp-needs", hidden: true });
+const sayNeeds = (el: HTMLElement, why: string | null) => {
+  el.hidden = why == null;
+  el.textContent = why ?? "";
+};
 
 /** A path, free to wrap after any of its separators and nowhere else. */
 const breakable = (path: string): Kid[] =>
@@ -193,7 +287,324 @@ const breakable = (path: string): Kid[] =>
 const button = (text: string, kind: string, onClick: () => void) =>
   h("button", { class: `sp-btn ${kind}`, type: "button", text, onclick: onClick });
 
-// ── Claude Code ───────────────────────────────────────────────────────────────
+// ── Search ────────────────────────────────────────────────────────────────────
+
+/**
+ * Every row a search can find: the element itself, and its words — name, help,
+ * the words somebody might type for it instead (`keys`), and its category's
+ * name. A "block" (a card of its own: a Connect panel, the Shelf's tray) is
+ * shown on its own in the results; rows of one category share a card there.
+ */
+interface Entry {
+  section: Section;
+  el: HTMLElement;
+  words: string;
+  block: boolean;
+  /** Where it stands in its category while it is in the results. */
+  home?: Comment;
+}
+const index: Entry[] = [];
+/** The category being built: what `findable` files a row under. */
+let building: Section = "connect";
+
+/** Lower case, without accents or quotes: "Colour" and "colour", "café" and "cafe" are one. */
+const plain = (text: string) =>
+  text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[“”"'‘’]/g, "");
+
+function findable<T extends HTMLElement>(el: T, label: string, help: string | null, keys = "", block = false): T {
+  index.push({ section: building, el, block, words: plain(`${label} ${help ?? ""} ${keys} ${INFO[building].name}`) });
+  return el;
+}
+
+const searchInput = h("input", {
+  class: "sp-search-input", type: "search", id: "sp-search", placeholder: "Search settings",
+  autocomplete: "off", spellcheck: "false", "aria-controls": "sp-results",
+});
+const searchClear = h("button", { class: "sp-search-clear", type: "button", "aria-label": "Clear the search", title: "Clear (Esc)", hidden: true },
+  icon(LUCIDE.x, 14, 2.2));
+const searchBox = h("div", { class: "sp-search", role: "search" },
+  h("label", { class: "sp-sr", for: "sp-search", text: "Search settings" }),
+  icon(LUCIDE.search, 15, 2.1),
+  searchInput, searchClear,
+  h("kbd", { class: "sp-search-key", "aria-hidden": "true", text: "/" }));
+/** In a narrow window the field folds to this; pressed, the field comes out over the window's top. */
+const searchOpen = h("button", { class: "sp-search-open", type: "button", "aria-label": "Search settings", title: "Search settings (/)" },
+  icon(LUCIDE.search, 17, 2));
+
+const resultsTitle = h("h1", { class: "sp-title", id: "sp-results-title", text: "Search" });
+const resultsCount = h("p", { class: "sp-lede", role: "status", "aria-live": "polite" });
+const resultsList = h("div", { class: "sp-results-list" });
+const results = h("div", { class: "sp-pane sp-results", id: "sp-results", role: "region", "aria-labelledby": "sp-results-title", hidden: true },
+  h("header", { class: "sp-head" },
+    h("span", { class: "sp-tile big", "data-hue": "search", "aria-hidden": "true" }, icon(LUCIDE.search, 20, 2)),
+    h("div", { class: "sp-head-text" }, resultsTitle, resultsCount)),
+  resultsList);
+
+let query = "";
+
+/** Every row that is in the results goes back where it stands in its category. */
+function putBack() {
+  let leftConnect = false;
+  for (const e of index) {
+    if (!e.home) continue;
+    if (e.section === "connect") leftConnect = true;
+    e.home.replaceWith(e.el);
+    e.home = undefined;
+  }
+  clear(resultsList);
+  // A diff opened among the results does not wait in the hidden Connect page: it is
+  // dropped (never applied), so the next visit reads the files again. One being
+  // written (`busy`) is left to finish and say how it went.
+  if (leftConnect) {
+    let dropped = false;
+    for (const kind of CHANGES) {
+      const flow = flows[kind];
+      if (flow.at === "confirm" && !flow.busy) {
+        flows[kind] = { at: "status" };
+        dropped = true;
+      }
+    }
+    if (dropped) paintClaude();
+  }
+}
+
+/** The tabs while a search is on show: no category is selected, so none is announced or lit. */
+function paintTabs() {
+  for (const [id, tab] of tabs) {
+    const on = id === section && query === "";
+    tab.setAttribute("aria-selected", String(on));
+    // Still one stop in the tab order while searching: the category that was on show.
+    tab.tabIndex = id === section ? 0 : -1;
+    if (on) tab.setAttribute("aria-controls", `pane-${id}`);
+    else tab.removeAttribute("aria-controls");
+  }
+}
+
+/** Shows what matches `text` — every word of it, anywhere in a row's words — or, with nothing typed, the category again. */
+function runSearch(text: string) {
+  putBack();
+  query = text.trim();
+  searchClear.hidden = !text;
+  app.classList.toggle("searching", query !== "");
+  paintTabs();
+  const pane = panes.get(section);
+  if (!query) {
+    results.hidden = true;
+    if (pane) pane.hidden = false;
+    // Cleared from elsewhere (a result's category opened): a narrow window's field folds away again.
+    if (document.activeElement !== searchInput) app.classList.remove("search-open");
+    return;
+  }
+  if (pane) pane.hidden = true;
+  results.hidden = false;
+  results.scrollTop = 0;
+
+  const words = plain(query).split(/\s+/).filter(Boolean);
+  const hits = index.filter((e) => words.every((w) => e.words.includes(w)));
+  resultsTitle.textContent = `“${query}”`;
+  resultsCount.textContent = hits.length === 0 ? "Nothing found." : hits.length === 1 ? "1 setting found." : `${hits.length} settings found.`;
+  if (!hits.length) {
+    resultsList.append(h("div", { class: "sp-empty" },
+      icon(LUCIDE.search, 26, 1.8),
+      h("p", { class: "sp-empty-title", text: `Nothing matches “${query}”. Try a simpler word.` }),
+      h("p", { class: "sp-help", text: "For example: sound, dark, bottom, startup or shortcut." })));
+    return;
+  }
+  for (const id of SECTIONS) {
+    const mine = hits.filter((e) => e.section === id);
+    if (!mine.length) continue;
+    const crumb = h("button", { class: "sp-crumb", type: "button", title: `Open ${INFO[id].name}`, "aria-label": `In ${INFO[id].name}. Open it.` },
+      tile(id, 12), h("span", { text: INFO[id].name }), icon(LUCIDE.arrowRight, 13, 2.2));
+    crumb.addEventListener("click", () => goTo(id, mine[0].el));
+    const hit = h("section", { class: "sp-hit", "aria-label": INFO[id].name }, crumb);
+    let box: HTMLElement | null = null;
+    for (const e of mine) {
+      e.home = document.createComment("");
+      e.el.replaceWith(e.home);
+      if (e.block) {
+        hit.append(e.el);
+        box = null;
+      } else {
+        if (!box) hit.append((box = h("div", { class: "sp-box" })));
+        box.append(e.el);
+      }
+    }
+    resultsList.append(hit);
+  }
+}
+
+function clearSearch() {
+  if (!searchInput.value && !query) return;
+  searchInput.value = "";
+  runSearch("");
+}
+
+/** A category, opened at one of its rows: it is brought into view and lit for a moment. */
+function goTo(id: Section, el?: HTMLElement) {
+  clearSearch();
+  setSection(id);
+  // The chip that was clicked is gone: focus goes to the row's first control, or to the page's heading.
+  const target = el?.querySelector<HTMLElement>("button, input, select, textarea, [tabindex]:not([tabindex='-1'])")
+    ?? heads.get(id)?.querySelector<HTMLElement>("h1");
+  window.requestAnimationFrame(() => {
+    if (el) {
+      el.scrollIntoView({ block: "center", behavior: still() ? "auto" : "smooth" });
+      replay(el, "sp-lit");
+    }
+    if (target) {
+      if (!target.matches("button, input, select, textarea, [tabindex]")) target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+    }
+  });
+}
+
+searchInput.addEventListener("input", () => runSearch(searchInput.value));
+searchInput.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  e.preventDefault();
+  if (searchInput.value) clearSearch();
+  else searchInput.blur();
+});
+searchInput.addEventListener("blur", () => {
+  if (!searchInput.value) app.classList.remove("search-open");
+});
+searchClear.addEventListener("click", () => {
+  clearSearch();
+  searchInput.focus();
+});
+function focusSearch() {
+  app.classList.add("search-open");
+  searchInput.focus();
+  searchInput.select();
+}
+searchOpen.addEventListener("click", focusSearch);
+
+// "/" or Ctrl+F, from anywhere but a field being typed in — or a shortcut being
+// recorded, which keeps its keys to itself.
+document.addEventListener("keydown", (e) => {
+  const typing = (e.target as HTMLElement | null)?.closest?.("input, textarea, [contenteditable]");
+  const slash = e.key === "/" && !e.ctrlKey && !e.altKey && !e.metaKey && !typing;
+  const find = (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "f";
+  if (e.defaultPrevented || !(slash || find)) return;
+  e.preventDefault();
+  focusSearch();
+});
+
+// ── Reset, a category at a time ───────────────────────────────────────────────
+
+/** The settings each category puts back. Never the connections: those are only ever changed through their diff. */
+const RESET_FIELDS: Partial<Record<Section, readonly (keyof Settings)[]>> = {
+  island: ["screen", "dock", "autostart", "autoCloseInterval", "foldedAutoHide", "hideOnlyWhenIdle", "hideInFullscreen", "compactMetrics"],
+  look: ["botTheme", "playfulReactions", "theme", "reduceMotion"],
+  sounds: ["soundEnabled", "soundVolume"],
+  agents: ["showAgentsList", "agentsListFade", "agentsListFadeOpacity"],
+  shelf: ["shelfOrder", "shelfHidden"],
+};
+/** What the reset of each says it does. */
+const RESET_WORDS: Partial<Record<Section, string>> = {
+  island: "Puts everything on this page back as it was when Nook was installed, including starting with your computer (off).",
+  look: "Puts Gullu's colour, the window's colours and the motion back as they came.",
+  sounds: "Turns sounds back on, at the volume they came with.",
+  agents: "Turns the agents list off and puts its fading back as it came. Where you put the list, and its size, are kept.",
+  shortcuts: "Puts all five shortcuts back to Nook's keys, and turns them on.",
+  shelf: "Shows every widget again, in the order they came in.",
+};
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+function atDefaults(id: Section): boolean {
+  if (id === "shortcuts") {
+    return SHORTCUTS.every(({ which }) => {
+      const [key, on] = SHORTCUT_FIELDS[which];
+      return settings[key] === DEFAULT_SETTINGS[key] && settings[on] === DEFAULT_SETTINGS[on];
+    });
+  }
+  return (RESET_FIELDS[id] ?? []).every((key) => same(settings[key], DEFAULT_SETTINGS[key]));
+}
+
+async function resetSection(id: Section) {
+  if (id === "shortcuts") {
+    // Rust registers a shortcut before it saves it, one at a time. One refused
+    // because another still holds its keys gets them on the next round.
+    for (let round = 0; round < 3 && !atDefaults("shortcuts"); round++) {
+      for (const { which } of SHORTCUTS) await shortcutResets.get(which)?.();
+    }
+  } else {
+    const patch: Record<string, unknown> = {};
+    for (const key of RESET_FIELDS[id] ?? []) patch[key] = structuredClone(DEFAULT_SETTINGS[key]);
+    // The normal way: kept, applied at once, saved — and the island told.
+    change(patch as Partial<Settings>);
+    autoCloseCustom = autoClosePreset() === "custom";
+    follow();
+  }
+  paintResets();
+}
+
+const resetPainters: (() => void)[] = [];
+const paintResets = () => {
+  for (const paint of resetPainters) paint();
+};
+/** Arms a category's reset as a first click does (the made-up window's `reset=armed`). */
+const resetArmers = new Map<Section, () => void>();
+
+/**
+ * "Reset this section", at the foot of a category: a quiet button that asks
+ * twice. The first click arms it — its words change, and a screen reader is
+ * told — and it disarms by itself after a few seconds; the second resets.
+ */
+function resetFoot(id: Section): HTMLElement {
+  const IDLE = "Reset this section";
+  const words = h("span", { text: IDLE });
+  const b = h("button", { class: "sp-reset", type: "button" }, icon(LUCIDE.rotateCcw, 14, 2.1), words);
+  const note = h("p", { class: "sp-help", id: `reset-note-${id}` });
+  b.setAttribute("aria-describedby", note.id);
+  let armed = 0;
+  let busy = false;
+  const paint = () => {
+    const done = atDefaults(id);
+    // Never `disabled` (while resetting, or once it is as it came): that would strand the keyboard focus on a button that just reset.
+    const spent = busy || (done && !armed);
+    b.setAttribute("aria-disabled", String(spent));
+    b.classList.toggle("spent", spent);
+    b.classList.toggle("armed", armed !== 0);
+    words.textContent = busy ? "Resetting…" : armed ? "Click again to reset" : IDLE;
+    note.textContent = done && !armed ? "Everything here is as it came." : RESET_WORDS[id] ?? "";
+  };
+  const disarm = () => {
+    window.clearTimeout(armed);
+    armed = 0;
+    paint();
+  };
+  const arm = () => {
+    armed = window.setTimeout(disarm, 4000);
+    paint();
+    say(`Click again to reset ${INFO[id].name}.`);
+  };
+  b.addEventListener("click", async () => {
+    if (busy || (!armed && atDefaults(id))) return;
+    if (!armed) return arm();
+    window.clearTimeout(armed);
+    armed = 0;
+    busy = true;
+    paint();
+    await resetSection(id);
+    busy = false;
+    paint();
+    say(`${INFO[id].name} is reset.`);
+  });
+  b.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && armed) {
+      e.preventDefault();
+      disarm();
+    }
+  });
+  resetPainters.push(paint);
+  resetArmers.set(id, arm);
+  paint();
+  return h("div", { class: "sp-reset-foot" }, b, note);
+}
+
+// ── Connect: Claude Code and Cursor ───────────────────────────────────────────
 
 /**
  * What Nook writes for Claude Code: the hooks and the status line the usage
@@ -211,28 +622,30 @@ type Flow =
   | { at: "confirm"; install: boolean; preview: HookPreview; error?: string; busy?: boolean; action?: ReplyFormatAction };
 
 const flows: Record<Change, Flow> = { hooks: { at: "status" }, usage: { at: "status" }, reply: { at: "status" }, cursor: { at: "status" } };
+/** Whether each part's Details are open: kept across its repaints. */
+const detailsOpen: Record<Change, boolean> = { hooks: false, usage: false, reply: false, cursor: false };
 
 /** What the preview panel says of each change, before and after it is written. */
 const CHANGE_WORDS: Record<Change, { install: string; remove: string; done: string }> = {
   hooks: {
-    install: "This is exactly what will change in your settings.json. Your own hooks are left untouched.",
-    remove: "This removes Nook's entries only. Your own hooks are left untouched.",
-    done: "Open a new Claude Code session to pick the hooks up.",
+    install: "This is exactly what Nook will change in Claude Code's settings file. Your own hooks and settings stay as they are.",
+    remove: "This removes Nook's entries only. Your own hooks and settings stay as they are.",
+    done: "Open a new Claude Code session for the change to take effect.",
   },
   usage: {
-    install: "This is exactly what will change in your settings.json: the statusLine key, and nothing else. A status line you already have is kept inside the new command, as the long word after --previous: it still runs, and Uninstall puts it back as it was.",
-    remove: "This takes Nook out of the statusLine key only. The status line you had before comes back exactly as it was; with none, the key is removed.",
-    done: "Claude Code picks the change up when it reloads its settings; a new session does for sure.",
+    install: "This is exactly what will change in Claude Code's settings file: its status line (the statusLine key), and nothing else. A status line you already have keeps working: Nook runs it for you — it is the long word after --previous — and turning this off puts it back as it was.",
+    remove: "This takes Nook out of the status line only. The status line you had before comes back exactly as it was; with none, the key is removed.",
+    done: "Claude Code picks the change up when it reloads its settings; a new session always does.",
   },
   reply: {
-    install: "This is exactly what will change in your CLAUDE.md: the block between the two marker lines, and nothing outside them.",
-    remove: "This removes the two marker lines, what is between them, and the blank line Nook added before them. Everything else in your CLAUDE.md stays as it is.",
-    done: "Applies to new sessions.",
+    install: "This is exactly what will change in your CLAUDE.md, Claude Code's instructions file: the block between Nook's two marker lines, and nothing outside them.",
+    remove: "This removes Nook's two marker lines, what is between them, and the blank line Nook added before them. Everything else in your CLAUDE.md stays as it is.",
+    done: "New sessions use it.",
   },
   cursor: {
-    install: "This is exactly what will change in your Cursor hooks.json: Nook's entries, and nothing else. Your own hooks and any other key are left as they are.",
-    remove: "This removes Nook's entries only. Your own hooks are left untouched.",
-    done: "Cursor reloads hooks.json when it is saved. If sessions do not show up, restart Cursor.",
+    install: "This is exactly what will change in Cursor's hooks.json: Nook's entries, and nothing else. Your own hooks and any other key stay as they are.",
+    remove: "This removes Nook's entries only. Your own hooks stay as they are.",
+    done: "Cursor reloads hooks.json when it is saved. If its sessions do not show up, restart Cursor.",
   },
 };
 
@@ -245,9 +658,10 @@ interface Spec {
   name: string;
   tone: Tone;
   title: string;
+  /** One plain sentence: always on show. */
   text: string;
-  /** Quiet lines under the text: what to know before saying yes. */
-  notes?: string[];
+  /** How it works, the files, what to know before saying yes: under Details, folded until asked for. */
+  details?: string[];
   facts: [string, string][];
   /** The one filled button, if the state calls for one. `blocked`: why it cannot be pressed. */
   primary?: { label: string; act: "install" | "restart"; blocked?: string };
@@ -258,7 +672,7 @@ interface Spec {
   remove?: string;
 }
 
-const RELAY_MISSING = "The relay isn't installed yet.";
+const RELAY_MISSING = "Restart Nook first: a part of it is missing.";
 const UNREACHABLE: Omit<Spec, "name"> = {
   tone: "off", title: "Not available",
   text: "Nook did not answer, so there is nothing to show here. Close this window and open it again from the island or the tray.",
@@ -267,162 +681,184 @@ const UNREACHABLE: Omit<Spec, "name"> = {
 
 function hooksSpec(): Spec {
   const s = hooks;
-  if (!s) return { name: "Hooks", ...UNREACHABLE };
+  const name = "Connect Claude Code to Nook";
+  if (!s) return { name, ...UNREACHABLE };
   const file: [string, string] = ["settings.json", s.settingsPath];
   const relay: [string, string] = ["Relay", s.hookPath];
   const relayName = s.hookPath.split(/[\\/]/).pop() || "The relay";
+  const how = "Nook adds a few hooks to Claude Code's settings file (settings.json): each runs Nook's small relay program, which passes what a session does to Nook. Your own hooks are left as they are.";
   if (!s.hookReady) {
     // Writing hook commands that point at a relay which isn't there would give
     // every Claude Code session a broken hook: installing is not on offer.
     return {
-      name: "Hooks", tone: "error", title: "Relay missing",
+      name, tone: "error", title: "Needs a restart",
       text: s.installed
-        ? `The hooks are installed, but ${relayName} is not where they point, so no session can reach Nook. Restarting Nook puts it back.`
-        : `${relayName} is not in place yet, and hooks installed now would point at nothing. Restarting Nook puts it back.`,
-      notes: ["Still missing after a restart? Installing Nook again puts it back; from the source, cargo build -p nook-hook builds it."],
+        ? "A part of Nook that Claude Code talks to is missing, so your sessions can't reach Nook. Restarting Nook puts it back."
+        : "A part of Nook that Claude Code talks to is missing, so connecting now would not work. Restarting Nook puts it back.",
+      details: [
+        `${relayName} is not where ${s.installed ? "the hooks point" : "the hooks would point"}.`,
+        "Still missing after a restart? Installing Nook again puts it back; from the source, cargo build -p nook-hook builds it.",
+      ],
       facts: [file, relay],
       primary: { label: "Restart Nook", act: "restart" },
-      remove: s.installed ? "Uninstall…" : s.legacy ? "Remove old hooks…" : undefined,
+      remove: s.installed ? "Disconnect…" : s.legacy ? "Remove the old connection…" : undefined,
     };
   }
   if (s.legacy) {
     return {
-      name: "Hooks", tone: "warn", title: "Old hooks found",
+      name, tone: "warn", title: "Needs an update",
       text: s.installed
-        ? "Nook's hooks are installed, and hooks from an older version are still beside them. Replacing takes the old ones out."
-        : "Hooks from an older version are still installed. Nook cannot hear your sessions until its own take their place.",
+        ? "Nook is connected, but parts of an older version are still there. Updating takes them out."
+        : "An older version of Nook's connection is still there. Nook can't hear your sessions until it is updated.",
+      details: [how, "Hooks from an older version were found beside Nook's: updating replaces them."],
       facts: [file, relay],
-      primary: { label: "Replace them…", act: "install" },
-      remove: s.installed ? "Uninstall…" : "Remove them…",
+      primary: { label: "Update…", act: "install" },
+      remove: s.installed ? "Disconnect…" : "Remove them…",
     };
   }
   if (s.installed) {
     return {
-      name: "Hooks", tone: "ok", title: "Connected",
-      text: "Hooks are installed and current. Your sessions, their questions and their permission requests show up in the island, and you can answer them there.",
-      facts: [file, relay], again: "Reinstall…", remove: "Uninstall…",
+      name, tone: "ok", title: "Connected",
+      text: "Your Claude Code sessions show up in the island, and you can answer their questions and permission requests there.",
+      details: [how],
+      facts: [file, relay], again: "Connect again…", remove: "Disconnect…",
     };
   }
   return {
-    name: "Hooks", tone: "off", title: "Not installed",
-    text: "Install the hooks to see your Claude Code sessions in the island, and to answer permission requests without leaving what you are doing.",
-    facts: [file], primary: { label: "Install hooks…", act: "install" },
+    name, tone: "off", title: "Not connected",
+    text: "Connect to see your Claude Code sessions in the island, and to answer their permission requests without switching windows.",
+    details: [how],
+    facts: [file], primary: { label: "Connect…", act: "install" },
   };
 }
 
 function usageSpec(): Spec {
   const u = usage;
-  if (!u) return { name: "Usage limits", ...UNREACHABLE };
-  const how = "Reads the usage numbers Claude Code already passes to its status line. Nothing leaves this machine. Numbers appear on subscription plans and refresh only while a session runs.";
+  const name = "Usage limits";
+  if (!u) return { name, ...UNREACHABLE };
+  const how = "Reads the usage numbers Claude Code already passes to its status line (the statusLine key of settings.json). Nothing leaves this computer. Numbers appear on subscription plans, and update only while a session runs.";
   const hints = "Claude Code hides its keyboard hints (\"? for shortcuts\") while any status line is set.";
   if (u.installed) {
     return {
-      name: "Usage limits", tone: "ok",
-      title: u.chained ? "Installed, after your status line" : "Installed",
-      text: u.chained
-        ? "Claude Code hands its 5-hour and weekly limits to Nook, which then runs the status line you already had, so it keeps showing."
-        : "Claude Code hands its 5-hour and weekly limits to Nook through its status line. Nook prints none of its own.",
-      notes: [how, u.chained ? "Uninstall puts your status line back exactly as it was." : hints],
+      name, tone: "ok",
+      title: u.chained ? "On, next to your own status line" : "On",
+      text: "The island can show how much of your 5-hour and weekly Claude limits you have used.",
+      details: [
+        how,
+        u.chained
+          ? "Claude Code hands the numbers to Nook, which then runs the status line you already had, so it keeps showing. Turning this off puts it back exactly as it was."
+          : `Nook prints no status line of its own. ${hints}`,
+      ],
       facts: [["Key", "statusLine"]],
-      remove: "Uninstall…",
+      remove: "Turn off…",
     };
   }
   return {
-    name: "Usage limits", tone: "off", title: "Not installed",
-    text: "Shows your 5-hour and weekly limits in the island.",
-    notes: [
+    name, tone: "off", title: "Off",
+    text: "Show how much of your 5-hour and weekly Claude limits you have used, right in the island.",
+    details: [
       how,
       u.otherStatusLine
-        ? "You have a status line: Nook runs it after reading the numbers, so it keeps showing, and Uninstall puts it back exactly."
+        ? "You have a status line: Nook runs it after reading the numbers, so it keeps showing, and turning this off puts it back exactly."
         : `You have no status line: Nook prints none. ${hints}`,
     ],
     facts: [],
     // The same relay as the hooks': a status line pointing at one that isn't there shows nothing.
-    primary: { label: "Install…", act: "install", blocked: hooks && !hooks.hookReady ? RELAY_MISSING : undefined },
+    primary: { label: "Turn on…", act: "install", blocked: hooks && !hooks.hookReady ? RELAY_MISSING : undefined },
   };
 }
 
-const CURSOR_DOES = "Shows Cursor's agent sessions in the island next to Claude Code's, for their status only: Nook cannot approve, deny or answer anything in Cursor, and follows only events that cannot change what Cursor does.";
+const CURSOR_DOES = "Shows your Cursor agent sessions in the island too. Nook can only show them: it can't answer anything in Cursor.";
+const CURSOR_HOW = "Nook adds its entries to Cursor's hooks.json, for events that can only report what Cursor does and never change it.";
 
 function cursorSpec(): Spec {
   const c = cursor;
-  if (!c) return { name: "Cursor", ...UNREACHABLE };
+  const name = "Cursor";
+  if (!c) return { name, ...UNREACHABLE };
   const file: [string, string] = ["hooks.json", c.hooksPath];
   const relay: [string, string] = ["Relay", c.hookPath];
-  if (c.unreadable) return { name: "Cursor", tone: "error", title: "Can't be changed", text: c.unreadable, facts: [file] };
-  if (c.refused) return { name: "Cursor", tone: "error", title: "Can't be written", text: c.refused, facts: [file, relay] };
+  if (c.unreadable) return { name, tone: "error", title: "Can't be changed", text: "Nook can't safely change Cursor's settings file.", details: [c.unreadable], facts: [file] };
+  if (c.refused) return { name, tone: "error", title: "Can't be changed", text: "Nook can't safely change Cursor's settings file.", details: [c.refused], facts: [file, relay] };
   if (!c.hookReady) {
     return {
-      name: "Cursor", tone: "error", title: "Relay missing",
-      text: "The relay is not in place yet, and hooks written now would point at nothing. Restarting Nook puts it back.",
-      facts: [file, relay], primary: { label: "Restart Nook", act: "restart" }, remove: c.installed ? "Uninstall…" : undefined,
+      name, tone: "error", title: "Needs a restart",
+      text: "A part of Nook that Cursor talks to is missing, so connecting now would not work. Restarting Nook puts it back.",
+      details: ["The relay is not in place yet, and hooks written now would point at nothing."],
+      facts: [file, relay], primary: { label: "Restart Nook", act: "restart" }, remove: c.installed ? "Disconnect…" : undefined,
     };
   }
   if (c.installed && !c.current) {
     return {
-      name: "Cursor", tone: "warn", title: "Needs an update",
-      text: "Nook's entries in hooks.json point at a relay that has moved. Updating rewrites them, and nothing else.",
-      facts: [file, relay], primary: { label: "Update…", act: "install" }, remove: "Uninstall…",
+      name, tone: "warn", title: "Needs an update",
+      text: "Nook's connection to Cursor points at an old place. Updating fixes it.",
+      details: ["Nook's entries in hooks.json point at a relay that has moved. Updating rewrites them, and nothing else."],
+      facts: [file, relay], primary: { label: "Update…", act: "install" }, remove: "Disconnect…",
     };
   }
   if (c.installed) {
     return {
-      name: "Cursor", tone: "ok", title: "Connected", text: CURSOR_DOES,
-      notes: ["Cursor reloads hooks.json when it is saved; if a session does not show up, restart Cursor."],
-      facts: [file, relay], again: "Reinstall…", remove: "Uninstall…",
+      name, tone: "ok", title: "Connected", text: CURSOR_DOES,
+      details: [CURSOR_HOW, "Cursor reloads hooks.json when it is saved; if a session does not show up, restart Cursor."],
+      facts: [file, relay], again: "Connect again…", remove: "Disconnect…",
     };
   }
   return {
-    name: "Cursor", tone: "off", title: "Not installed", text: CURSOR_DOES,
-    notes: [
+    name, tone: "off", title: "Not connected", text: CURSOR_DOES,
+    details: [
+      CURSOR_HOW,
       c.cursorFound
         ? c.fileExists ? "Your hooks.json is kept: Nook adds its own entries beside yours." : "You have no hooks.json yet: the file is created."
         : "There is no .cursor folder here, so Cursor may not be installed. Nook can still create hooks.json, and it works once Cursor is.",
-      "After installing, restart Cursor if its sessions do not show up.",
+      "After connecting, restart Cursor if its sessions do not show up.",
     ],
-    facts: [file], primary: { label: "Install hooks…", act: "install" },
+    facts: [file], primary: { label: "Connect…", act: "install" },
   };
 }
 
 /** The reply format's one sentence, said the same whatever its state. */
-const REPLY_DOES = "Asks Claude Code to shape its replies so Nook can show decisions, warnings and tips. Adds a marked block to your CLAUDE.md.";
-const REPLY_WHEN = "Applies to new sessions.";
+const REPLY_DOES = "Asks Claude Code to lay out its answers the same way each time — a summary first, then what it needs you to decide, its warnings and its tips — so Nook can point them out.";
+const REPLY_HOW = "Nook adds a short block, between two marker lines, to your CLAUDE.md (the instructions Claude Code reads in every session). Nothing outside the block is touched. Applies to new sessions.";
 
 function replySpec(): Spec {
   const r = reply;
-  if (!r) return { name: "Reply format", ...UNREACHABLE };
+  const name = "Reply layout";
+  if (!r) return { name, ...UNREACHABLE };
   const file: [string, string] = ["CLAUDE.md", r.path];
   switch (r.state) {
     case "installed":
-      return { name: "Reply format", tone: "ok", title: "Installed", text: REPLY_DOES, notes: [REPLY_WHEN], facts: [file], remove: "Remove…" };
+      return { name, tone: "ok", title: "On", text: REPLY_DOES, details: [REPLY_HOW], facts: [file], remove: "Turn off…" };
     case "outdated":
       return {
-        name: "Reply format", tone: "warn", title: "Installed, but outdated",
-        text: "The block in your CLAUDE.md is not Nook's current text. Updating replaces what is between the two marker lines, and nothing else.",
-        notes: [REPLY_DOES, REPLY_WHEN], facts: [file],
-        primary: { label: "Update…", act: "install" }, remove: "Remove…",
+        name, tone: "warn", title: "Needs an update",
+        text: "Nook's instructions for Claude Code have changed since you turned this on. Updating brings them up to date.",
+        details: [REPLY_DOES, "Updating replaces what is between the two marker lines in your CLAUDE.md, and nothing else. Applies to new sessions."],
+        facts: [file],
+        primary: { label: "Update…", act: "install" }, remove: "Turn off…",
       };
     case "unmarked":
       return {
-        name: "Reply format", tone: "warn", title: "Found without markers",
-        text: "Your CLAUDE.md already has a reply format of its own, without Nook's markers. Nook won't add a second one, and won't change yours. These are the lines it found:",
+        name, tone: "warn", title: "You have your own",
+        text: "Your Claude Code instructions already ask for a reply layout of their own, so Nook leaves them alone.",
         found: r.found,
-        notes: ["To let Nook manage it, remove those lines yourself and come back: Install is then on offer."],
+        details: [
+          "Your CLAUDE.md has a reply format without Nook's markers: these are the lines Nook found. It won't add a second one, and won't change yours.",
+          "To let Nook manage it, remove those lines yourself and come back: turning it on is then on offer.",
+        ],
         facts: [file],
       };
     case "error":
-      return { name: "Reply format", tone: "error", title: "Can't be changed", text: r.error ?? "CLAUDE.md can't be read.", facts: [file] };
+      return { name, tone: "error", title: "Can't be changed", text: "Nook can't safely change your Claude Code instructions file.", details: [r.error ?? "CLAUDE.md can't be read."], facts: [file] };
     default:
       return {
-        name: "Reply format", tone: "off", title: "Not installed", text: REPLY_DOES,
-        notes: [REPLY_WHEN, r.exists ? "The block is added at the end of the file, after one blank line." : "You have no CLAUDE.md yet: the file is created, with the block and nothing else."],
-        facts: [file], primary: { label: "Install…", act: "install" },
+        name, tone: "off", title: "Off", text: REPLY_DOES,
+        details: [REPLY_HOW, r.exists ? "The block is added at the end of the file, after one blank line." : "You have no CLAUDE.md yet: the file is created, with the block and nothing else."],
+        facts: [file], primary: { label: "Turn on…", act: "install" },
       };
   }
 }
 
 const SPECS: Record<Change, () => Spec> = { hooks: hooksSpec, usage: usageSpec, reply: replySpec, cursor: cursorSpec };
-/** Each part's block, repainted in place: set while the section is on show. */
+/** Each part's block, repainted in place. */
 const painters: Partial<Record<Change, (opening?: boolean, focus?: "primary" | "panel") => void>> = {};
 const paintClaude = () => {
   for (const kind of CHANGES) painters[kind]?.();
@@ -481,7 +917,7 @@ async function writeChange(kind: Change) {
     flows[kind] = { at: "status", done: { install: flow.install, backup } };
     await readClaude();
     paintClaude();
-    say(flow.install ? "Written." : "Removed.");
+    say(flow.install ? "Done." : "Removed.");
   } catch (err) {
     flow.busy = false;
     flow.error = `Could not write: ${reason(err)}`;
@@ -503,7 +939,7 @@ function diffPanel(kind: Change, flow: Extract<Flow, { at: "confirm" }>, close: 
     // Rust writes "+ ", "- " or two spaces before each line.
     box.append(h("div", { class: sign === "+" ? "add" : sign === "-" ? "del" : "", "data-sign": sign, text: line.slice(line[1] === " " ? 2 : 1) }));
   }
-  const confirm = button(created ? "Create the file" : flow.install ? "Back up and write" : "Back up and remove", flow.install ? "primary" : "danger solid", () => void writeChange(kind));
+  const confirm = button(created ? "Create the file" : flow.install ? "Save a backup and apply" : "Save a backup and remove", flow.install ? "primary" : "danger solid", () => void writeChange(kind));
   const cancel = button("Cancel", "quiet", close);
   confirm.disabled = cancel.disabled = Boolean(flow.busy);
   const panel = h("div", { class: "sp-panel" },
@@ -511,12 +947,12 @@ function diffPanel(kind: Change, flow: Extract<Flow, { at: "confirm" }>, close: 
       h("span", { text: `Changes to ${fileName}` }),
       h("span", { class: "counts" },
         h("span", { class: "plus", text: `+${added}` }), h("span", { class: "minus", text: `−${removed}` }))),
-    h("p", { class: "sp-help", text: flow.install ? words.install : words.remove }),
+    h("p", { class: "sp-help", text: `${flow.install ? words.install : words.remove} Nothing is changed until you click below.` }),
     box,
     added + removed === 0 ? h("p", { class: "sp-help", text: `Nothing would change: ${fileName} already says this.` }) : null,
     created
       ? h("p", { class: "sp-help", text: "There is no file to back up: it is created." })
-      : h("p", { class: "sp-help" }, "A dated backup is taken first: ", h("code", {}, ...breakable(flow.preview.backup))),
+      : h("p", { class: "sp-help" }, "A dated backup is saved first: ", h("code", {}, ...breakable(flow.preview.backup))),
     flow.error ? h("div", { class: "sp-flash error", role: "alert" }, icon(LUCIDE.circleX, 15), h("span", { text: flow.error })) : null,
     h("div", { class: "sp-panel-actions" }, confirm, cancel));
   panel.addEventListener("keydown", (e) => {
@@ -528,7 +964,11 @@ function diffPanel(kind: Change, flow: Extract<Flow, { at: "confirm" }>, close: 
   return panel;
 }
 
-/** Something Nook writes into settings.json: where it stands, its one action, and the diff that action would write. */
+/**
+ * Something Nook writes for Claude Code or Cursor: where it stands in a plain
+ * sentence, its one action, the technical side folded under Details, and the
+ * diff that action would write.
+ */
 function integration(kind: Change): HTMLElement {
   const slot = h("div");
   const paint = (opening = false, focus?: "primary" | "panel") => {
@@ -543,23 +983,11 @@ function integration(kind: Change): HTMLElement {
         h("p", { class: "sp-status-text", text: spec.text })));
     const block = h("div", { class: "sp-status", "data-tone": spec.tone, role: "group", "aria-label": spec.name }, head);
 
-    if (spec.found?.length) {
-      // Somebody's own lines: shown as they are, and nothing here acts on them.
-      block.append(h("div", { class: "sp-diff sp-found", tabindex: "0", role: "region", "aria-label": `Lines found in ${CHANGED_FILE[kind]}` },
-        ...spec.found.map((line) => h("div", { "data-sign": " ", text: line || " " }))));
-    }
-    if (spec.notes?.length) block.append(h("div", { class: "sp-status-notes" }, ...spec.notes.map((text) => h("p", { text }))));
-    if (spec.facts.length) {
-      const facts = h("dl", { class: "sp-facts" });
-      for (const [k, v] of spec.facts) facts.append(h("dt", { text: k }), h("dd", {}, ...breakable(v)));
-      block.append(facts);
-    }
-
     if (flow.at === "status" && flow.done) {
       // A file Nook created had no previous one to save.
-      const saved = (kind === "reply" || kind === "cursor") && wasCreated ? [] : ["The previous file is saved as ", ...breakable(flow.done.backup), ". "];
+      const saved = (kind === "reply" || kind === "cursor") && wasCreated ? [] : ["Your previous file is saved as ", ...breakable(flow.done.backup), ". "];
       block.append(h("div", { class: "sp-flash", role: "status" }, icon(LUCIDE.check, 15, 2.4),
-        h("span", {}, flow.done.install ? "Written. " : "Removed. ", ...saved, CHANGE_WORDS[kind].done)));
+        h("span", {}, flow.done.install ? "Done. " : "Removed. ", ...saved, CHANGE_WORDS[kind].done)));
     }
     if (flow.at === "status" && flow.error) {
       block.append(h("div", { class: "sp-flash error", role: "alert" }, icon(LUCIDE.circleX, 15), h("span", { text: flow.error })));
@@ -596,7 +1024,33 @@ function integration(kind: Change): HTMLElement {
     // While the diff is open, its two buttons are the only way on.
     if (!confirming && actions.childElementCount) block.append(actions);
 
-    const fold = h("div", { class: "sp-fold" });
+    // The technical side: how it works, the files, the user's own lines. Folded until asked for.
+    if (spec.found?.length || spec.details?.length || spec.facts.length) {
+      const id = `details-${kind}`;
+      const body = h("div", { class: "sp-details", id });
+      if (spec.found?.length) {
+        // Somebody's own lines: shown as they are, and nothing here acts on them.
+        body.append(h("div", { class: "sp-diff sp-found", tabindex: "0", role: "region", "aria-label": `Lines found in ${CHANGED_FILE[kind]}` },
+          ...spec.found.map((line) => h("div", { "data-sign": " ", text: line || " " }))));
+      }
+      for (const text of spec.details ?? []) body.append(h("p", { text }));
+      if (spec.facts.length) {
+        const facts = h("dl", { class: "sp-facts" });
+        for (const [k, v] of spec.facts) facts.append(h("dt", { text: k }), h("dd", {}, ...breakable(v)));
+        body.append(facts);
+      }
+      const fold = h("div", { class: `sp-fold${detailsOpen[kind] ? " open" : ""}` }, h("div", {}, body));
+      const more = h("button", { class: "sp-more", type: "button", "aria-expanded": String(detailsOpen[kind]), "aria-controls": id },
+        h("span", { text: "Details" }), icon(LUCIDE.chevronDown, 14, 2.2));
+      more.addEventListener("click", () => {
+        detailsOpen[kind] = !detailsOpen[kind];
+        fold.classList.toggle("open", detailsOpen[kind]);
+        more.setAttribute("aria-expanded", String(detailsOpen[kind]));
+      });
+      block.append(h("div", { class: "sp-more-wrap" }, more, fold));
+    }
+
+    const fold = h("div", { class: "sp-fold sp-diff-fold" });
     if (confirming) {
       fold.append(h("div", {}, diffPanel(kind, flow, () => {
         flows[kind] = { at: "status" };
@@ -628,19 +1082,19 @@ function integration(kind: Change): HTMLElement {
   return slot;
 }
 
-function claudeSection(): Kid[] {
-  leavers.push(() => {
-    // What was said of the last change, or an open diff, does not wait for the next visit.
-    for (const kind of CHANGES) {
-      delete painters[kind];
-      flows[kind] = { at: "status" };
-    }
-  });
+/** A part of Connect, as a search finds it: by what it does, whatever state it is in. */
+const connectGroup = (kind: Change, label: string, what: string, keys: string, ...more: Kid[]) =>
+  findable(bare(label, integration(kind), ...more), label, what, keys, true);
+
+function connectSection(): Kid[] {
   return [
-    ...title("Claude Code and Cursor", "How Nook hears from your sessions. Nothing is written without showing you first."),
-    group("Hooks", integration("hooks")),
-    group("Usage limits", integration("usage")),
-    group("Reply format", integration("reply")),
+    head("connect"),
+    connectGroup("hooks", "Claude Code", "Connect Claude Code to Nook: see your sessions in the island and answer them there.",
+      "hooks hook claude code connect connection install setup set up link sessions permissions approve relay settings.json uninstall disconnect"),
+    connectGroup("usage", "Usage limits", "Show how much of your 5-hour and weekly Claude limits you have used.",
+      "usage limits limit quota plan subscription status line statusline weekly 5-hour five hour"),
+    connectGroup("reply", "Reply layout", REPLY_DOES,
+      "reply replies format answers layout claude.md instructions summary decisions warnings tips markdown"),
     cursorGroup(),
   ];
 }
@@ -649,20 +1103,23 @@ function claudeSection(): Kid[] {
 function cursorGroup(): HTMLElement {
   const show = toggle(settings.showCursorSessions, "Show Cursor sessions", (on) => change({ showCursorSessions: on }));
   followers.push(() => show.set(settings.showCursorSessions));
-  return group("Cursor",
-    integration("cursor"),
-    row("Show Cursor sessions", "Cursor's agent sessions appear in the island with a Cursor mark, next to Claude Code's. Off, they are not followed at all.", show.el));
+  return h("div", {},
+    connectGroup("cursor", "Cursor", CURSOR_DOES, "cursor editor ide hooks.json agent sessions connect"),
+    group(null,
+      row("Show Cursor sessions", "Cursor's sessions appear in the island with a Cursor mark. Off, they are not followed at all.", show.el,
+        "cursor show hide sessions editor")));
 }
 
 /** settings.json may have changed while the window was away: its state is read again, never written. */
 async function refreshClaude() {
-  if (section !== "claude" || CHANGES.some((kind) => flows[kind].at === "confirm")) return;
+  const onShow = () => section === "connect" || query !== "";
+  if (!onShow() || CHANGES.some((kind) => flows[kind].at === "confirm")) return;
   const before = JSON.stringify([hooks, usage, reply, cursor]);
   await readClaude();
-  if (JSON.stringify([hooks, usage, reply, cursor]) !== before && section === "claude") paintClaude();
+  if (JSON.stringify([hooks, usage, reply, cursor]) !== before && onShow()) paintClaude();
 }
 
-// ── General: the shortcuts ────────────────────────────────────────────────────
+// ── Shortcuts ─────────────────────────────────────────────────────────────────
 
 /** A key of a shortcut as it is shown: "KeyK" is K, "Digit1" is 1, "Super" is the Windows key. */
 const KEY_WORDS: Record<string, string> = {
@@ -680,26 +1137,34 @@ function heldModifiers(e: KeyboardEvent): string[] {
   return [e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Shift", e.metaKey && "Super"].filter((m): m is string => !!m);
 }
 
-/** The five global shortcuts: what each is called, and what it does. */
-const SHORTCUTS: readonly { which: ShortcutName; label: string; does: string }[] = [
-  { which: "expand", label: "Expand / shrink the panel", does: "Opens the session panel large, or shrinks it back." },
-  { which: "goto", label: "Go to the session that needs you", does: "Brings forward the window of the session that is asking, or stopped on an error, and folds the island." },
-  { which: "panel", label: "Open the session panel", does: "Opens the session panel at its normal size. Space expands it." },
-  { which: "hide", label: "Hide / show the island", does: "Hides the island completely, or brings it back. It shows itself for a request, and hides again once all are answered." },
-  { which: "agents", label: "Show / hide the agents list", does: "Shows the agents list, or hides it. Only while the list is turned on above." },
+/** Where the settings keep each shortcut: its keys, and whether it is on. */
+const SHORTCUT_FIELDS = {
+  expand: ["expandShortcut", "expandShortcutEnabled"],
+  goto: ["gotoShortcut", "gotoShortcutEnabled"],
+  panel: ["panelShortcut", "panelShortcutEnabled"],
+  hide: ["hideShortcut", "hideShortcutEnabled"],
+  agents: ["agentsShortcut", "agentsShortcutEnabled"],
+} as const satisfies Record<ShortcutName, readonly [keyof Settings, keyof Settings]>;
+
+/** The five global shortcuts: what each is called, what it does, and the words a search finds it by. */
+const SHORTCUTS: readonly { which: ShortcutName; label: string; does: string; keys: string }[] = [
+  { which: "expand", label: "Open the island large, or shrink it", does: "Opens the session panel at full size, or shrinks it back.", keys: "expand large big full size shrink panel" },
+  { which: "panel", label: "Open the session panel", does: "Opens the panel at its normal size. Press Space to make it large.", keys: "open panel sessions list" },
+  { which: "goto", label: "Jump to the session that needs you", does: "Brings forward the window of the session that is asking for something, or has stopped on an error.", keys: "go to jump switch window focus needs you asking error" },
+  { which: "hide", label: "Hide or show the island", does: "Hides the island completely, or brings it back. It still shows itself for a request, and hides again once all are answered.", keys: "hide show island invisible away" },
+  { which: "agents", label: "Show or hide the agents list", does: "Works only while the agents list is turned on.", keys: "agents list window projects" },
 ];
 
+/** What a reset does to each shortcut row: Rust's own path, as a change made by hand. */
+const shortcutResets = new Map<ShortcutName, () => Promise<void>>();
+/** Each row's key field: where "Set a keyboard shortcut for it" takes the keyboard. */
+const shortcutFields = new Map<ShortcutName, HTMLElement>();
+
 /** A shortcut as the settings have it. */
-const savedShortcut = (which: ShortcutName): ShortcutStatus =>
-  which === "expand"
-    ? { accelerator: settings.expandShortcut, enabled: settings.expandShortcutEnabled, registered: false, error: null }
-    : which === "goto"
-      ? { accelerator: settings.gotoShortcut, enabled: settings.gotoShortcutEnabled, registered: false, error: null }
-      : which === "panel"
-        ? { accelerator: settings.panelShortcut, enabled: settings.panelShortcutEnabled, registered: false, error: null }
-        : which === "hide"
-          ? { accelerator: settings.hideShortcut, enabled: settings.hideShortcutEnabled, registered: false, error: null }
-          : { accelerator: settings.agentsShortcut, enabled: settings.agentsShortcutEnabled, registered: false, error: null };
+const savedShortcut = (which: ShortcutName): ShortcutStatus => {
+  const [key, on] = SHORTCUT_FIELDS[which];
+  return { accelerator: settings[key], enabled: settings[on], registered: false, error: null };
+};
 
 /**
  * A global shortcut: a field that records the combination pressed in it, a
@@ -708,7 +1173,7 @@ const savedShortcut = (which: ShortcutName): ShortcutStatus =>
  * reserved, another Nook shortcut's, or held by another program — leaves the one
  * that worked in place.
  */
-function shortcutRow({ which, label, does }: (typeof SHORTCUTS)[number]): HTMLElement {
+function shortcutRow({ which, label, does, keys }: (typeof SHORTCUTS)[number]): HTMLElement {
   let status = shortcutsNow?.[which] ?? savedShortcut(which);
   /** Whether Rust has said where it stands: until then, nothing is claimed of it. */
   let known = shortcutsNow != null;
@@ -734,7 +1199,7 @@ function shortcutRow({ which, label, does }: (typeof SHORTCUTS)[number]): HTMLEl
     clear(field);
     const shown = recording ? partial.map(keyWord) : refused ? refused.keys : shortcutKeys(status.accelerator);
     for (const key of shown) field.append(h("kbd", { text: key }));
-    if (recording) field.append(h("span", { class: "wait", text: partial.length ? "+ a key…" : "Press the new shortcut…" }));
+    if (recording) field.append(h("span", { class: "wait", text: partial.length ? "+ a key…" : "Press the new keys…" }));
     else field.append(h("span", { class: "hint", text: "Click to change" }));
     field.setAttribute("aria-label", recording ? `${label}: recording` : `${label}: ${shortcutKeys(status.accelerator).join(" + ")}. Change`);
     power.set(status.enabled);
@@ -756,19 +1221,13 @@ function shortcutRow({ which, label, does }: (typeof SHORTCUTS)[number]): HTMLEl
       refused = null;
       if (shortcutsNow) shortcutsNow[which] = status;
       // Rust saved it, and says so to both windows; this is the same, a moment sooner.
-      settings = which === "expand"
-        ? { ...settings, expandShortcut: status.accelerator, expandShortcutEnabled: status.enabled }
-        : which === "goto"
-          ? { ...settings, gotoShortcut: status.accelerator, gotoShortcutEnabled: status.enabled }
-          : which === "panel"
-            ? { ...settings, panelShortcut: status.accelerator, panelShortcutEnabled: status.enabled }
-            : which === "hide"
-              ? { ...settings, hideShortcut: status.accelerator, hideShortcutEnabled: status.enabled }
-              : { ...settings, agentsShortcut: status.accelerator, agentsShortcutEnabled: status.enabled };
+      const [key, on] = SHORTCUT_FIELDS[which];
+      settings = { ...settings, [key]: status.accelerator, [on]: status.enabled };
     } catch (err) {
       refused = { why: reason(err).replace(/\.$/, ""), keys };
     }
     paint();
+    paintResets();
     say(line.textContent ?? "");
   }
 
@@ -817,6 +1276,14 @@ function shortcutRow({ which, label, does }: (typeof SHORTCUTS)[number]): HTMLEl
       power.el),
     field, line);
   paint();
+  shortcutFields.set(which, field);
+  shortcutResets.set(which, async () => {
+    const [key, on] = SHORTCUT_FIELDS[which];
+    const accelerator = DEFAULT_SETTINGS[key];
+    const enabled = DEFAULT_SETTINGS[on];
+    if (status.accelerator === accelerator && status.enabled === enabled && !refused) return;
+    await set(accelerator, enabled, shortcutKeys(accelerator));
+  });
   // The list turned on or off takes this shortcut from the OS, or gives it back: Rust has saved by the time it echoes, and says where it stands.
   if (which === "agents") {
     followers.push(() => {
@@ -840,14 +1307,113 @@ function shortcutRow({ which, label, does }: (typeof SHORTCUTS)[number]): HTMLEl
     known = true;
     paint();
   });
-  return el;
+  return findable(el, label, does, `shortcut shortcuts hotkey hot key keyboard keys key combination ${keys}`);
 }
 
-// ── General ───────────────────────────────────────────────────────────────────
+function shortcutsSection(): Kid[] {
+  const of = (...names: ShortcutName[]) => SHORTCUTS.filter((s) => names.includes(s.which)).map(shortcutRow);
+  return [
+    head("shortcuts"),
+    group("The island", ...of("expand", "panel", "goto", "hide")),
+    group("Agents list", ...of("agents")),
+    resetFoot("shortcuts"),
+  ];
+}
+
+// ── Sounds ────────────────────────────────────────────────────────────────────
 
 /** The sound's volume as the island has it — 0 to 0.2 — and as the slider shows it: 0 to 100 %. */
 const VOLUME_MAX = 0.2;
 const volumePercent = () => Math.round((Math.max(0, Math.min(VOLUME_MAX, settings.soundVolume)) / VOLUME_MAX) * 100);
+
+function soundsSection(): Kid[] {
+  const volumeNeeds = needs();
+  const volume = slider("Volume", volumePercent(), (v) => `${v}%`, (v) => change({ soundVolume: Number(((v / 100) * VOLUME_MAX).toFixed(4)) }, true));
+  const paintVolume = () => {
+    volume.setDisabled(!settings.soundEnabled);
+    sayNeeds(volumeNeeds, settings.soundEnabled ? null : "Turn on sounds first.");
+  };
+  const sound = toggle(settings.soundEnabled, "Play sounds", (on) => {
+    change({ soundEnabled: on });
+    paintVolume();
+  });
+  paintVolume();
+  // The island's own quick settings change the sound too.
+  followers.push(() => {
+    sound.set(settings.soundEnabled);
+    volume.set(volumePercent());
+    paintVolume();
+  });
+  return [
+    head("sounds"),
+    group("Sound",
+      row("Play sounds", "A short sound when a session needs you or has finished.", sound.el,
+        "sound sounds audio mute unmute noise beep chime alert notification quiet silent"),
+      row("Volume", "How loud the sounds are.", volume.el, "volume loud quiet louder softer level audio sound", volumeNeeds)),
+    resetFoot("sounds"),
+  ];
+}
+
+// ── Agents list ───────────────────────────────────────────────────────────────
+
+function agentsSection(): Kid[] {
+  const fadeNeeds = needs();
+  const opacityNeeds = needs();
+  const agentsFade = toggle(settings.agentsListFade, "Fade when not in use", (on) => {
+    change({ agentsListFade: on });
+    paintAgentsFade();
+  });
+  const fadePercent = () => Math.max(FADE_MIN, Math.min(FADE_MAX, Math.round(settings.agentsListFadeOpacity) || 50));
+  const agentsFadeTo = slider("How visible when faded", fadePercent(), (v) => `${v}%`, (v) => change({ agentsListFadeOpacity: v }, true), FADE_MIN, FADE_MAX);
+  const agentsList = toggle(settings.showAgentsList, "Show the agents list", (on) => {
+    change({ showAgentsList: on });
+    paintAgentsFade();
+  });
+  // Both fade rows are for a list that is on; the opacity is for a fade that is on.
+  const paintAgentsFade = () => {
+    agentsFade.el.disabled = !settings.showAgentsList;
+    agentsFadeTo.setDisabled(!settings.agentsListFade || !settings.showAgentsList);
+    const off = settings.showAgentsList ? null : "Turn on the agents list first.";
+    sayNeeds(fadeNeeds, off);
+    sayNeeds(opacityNeeds, off ?? (settings.agentsListFade ? null : "Turn on fading first."));
+  };
+  paintAgentsFade();
+  followers.push(() => {
+    agentsList.set(settings.showAgentsList);
+    agentsFade.set(settings.agentsListFade);
+    agentsFadeTo.set(fadePercent());
+    paintAgentsFade();
+  });
+
+  const toShortcut = h("button", { class: "sp-link", type: "button" },
+    icon(LUCIDE.keyboard, 16), h("span", { class: "sp-link-text", text: "Set a keyboard shortcut for the list" }), icon(LUCIDE.arrowRight, 14));
+  toShortcut.addEventListener("click", () => {
+    goTo("shortcuts", shortcutFields.get("agents")?.closest<HTMLElement>(".sp-shortcut") ?? undefined);
+    window.requestAnimationFrame(() => shortcutFields.get("agents")?.focus({ preventScroll: true }));
+  });
+
+  return [
+    head("agents"),
+    group("The list",
+      row("Show the agents list",
+        "Each project's state, how much of Claude's memory it has used, and its last message. Click a row to go to its window. It never takes the keyboard.",
+        agentsList.el, "agents list window projects overlay sessions always on top floating"),
+      row("Fade when not in use", "It dims a few seconds after your pointer leaves it, but never while something waits for you.", agentsFade.el,
+        "fade dim idle transparent", fadeNeeds),
+      row("How visible when faded", "How much of the list still shows while it is faded.", agentsFadeTo.el,
+        "opacity transparency fade dim see-through visible", opacityNeeds)),
+    group("Moving it",
+      findable(h("div", { class: "sp-row" },
+        rowText("Move and size it with the mouse",
+          "Drag its header to move it. Drag its sides to change its width, and its bottom edge to set how tall it may grow. Double-click its header to put the size back.")),
+      "Move and size it with the mouse", "Drag its header to move it, its edges to size it; double-click the header to reset.",
+      "move drag resize size width height position place reset double-click"),
+      findable(h("div", { class: "sp-row" }, toShortcut), "Set a keyboard shortcut for the list", null, "shortcut hotkey keyboard keys agents")),
+    resetFoot("agents"),
+  ];
+}
+
+// ── Island ────────────────────────────────────────────────────────────────────
 
 const AUTO_CLOSE = ["3", "5", "10", "15", "30", "custom"] as const;
 type AutoClose = (typeof AUTO_CLOSE)[number];
@@ -858,112 +1424,15 @@ const autoClosePreset = (): AutoClose => {
 /** "Custom" stays picked while its number happens to be one of the presets. */
 let autoCloseCustom = false;
 
-function generalSection(): Kid[] {
-  const volume = slider("Volume", volumePercent(), (v) => `${v}%`, (v) => change({ soundVolume: Number(((v / 100) * VOLUME_MAX).toFixed(4)) }, true));
-  volume.setDisabled(!settings.soundEnabled);
-  const sound = toggle(settings.soundEnabled, "Sound", (on) => {
-    change({ soundEnabled: on });
-    volume.setDisabled(!on);
-  });
-
-  const clamp = (v: number) => Math.max(2, Math.min(120, Math.round(v) || 15));
-  const custom = h("input", { type: "number", min: "2", max: "120", step: "1", value: String(clamp(settings.autoCloseInterval)), "aria-label": "Auto-close, in seconds" });
-  custom.addEventListener("change", () => {
-    const seconds = clamp(Number(custom.value));
-    custom.value = String(seconds);
-    change({ autoCloseInterval: seconds });
-  });
-  const picked = (): AutoClose => (autoCloseCustom ? "custom" : autoClosePreset());
-  autoCloseCustom = autoClosePreset() === "custom";
-  const customFold = h("div", { class: `sp-fold${picked() === "custom" ? " open" : ""}` },
-    h("div", {}, h("label", { class: "sp-number" }, custom, h("span", { text: "seconds, from 2 to 120" }))));
-  const autoClose = segmented<AutoClose>("Auto-close", AUTO_CLOSE.map((v) => [v, v === "custom" ? "Custom" : `${v} s`] as const), picked(), (v) => {
-    autoCloseCustom = v === "custom";
-    customFold.classList.toggle("open", autoCloseCustom);
-    // Custom starts from the time in use: nothing changes until another number is typed.
-    if (autoCloseCustom) custom.value = String(clamp(settings.autoCloseInterval));
-    else change({ autoCloseInterval: Number(v) });
-  });
-
-  const screen = segmented<Settings["screen"]>("Display", [["primary", "Main display"], ["cursor", "Display under the cursor"]], settings.screen, (v) => change({ screen: v }));
-  const dock = segmented<Settings["dock"]>("Dock", [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]], settings.dock, (v) => change({ dock: v }));
-  const autostart = toggle(settings.autostart, "Launch at startup", (on) => change({ autostart: on }));
-  const agentsFade = toggle(settings.agentsListFade, "Fade the agents list when idle", (on) => {
-    change({ agentsListFade: on });
-    agentsFadeTo.setDisabled(!on || !settings.showAgentsList);
-  });
-  const fadePercent = () => Math.max(FADE_MIN, Math.min(FADE_MAX, Math.round(settings.agentsListFadeOpacity) || 50));
-  const agentsFadeTo = slider("Idle opacity", fadePercent(), (v) => `${v}%`, (v) => change({ agentsListFadeOpacity: v }, true), FADE_MIN, FADE_MAX);
-  const agentsList = toggle(settings.showAgentsList, "Show the agents list", (on) => {
-    change({ showAgentsList: on });
-    paintAgentsFade();
-  });
-  // Both fade rows are for a list that is on; the opacity is for a fade that is on.
-  const paintAgentsFade = () => {
-    agentsFade.el.disabled = !settings.showAgentsList;
-    agentsFadeTo.setDisabled(!settings.agentsListFade || !settings.showAgentsList);
-  };
-  paintAgentsFade();
-
-  // The island's own quick settings change the sound and the auto-close too.
-  let seconds = settings.autoCloseInterval;
-  followers.push(() => {
-    sound.set(settings.soundEnabled);
-    volume.setDisabled(!settings.soundEnabled);
-    volume.set(volumePercent());
-    if (settings.autoCloseInterval !== seconds) {
-      seconds = settings.autoCloseInterval;
-      autoCloseCustom = autoClosePreset() === "custom";
-      if (document.activeElement !== custom) custom.value = String(clamp(seconds));
-    }
-    autoClose.set(picked());
-    customFold.classList.toggle("open", picked() === "custom");
-    screen.set(settings.screen);
-    dock.set(settings.dock);
-    autostart.set(settings.autostart);
-    agentsList.set(settings.showAgentsList);
-    agentsFade.set(settings.agentsListFade);
-    agentsFadeTo.set(fadePercent());
-    paintAgentsFade();
-  });
-
-  return [
-    ...title("General"),
-    group("Sound",
-      row("Sound", "A short sound when a session needs you or finishes.", sound.el),
-      row("Volume", null, volume.el)),
-    group("Island",
-      h("div", { class: "sp-row stack" },
-        h("div", { class: "sp-row-text" },
-          h("div", { class: "sp-row-label", text: "Auto-close" }),
-          h("p", { class: "sp-help", text: "How long the island stays open after the pointer leaves it." })),
-        autoClose.el, customFold),
-      h("div", { class: "sp-row stack" },
-        h("div", { class: "sp-row-text" }, h("div", { class: "sp-row-label", text: "Show the island on" })),
-        screen.el),
-      h("div", { class: "sp-row stack" },
-        h("div", { class: "sp-row-text" },
-          h("div", { class: "sp-row-label", text: "Dock the island to" }),
-          h("p", { class: "sp-help", text: "An edge of the display. The bottom and the sides keep clear of the taskbar; on the left or right, Home and the Shelf stand upright. With a taskbar that hides itself, the island sits at the display's own edge." })),
-        dock.el),
-      row("Launch at startup", "Start Nook when you sign in.", autostart.el)),
-    group("Agents list",
-      row("Show the agents list", "A small window that stays on top of everything, on every virtual desktop, with a row per project: its state, how full its context is, and what it said last. Click a row to go to its window. It never takes the keyboard. Drag its sides to set the width and its bottom edge to set the most it grows tall; double-click its header to put both back.", agentsList.el),
-      row("Fade the agents list when idle", "It dims a few seconds after the pointer leaves it, but never while something waits for you.", agentsFade.el),
-      row("Idle opacity", null, agentsFadeTo.el)),
-    group("Shortcuts", ...SHORTCUTS.map(shortcutRow)),
-  ];
-}
-
-// ── Island ────────────────────────────────────────────────────────────────────
-
 /** A row of the picker: one of the island's cells. */
 type MetricRow = CompactMetric;
 const METRIC_ROWS: readonly MetricRow[] = COMPACT_METRICS;
 const metricName = (id: MetricRow) => COMPACT_CELLS[id].name;
 const isMetric = (id: string): id is CompactMetric => (COMPACT_METRICS as readonly string[]).includes(id);
 
+/** The compact island, live: at the top of the Island page and of Look and colours, whichever is on show. */
 const folded = islandPreview(islandBot);
+const paintPreview = (animate: boolean) => folded.update(compactMetrics(settings), animate && !still(), settings.dock);
 
 /** The metrics to choose from: made once, repainted in place. */
 const metricPicker = (() => {
@@ -990,14 +1459,14 @@ const metricPicker = (() => {
       }
     }, !animate || still());
     count.textContent = `${on.length} of ${MAX_COMPACT_METRICS} chosen`;
-    folded.update(chosen(), animate && !still(), settings.dock);
+    paintPreview(animate);
   };
 
   const refuse = (id: MetricRow | null) => {
     for (const r of rows.values()) r.el.classList.remove("refused");
     refusal.hidden = id == null;
     if (id == null) return;
-    const text = `Three at most. Remove one to show ${metricName(id)}.`;
+    const text = `Three at most. Untick one to show ${metricName(id)}.`;
     refusal.querySelector("span")!.textContent = text;
     say(text);
     const el = rows.get(id)!.el;
@@ -1013,7 +1482,7 @@ const metricPicker = (() => {
       h("span", { class: "name", text: name }),
       h("span", { class: "sample", text: COMPACT_CELLS[id].sample }));
     // A machine that reports no GPU use shows "—" in its cell: it can still be picked.
-    if (id === "gpu") check.title = "Shows — on a machine that does not report its GPU use.";
+    if (id === "gpu") check.title = "Shows — on a computer that does not report its graphics use.";
     check.addEventListener("click", () => {
       const on = chosen();
       if (on.includes(id)) {
@@ -1066,7 +1535,107 @@ const metricPicker = (() => {
   return { list, count, refusal, refuse, paint };
 })();
 
-/** The bot's colours: the six the engine has. */
+/** "Hide the compact island after": the choices as the control names them, by their seconds ("0" is never). */
+type HideAfter = `${(typeof FOLDED_AUTO_HIDE)[number]}`;
+const HIDE_AFTER_WORDS: Record<HideAfter, string> = { 5: "5 s", 10: "10 s", 30: "30 s", 60: "1 min", 0: "Never" };
+/**
+ * What keeping the island on show costs, said as what it is: one measurement,
+ * on one machine (the app at rest with the folded island up, across Nook and
+ * its WebView2 processes, 3 October 2026) — not a promise for another.
+ */
+const ALWAYS_SHOWN_NOTE =
+  "While the island is on show, Nook checks your computer's numbers every 2.5 seconds; hidden, it checks nothing. On the PC it was measured on, Nook at rest with the compact island showing took about 7.7 % of one processor core (0.5 % of that 16-core machine) and about 290 MB of memory, WebView2 included. Yours will differ.";
+
+function islandSection(): Kid[] {
+  // Where it sits.
+  const screen = segmented<Settings["screen"]>("Show the island on", [["primary", "Main screen"], ["cursor", "Screen with the pointer"]], settings.screen, (v) => change({ screen: v }));
+  const dock = segmented<Settings["dock"]>("Screen edge", [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]], settings.dock, (v) => {
+    change({ dock: v });
+    paintPreview(false);
+  });
+  const autostart = toggle(settings.autostart, "Start Nook with your computer", (on) => change({ autostart: on }));
+
+  // When it closes and hides.
+  const clamp = (v: number) => Math.max(2, Math.min(120, Math.round(v) || 15));
+  const custom = h("input", { type: "number", min: "2", max: "120", step: "1", value: String(clamp(settings.autoCloseInterval)), "aria-label": "Close after, in seconds" });
+  custom.addEventListener("change", () => {
+    const seconds = clamp(Number(custom.value));
+    custom.value = String(seconds);
+    change({ autoCloseInterval: seconds });
+  });
+  const picked = (): AutoClose => (autoCloseCustom ? "custom" : autoClosePreset());
+  autoCloseCustom = autoClosePreset() === "custom";
+  const customFold = h("div", { class: `sp-fold${picked() === "custom" ? " open" : ""}` },
+    h("div", {}, h("label", { class: "sp-number" }, custom, h("span", { text: "seconds, from 2 to 120" }))));
+  const autoClose = segmented<AutoClose>("Close the open island after", AUTO_CLOSE.map((v) => [v, v === "custom" ? "Other" : `${v} s`] as const), picked(), (v) => {
+    autoCloseCustom = v === "custom";
+    customFold.classList.toggle("open", autoCloseCustom);
+    // Other starts from the time in use: nothing changes until another number is typed.
+    if (autoCloseCustom) custom.value = String(clamp(settings.autoCloseInterval));
+    else change({ autoCloseInterval: Number(v) });
+  });
+
+  const hideAfterOf = (): HideAfter => String(foldedAutoHide(settings)) as HideAfter;
+  const neverFold = h("div", { class: `sp-fold${hideAfterOf() === "0" ? " open" : ""}` }, h("div", {}, h("p", { class: "sp-note", text: ALWAYS_SHOWN_NOTE })));
+  const hideAfter = segmented<HideAfter>("Hide the compact island after", FOLDED_AUTO_HIDE.map((v) => [String(v) as HideAfter, HIDE_AFTER_WORDS[String(v) as HideAfter]] as const), hideAfterOf(), (v) => {
+    neverFold.classList.toggle("open", v === "0");
+    change({ foldedAutoHide: Number(v) });
+  });
+  const whenIdle = toggle(settings.hideOnlyWhenIdle, "Keep it showing while a session is busy", (on) => change({ hideOnlyWhenIdle: on }));
+  const fullscreen = toggle(settings.hideInFullscreen, "Hide during full-screen apps", (on) => change({ hideInFullscreen: on }));
+
+  // The island's own quick settings change the auto-close too.
+  let seconds = settings.autoCloseInterval;
+  followers.push(() => {
+    if (settings.autoCloseInterval !== seconds) {
+      seconds = settings.autoCloseInterval;
+      autoCloseCustom = autoClosePreset() === "custom";
+      if (document.activeElement !== custom) custom.value = String(clamp(seconds));
+    }
+    autoClose.set(picked());
+    customFold.classList.toggle("open", picked() === "custom");
+    screen.set(settings.screen);
+    dock.set(settings.dock);
+    autostart.set(settings.autostart);
+    hideAfter.set(hideAfterOf());
+    neverFold.classList.toggle("open", hideAfterOf() === "0");
+    whenIdle.set(settings.hideOnlyWhenIdle);
+    fullscreen.set(settings.hideInFullscreen);
+    metricPicker.paint(false);
+  });
+
+  return [
+    head("island"),
+    group("Position",
+      stackRow("Show the island on", "Which screen it appears on, when you have more than one.",
+        "screen display monitor second screen multiple main primary pointer mouse", screen.el),
+      stackRow("Screen edge", "The island sits along this edge of the screen, clear of the taskbar. On the left or right it stands upright.",
+        "position edge top bottom left right side move place taskbar dock where", dock.el),
+      row("Start Nook with your computer", "Nook opens by itself when you sign in.", autostart.el,
+        "startup start up launch login log in sign in boot automatically autostart open")),
+    group("When it shows and hides",
+      stackRow("Close the open island after", "How long it stays open once your pointer has left it.",
+        "close auto-close timer seconds stay open delay", autoClose.el, customFold),
+      stackRow("Hide the compact island after", "How long the small, closed island stays once your pointer has left it. It comes back when you point at its edge, or when a session does something.",
+        "hide auto-hide autohide compact folded small closed disappear timer never always visible", hideAfter.el, neverFold),
+      row("Keep it showing while a session is busy", "The hide timer starts only once no session is working, thinking or asking.", whenIdle.el,
+        "busy working active idle keep visible hide thinking"),
+      row("Hide during full-screen apps", "Stays out of the way of videos, games and presentations. Questions and permission requests still show.", fullscreen.el,
+        "full screen fullscreen video game presentation movie hide")),
+    findable(bare(h("span", { class: "sp-label-row" }, "What the compact island shows", metricPicker.count),
+      h("div", { class: "sp-box" },
+        metricPicker.list,
+        metricPicker.refusal,
+        h("p", { class: "sp-note", text: "Pick up to three. Drag a chosen one by its handle to change the order. With none, the island is narrower. Numbers in the island preview are samples." }))),
+    "What the compact island shows", "Pick up to three numbers to show beside Gullu.",
+    "metrics numbers stats cpu processor gpu graphics ram memory usage limits weekly waiting sessions show", true),
+    resetFoot("island"),
+  ];
+}
+
+// ── Look and colours ──────────────────────────────────────────────────────────
+
+/** Gullu's colours: the six the engine has. */
 function botColours(): HTMLElement {
   const names = Object.keys(BOT_THEMES).filter(isBotTheme);
   const swatches = h("div", { class: "sp-swatches", role: "radiogroup", "aria-label": "Gullu's colour" });
@@ -1077,7 +1646,7 @@ function botColours(): HTMLElement {
     b.addEventListener("click", () => pick(name));
     return b;
   });
-  const label = h("span", { class: "count" });
+  const label = h("span", { class: "sp-swatch-name" });
   const paint = () => {
     buttons.forEach((b, i) => {
       const on = names[i] === worn();
@@ -1098,67 +1667,50 @@ function botColours(): HTMLElement {
     pick(names[to]);
     buttons[to].focus();
   });
-  swatches.append(...buttons);
+  swatches.append(...buttons, label);
   paint();
   followers.push(paint);
-  return h("section", { class: "sp-group" },
-    h("h2", { class: "sp-group-label" }, "Gullu's colour", label),
-    swatches);
+  return stackRow("Gullu's colour", "Gullu is the little character in the island. Choose the colour of the island's character.",
+    "colour color bot character gullu mascot paint theme", swatches);
 }
 
-/** "Auto-hide the folded island after": the choices as the control names them, by their seconds ("0" is never). */
-type HideAfter = `${(typeof FOLDED_AUTO_HIDE)[number]}`;
-const HIDE_AFTER_WORDS: Record<HideAfter, string> = { 5: "5 s", 10: "10 s", 30: "30 s", 60: "1 min", 0: "Never" };
-/**
- * What keeping the island on show costs, said as what it is: one measurement,
- * on one machine (the app at rest with the folded island up, across Nook and
- * its WebView2 processes, 3 October 2026) — not a promise for another.
- */
-const ALWAYS_SHOWN_NOTE =
-  "While the island is on show, Nook keeps sampling the metrics every 2.5 s; hidden, it samples nothing. On the PC it was measured on, Nook at rest with the folded island up took about 7.7 % of one core (0.5 % of that 16-core machine) and about 290 MB, WebView2 included. Yours will differ.";
-
-/** Settings → Island → Visibility: when the folded island hides, and when it stays out of the way. */
-function visibility(): HTMLElement {
-  const hideAfterOf = (): HideAfter => String(foldedAutoHide(settings)) as HideAfter;
-  const never = h("p", { class: "sp-note", text: ALWAYS_SHOWN_NOTE });
-  const neverFold = h("div", { class: `sp-fold${hideAfterOf() === "0" ? " open" : ""}` }, h("div", {}, never));
-  const hideAfter = segmented<HideAfter>("Auto-hide the folded island after", FOLDED_AUTO_HIDE.map((v) => [String(v) as HideAfter, HIDE_AFTER_WORDS[String(v) as HideAfter]] as const), hideAfterOf(), (v) => {
-    neverFold.classList.toggle("open", v === "0");
-    change({ foldedAutoHide: Number(v) });
+function lookSection(): Kid[] {
+  const themeHelp = h("p", { class: "sp-help" });
+  const writeHelp = () => {
+    // Asked of the system only while following it: a picked theme answers for itself.
+    themeHelp.textContent = settings.theme === "system"
+      ? `Follows your computer, which is set to ${systemDark.matches ? "dark" : "light"} right now. The island itself is always dark.`
+      : "The island itself is always dark.";
+  };
+  const theme = segmented<Theme>("Colours of this window", [["light", "Light"], ["dark", "Dark"], ["system", "Match computer"]], settings.theme, (v) => {
+    change({ theme: v });
+    writeHelp();
   });
-  const whenIdle = toggle(settings.hideOnlyWhenIdle, "Hide only when no session is active", (on) => change({ hideOnlyWhenIdle: on }));
-  const fullscreen = toggle(settings.hideInFullscreen, "Hide in full-screen apps", (on) => change({ hideInFullscreen: on }));
+  const motion = segmented<Motion>("Reduce motion", [["system", "Match computer"], ["on", "On"], ["off", "Off"]], settings.reduceMotion, (v) => change({ reduceMotion: v }));
+  const playful = toggle(settings.playfulReactions !== false, "Playful Gullu", (on) => change({ playfulReactions: on }));
+  writeHelp();
   followers.push(() => {
-    hideAfter.set(hideAfterOf());
-    neverFold.classList.toggle("open", hideAfterOf() === "0");
-    whenIdle.set(settings.hideOnlyWhenIdle);
-    fullscreen.set(settings.hideInFullscreen);
+    theme.set(settings.theme);
+    motion.set(settings.reduceMotion);
+    playful.set(settings.playfulReactions !== false);
+    writeHelp();
   });
-  return group("Visibility",
-    h("div", { class: "sp-row stack" },
-      h("div", { class: "sp-row-text" },
-        h("div", { class: "sp-row-label", text: "Auto-hide the folded island after" }),
-        h("p", { class: "sp-help", text: "How long the folded island stays once the pointer has left it. It comes back when you point at the top edge, or when a session does something." })),
-      hideAfter.el, neverFold),
-    row("Hide only when no session is active", "While a session is working, thinking or asking, the folded island stays. The time above starts once none is; a session that has finished does not count.", whenIdle.el),
-    row("Hide in full-screen apps", "With a video, a game or a presentation in full screen on the island's display, the island stays hidden and does not come up for hover or for work. A permission request or a question still shows, so you can answer it.", fullscreen.el));
-}
-
-function islandSection(): Kid[] {
-  metricPicker.refuse(null);
-  metricPicker.paint(false);
-  followers.push(() => metricPicker.paint(false));
-  leavers.push(folded.run());
   return [
-    ...title("Island", "What the folded island shows beside Gullu and the session dots."),
-    folded.el,
-    h("section", { class: "sp-group", style: "margin-top:14px" },
-      h("h2", { class: "sp-group-label" }, "Metrics", metricPicker.count),
-      metricPicker.list,
-      metricPicker.refusal,
-      h("p", { class: "sp-note", text: "Up to three, in the order shown: drag a chosen one to move it. With none, the island is narrower. The preview shows sample sessions and sample values." })),
-    visibility(),
-    botColours(),
+    head("look"),
+    group("Gullu",
+      botColours(),
+      row("Playful Gullu", "Gullu follows your mouse and reacts to clicks. Off, Gullu only shows how your sessions are doing.", playful.el,
+        "playful reactions animation mouse fun gullu character bot")),
+    group("This window",
+      findable(h("div", { class: "sp-row stack" },
+        h("div", { class: "sp-row-text" }, h("div", { class: "sp-row-label", text: "Colours of this window" }), themeHelp),
+        theme.el),
+      "Colours of this window", "Light, dark, or as your computer is set.",
+      "dark mode light mode theme colours colors night appearance window black white")),
+    group("Motion",
+      stackRow("Reduce motion", "Things in Nook change at once, without sliding or fading.",
+        "animation animations motion reduce accessibility movement still effects calm", motion.el)),
+    resetFoot("look"),
   ];
 }
 
@@ -1221,7 +1773,7 @@ const shelfPicker = (() => {
         tray.append(card.el);
       });
     }, !animate || still());
-    count.textContent = `${shown} of ${ids.length} shown`;
+    count.textContent = `${shown} of ${ids.length} on`;
   };
 
   for (const id of WIDGET_IDS) {
@@ -1276,56 +1828,17 @@ const shelfPicker = (() => {
 })();
 
 function shelfSection(): Kid[] {
-  shelfPicker.paint(false);
   followers.push(() => shelfPicker.paint(false));
   return [
-    ...title("Shelf", "The widgets of the island's Shelf, in the order they will stand there."),
-    h("div", { class: "sp-flash note", style: "margin:14px 0 0", role: "note" }, icon(LUCIDE.info, 15),
-      h("span", { text: "The Shelf tab shows these in this order, and you can drag its cards there too. A widget that is switched off never runs: no timer, no reminder, no camera, nothing is read." })),
-    h("section", { class: "sp-group", style: "margin-top:18px" },
-      h("h2", { class: "sp-group-label" }, "Widgets", shelfPicker.count),
+    head("shelf"),
+    h("div", { class: "sp-flash note sp-intro", role: "note" }, icon(LUCIDE.info, 15),
+      h("span", { text: "The Shelf tab of the island shows these in this order, and you can drag its cards there too. A widget that is off never runs: no timer, no reminder, no camera, nothing is read." })),
+    findable(bare(h("span", { class: "sp-label-row" }, "Widgets", shelfPicker.count),
       shelfPicker.tray,
-      h("p", { class: "sp-note", text: "Drag a card to move it, or focus it and use the arrow keys. Switch one off to leave it out." })),
-  ];
-}
-
-// ── Appearance ────────────────────────────────────────────────────────────────
-
-function appearanceSection(): Kid[] {
-  const themeHelp = h("p", { class: "sp-help" });
-  const writeHelp = () => {
-    // Asked of the system only while following it: a picked theme answers for itself.
-    themeHelp.textContent = settings.theme === "system"
-      ? `System follows your system, which is set to ${systemDark.matches ? "dark" : "light"} now. The island itself always stays dark.`
-      : "System follows your system's light or dark setting. The island itself always stays dark.";
-  };
-  const theme: Segmented<Theme> = segmented<Theme>("Theme", [["light", "Light"], ["dark", "Dark"], ["system", "System"]], settings.theme, (v) => {
-    change({ theme: v });
-    writeHelp();
-  });
-  const motion: Segmented<Motion> = segmented<Motion>("Reduce motion", [["system", "Follow system"], ["on", "On"], ["off", "Off"]], settings.reduceMotion, (v) => change({ reduceMotion: v }));
-  const playful = toggle(settings.playfulReactions !== false, "Playful reactions", (on) => change({ playfulReactions: on }));
-  writeHelp();
-  followers.push(() => {
-    theme.set(settings.theme);
-    motion.set(settings.reduceMotion);
-    playful.set(settings.playfulReactions !== false);
-    writeHelp();
-  });
-  return [
-    ...title("Appearance"),
-    group("Theme",
-      h("div", { class: "sp-row stack" },
-        h("div", { class: "sp-row-text" }, h("div", { class: "sp-row-label", text: "Settings window" }), themeHelp),
-        theme.el)),
-    group("Motion",
-      h("div", { class: "sp-row stack" },
-        h("div", { class: "sp-row-text" },
-          h("div", { class: "sp-row-label", text: "Reduce motion" }),
-          h("p", { class: "sp-help", text: "Changes happen at once, without springs or fades." })),
-        motion.el)),
-    group("Gullu",
-      row("Playful reactions", "Gullu reacts to your mouse and clicks. Off: just the status faces.", playful.el)),
+      h("p", { class: "sp-note", text: "Drag a card to move it, or click it and use the arrow keys. Switch one off to leave it out." })),
+    "Shelf widgets", "Which widgets the Shelf shows, and their order.",
+    "shelf widgets widget media music player to-do todo tasks timer countdown reminders mirror camera projects folders order hide", true),
+    resetFoot("shelf"),
   ];
 }
 
@@ -1344,82 +1857,119 @@ const LINKS: readonly { which: AboutLink; name: string; where: string; mark: () 
 ];
 
 function aboutSection(): Kid[] {
-  const place = (label: string, help: string, path: string | undefined) =>
-    h("div", { class: "sp-row" },
-      h("div", { class: "sp-row-text" }, h("div", { class: "sp-row-label", text: label }), h("p", { class: "sp-help", text: help })),
-      h("span", { class: "sp-path" }, ...(path ? breakable(path) : ["—"])));
+  const place = (label: string, help: string, path: string | undefined, keys: string) =>
+    findable(h("div", { class: "sp-row" },
+      rowText(label, help),
+      h("span", { class: "sp-path" }, ...(path ? breakable(path) : ["—"]))), label, help, keys);
   const link = ({ which, name, where, mark }: (typeof LINKS)[number]) =>
     h("button", {
       class: "sp-social", type: "button", title: where,
       "aria-label": `${name}: ${where}. Opens in your browser.`, onclick: () => void nook.openLink(which),
     }, h("i", {}, mark()), h("span", { text: name }));
   return [
+    head("about"),
     h("div", { class: "sp-about" },
       h("div", { class: "sp-nook", "aria-hidden": "true" }, aboutBot.el),
       h("div", {},
-        h("h1", { class: "sp-about-name", text: "Nook" }),
+        h("p", { class: "sp-about-name", text: "Nook" }),
         h("p", { class: "sp-about-version", text: version ? `Version ${version}` : "" }),
-        h("p", { class: "sp-about-version", text: "Gullu, Nook's buddy" }))),
-    group("Privacy",
-      h("p", { class: "sp-lede", style: "margin-top:8px;color:var(--text)", text: "No telemetry and no network requests: everything stays on this machine." })),
-    group("Where your data lives",
-      place("Settings", "Your preferences", paths?.settings),
-      place("Logs and relay", "The log file and the relay Claude Code runs", paths?.local),
-      ...(paths?.relayError ? [h("p", { class: "sp-help", style: "color:var(--danger, #f87171)", text: `Not receiving Claude Code events: ${paths.relayError}` })] : []),
-      h("div", { class: "sp-row stack" },
+        h("p", { class: "sp-about-version", text: "With Gullu, Nook's buddy" }))),
+    findable(bare("Privacy",
+      h("div", { class: "sp-box sp-privacy" },
+        icon(LUCIDE.circleCheck, 18, 2),
+        h("p", { text: "Nook sends nothing anywhere: no tracking, and no internet connections. Everything stays on this computer." }))),
+    "Privacy", "Nook sends nothing anywhere: everything stays on this computer.",
+    "privacy private telemetry tracking data network internet offline online send", true),
+    group("Where your things are kept",
+      place("Settings", "Your choices in this window", paths?.settings, "files folder location data settings where stored path"),
+      place("Logs", "Nook's log file, and the small helper program Claude Code runs", paths?.local, "logs log folder files helper relay location"),
+      ...(paths?.relayError ? [h("p", { class: "sp-help sp-danger-text", text: `Not receiving Claude Code events: ${paths.relayError}` })] : []),
+      findable(h("div", { class: "sp-row" },
         h("button", { class: "sp-link", type: "button", onclick: () => void nook.openLogFolder() },
-          icon(LUCIDE.folderOpen, 16), h("span", { class: "sp-link-text", text: "Open log folder" }), icon(LUCIDE.arrowUpRight, 14)))),
-    h("section", { class: "sp-group" },
-      h("h2", { class: "sp-group-label", text: "Made by" }),
+          icon(LUCIDE.folderOpen, 16), h("span", { class: "sp-link-text", text: "Open the log folder" }), icon(LUCIDE.arrowUpRight, 14))),
+      "Open the log folder", null, "logs log folder open explorer files")),
+    findable(bare("Made by",
       h("div", { class: "sp-credit" },
         h("p", { class: "sp-made", text: "Zubair Bin Shaukat" }),
-        h("div", { class: "sp-links", role: "group", "aria-label": "Zubair Bin Shaukat's links" }, ...LINKS.map(link)))),
-    h("p", { class: "sp-credits", text: "Open source, under the MIT licence." }),
+        h("div", { class: "sp-links", role: "group", "aria-label": "Zubair Bin Shaukat's links" }, ...LINKS.map(link))),
+      h("p", { class: "sp-credits", text: "Open source, under the MIT licence." })),
+    "Made by", "Zubair Bin Shaukat. Open source, under the MIT licence.",
+    "author made by credits github linkedin website portfolio contact licence license open source", true),
   ];
 }
 
-// ── Putting a section on show ─────────────────────────────────────────────────
+// ── Putting a category on show ────────────────────────────────────────────────
 
 const BUILD: Record<Section, () => Kid[]> = {
-  claude: claudeSection, general: generalSection, island: islandSection,
-  shelf: shelfSection, appearance: appearanceSection, about: aboutSection,
+  connect: connectSection, island: islandSection, look: lookSection, sounds: soundsSection,
+  agents: agentsSection, shortcuts: shortcutsSection, shelf: shelfSection, about: aboutSection,
 };
 
-let pane: HTMLElement | null = null;
+/**
+ * What a category does when it comes on show; what it returns, it does when
+ * it goes. Connect reads the files again, and forgets an open diff when left —
+ * as it always has. The island and Look carry the live preview between them.
+ */
+const ENTER: Partial<Record<Section, () => (() => void) | void>> = {
+  connect: () => {
+    void refreshClaude();
+    return () => {
+      // What was said of the last change, or an open diff, does not wait for the next visit.
+      for (const kind of CHANGES) flows[kind] = { at: "status" };
+      paintClaude();
+    };
+  },
+  island: () => {
+    metricPicker.refuse(null);
+    metricPicker.paint(false);
+    heads.get("island")!.after(folded.el);
+    return folded.run();
+  },
+  look: () => {
+    paintPreview(false);
+    heads.get("look")!.after(folded.el);
+    return folded.run();
+  },
+};
 
-function show(animate: boolean) {
-  for (const leave of leavers) leave();
-  leavers = [];
-  followers = [];
-  const next = h("div", { class: "sp-pane", id: "sp-pane", role: "tabpanel", "aria-labelledby": `tab-${section}` }, ...BUILD[section]());
-  const old = pane;
-  pane = next;
+const panes = new Map<Section, HTMLElement>();
+let shownPane: HTMLElement | null = null;
+let leaving: (() => void) | null = null;
+const leaveTimers = new Map<HTMLElement, number>();
+
+function setSection(next: Section, animate = true) {
+  if (query) clearSearch();
+  const pane = panes.get(next);
+  if (!pane || (next === section && shownPane === pane)) return;
+  leaving?.();
+  leaving = null;
+  const old = shownPane;
+  section = next;
+  shownPane = pane;
+
+  window.clearTimeout(leaveTimers.get(pane));
+  pane.classList.remove("leaving");
+  pane.inert = false;
+  pane.hidden = false;
+  pane.scrollTop = 0;
+  leaving = ENTER[next]?.() ?? null;
   if (old && animate && !still()) {
-    // The one leaving fades under the one arriving, then goes.
-    old.removeAttribute("id");
+    // The one leaving fades under the one arriving, then hides.
     old.classList.remove("entering");
     old.classList.add("leaving");
     old.inert = true;
-    window.setTimeout(() => old.remove(), 140);
-    next.classList.add("entering");
-  } else {
-    old?.remove();
+    leaveTimers.set(old, window.setTimeout(() => {
+      old.hidden = true;
+      old.classList.remove("leaving");
+      old.inert = false;
+    }, 140));
+    replay(pane, "entering");
+  } else if (old) {
+    old.hidden = true;
   }
-  main.append(next);
-  for (const [id, tab] of tabs) {
-    const on = id === section;
-    tab.setAttribute("aria-selected", String(on));
-    tab.tabIndex = on ? 0 : -1;
-  }
-  navMark.style.setProperty("--at", String(SECTIONS.indexOf(section)));
+  paintTabs();
+  placeMark();
   refreshBots();
-}
-
-function setSection(next: Section) {
-  if (next === section && pane) return;
-  section = next;
-  show(true);
-  if (next === "claude") void refreshClaude();
 }
 
 // ── Go ────────────────────────────────────────────────────────────────────────
@@ -1433,29 +1983,37 @@ async function start() {
   }
   shortcutsNow = statuses;
   paths = where;
-  if (nook.start && (SECTIONS as readonly string[]).includes(nook.start)) section = nook.start as Section;
   applyAppearance();
   versionLine.textContent = version ? `Version ${version}` : "";
 
+  // Every category, built once: the search finds a row in any of them.
+  for (const id of SECTIONS) {
+    building = id;
+    const pane = h("div", { class: "sp-pane", id: `pane-${id}`, role: "tabpanel", "aria-labelledby": `tab-${id}`, hidden: true }, ...BUILD[id]());
+    panes.set(id, pane);
+    main.append(pane);
+  }
+  main.append(results);
+
   clear(root);
-  root.append(
-    h("div", { class: "sp-app" },
-      h("nav", { class: "sp-side", "aria-label": "Settings" },
-        h("div", { class: "sp-brand" },
-          h("div", { class: "sp-nook", "aria-hidden": "true" }, sideBot.el),
-          h("div", { class: "sp-brand-text" }, h("b", { text: "Nook" }), versionLine)),
-        nav,
-        nook.fake ? h("div", { class: "sp-fake", text: "Fake data", title: "Nothing here is read from or written to this machine." }) : null),
-      main),
-    live,
-  );
-  show(false);
+  app.append(
+    h("nav", { class: "sp-side", "aria-label": "Settings" },
+      h("div", { class: "sp-brand" },
+        h("div", { class: "sp-nook", "aria-hidden": "true" }, sideBot.el),
+        h("div", { class: "sp-brand-text" }, h("b", { text: "Nook" }), versionLine)),
+      searchBox, searchOpen,
+      nav,
+      nook.fake ? h("div", { class: "sp-fake", text: "Fake data", title: "Nothing here is read from or written to this machine." }) : null),
+    main);
+  root.append(app, live);
+  setSection(sectionNamed(nook.start) ?? "connect", false);
+  paintResets();
   startBots(still);
 
   nook.onSettingsChanged(settingsChanged);
   systemDark.addEventListener("change", () => {
     applyAppearance();
-    for (const follow of followers) follow();
+    follow();
   });
   systemStill.addEventListener("change", applyAppearance);
   // The window lives hidden between two looks at it: what it shows of
@@ -1464,6 +2022,38 @@ async function start() {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void refreshClaude();
   });
+
+  if (nook.fake) await fakeStates();
+}
+
+/**
+ * The made-up window only: a state to start in, said in the address, so every
+ * page can be looked at — and captured — as it is: `details=hooks` opens a
+ * Connect part's Details, `diff=hooks` its diff, `reset=armed` arms the reset
+ * of the category on show, `q=volume` searches. `window.__shotReady` says the
+ * page is drawn (scripts/shot.mjs waits for it).
+ */
+async function fakeStates() {
+  const q = new URLSearchParams(location.search);
+  const kind = (name: string | null): Change | null => (CHANGES as readonly string[]).includes(name ?? "") ? (name as Change) : null;
+  const open = kind(q.get("details"));
+  if (open) {
+    detailsOpen[open] = true;
+    painters[open]?.();
+  }
+  const diff = kind(q.get("diff"));
+  if (diff) await openPreview(diff, q.get("install") !== "0");
+  if (q.get("reset") === "armed") resetArmers.get(section)?.();
+  const text = q.get("q");
+  if (text) {
+    searchInput.value = text;
+    app.classList.add("search-open");
+    runSearch(text);
+  }
+  await document.fonts.ready;
+  window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+    (window as unknown as { __shotReady?: boolean }).__shotReady = true;
+  }));
 }
 
 void start();

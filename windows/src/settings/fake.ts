@@ -7,13 +7,24 @@
 // file out altogether.
 //
 // What it starts as is said in the address:
-//   ?fake&section=claude|general|island|shelf|appearance|about
+//   ?fake&section=connect|island|look|sounds|agents|shortcuts|shelf|about
+//                 (the old claude, general and appearance still land: on
+//                 connect, island and look)
 //        &theme=light|dark|system  &motion=system|on|off
 //        &hooks=installed|none|legacy|both|relay|relay-none|unreadable
 //        &usage=none|installed|chained|other
 //        &reply=none|installed|outdated|unmarked|broken|missing
+//        &cursor=installed
 //        &shortcuts=ok|launch|off
 //        &size=560x680            (the page drawn at that size, as the window is)
+//        &chrome=0                (…without the frame and backdrop around it)
+// and, read by main.ts once the page is drawn:
+//        &q=volume                (searched for)
+//        &details=hooks|usage|reply|cursor   (that part's Details open)
+//        &diff=hooks|usage|reply|cursor      (its diff open; &install=0 for removing)
+//        &reset=armed             (the reset of the category on show, clicked once)
+// Nothing in it is random, and its timestamps are fixed: the same address draws
+// the same page, for screenshots.
 
 import type { CursorStatus, HookPreview, HookStatus, ReplyFormatStatus, ShortcutName, ShortcutStatus, UsageStatus } from "../core/bridge";
 import { DEFAULT_SETTINGS, type Settings } from "../core/state";
@@ -48,11 +59,8 @@ const TWICE = "Already another Nook shortcut — pick another";
 const HELD_ELSEWHERE = new Set(["Ctrl+Alt+T", "Ctrl+Shift+Escape"]);
 
 const wait = (ms = 120) => new Promise<void>((done) => window.setTimeout(done, ms));
-const stamp = () => {
-  const d = new Date();
-  const two = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}${two(d.getMonth() + 1)}${two(d.getDate())}-${two(d.getHours())}${two(d.getMinutes())}${two(d.getSeconds())}`;
-};
+/** A backup's date, as Rust writes it — always the same one here, so a screenshot is too. */
+const stamp = () => "20261006-091500";
 
 export function fakeBackend(): Backend {
   const q = new URLSearchParams(location.search);
@@ -273,11 +281,15 @@ export function fakeBackend(): Backend {
   };
 }
 
-/** `?size=560x680`: the page at the window's size, in a browser that cannot be made that small. */
+/**
+ * `?size=560x680`: the page at the window's size, in a browser that cannot be
+ * made that small — framed on a dark backdrop, or bare with `chrome=0`.
+ */
 function fakeFrame() {
-  const size = /^(\d{3,4})x(\d{3,4})$/.exec(new URLSearchParams(location.search).get("size") ?? "");
+  const q = new URLSearchParams(location.search);
+  const size = /^(\d{3,4})x(\d{3,4})$/.exec(q.get("size") ?? "");
   if (!size) return;
-  document.documentElement.classList.add("fake-frame");
+  if (q.get("chrome") !== "0") document.documentElement.classList.add("fake-frame");
   document.body.style.width = `${size[1]}px`;
   document.body.style.height = `${size[2]}px`;
 }
