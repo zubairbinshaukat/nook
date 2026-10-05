@@ -1,0 +1,77 @@
+<!doctype html>
+<!-- DEV ONLY (not in vite build). The Settings fake page drawn as a Windows-style window with a soft shadow,
+     on a transparent page, for scripts/shots.mjs. It forwards its own query to /settings.html (chrome=0 is
+     added), reads `size=WxH` for the window and sets window.__shotReady when the page inside is drawn.
+       /dev/settings-frame.html?fake&section=connect&theme=dark&size=760x600
+     `frame=0` leaves the title bar and shadow out (the bare window). Nothing here ships. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Settings frame</title>
+    <style>
+      html, body { margin: 0; background: transparent; }
+      body { padding: 56px; width: max-content; }
+      #frame {
+        --bar: #202020; --ink: #f3f3f3; --line: rgba(255, 255, 255, 0.16);
+        position: relative; display: block; overflow: hidden; border-radius: 9px; background: var(--bar);
+        box-shadow: 0 0 0 1px var(--line), 0 28px 70px rgba(0, 0, 0, 0.42), 0 6px 18px rgba(0, 0, 0, 0.28);
+      }
+      #frame.light { --bar: #f3f3f3; --ink: #1b1b1b; --line: rgba(0, 0, 0, 0.22); }
+      #frame.light { box-shadow: 0 0 0 1px var(--line), 0 28px 70px rgba(20, 20, 40, 0.28), 0 6px 18px rgba(20, 20, 40, 0.16); }
+      #bar { display: flex; align-items: center; height: 32px; padding-left: 12px; background: var(--bar); color: var(--ink);
+        font: 12px/1 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; user-select: none; }
+      #bar img { width: 16px; height: 16px; margin-right: 9px; }
+      #bar span { flex: 1; }
+      #bar svg { width: 46px; height: 32px; fill: none; stroke: var(--ink); stroke-width: 1; }
+      #frame.bare #bar { display: none; }
+      #frame.bare { box-shadow: none; border-radius: 0; }
+      iframe { display: block; border: 0; background: transparent; }
+    </style>
+  </head>
+  <body>
+    <div id="frame">
+      <div id="bar">
+        <img src="/src-tauri/icons/32x32.png" alt="" />
+        <span>Settings</span>
+        <svg viewBox="0 0 46 32"><path d="M18 16.5h10" /></svg>
+        <svg viewBox="0 0 46 32"><rect x="18.5" y="11.5" width="9" height="9" /></svg>
+        <svg viewBox="0 0 46 32"><path d="M18 11l10 10M28 11L18 21" /></svg>
+      </div>
+      <iframe id="win" title="Settings"></iframe>
+    </div>
+    <script>
+      const q = new URLSearchParams(location.search);
+      const size = /^(\d{3,4})x(\d{3,4})$/.exec(q.get("size") || "760x600") || [0, "760", "600"];
+      const frame = document.getElementById("frame");
+      const win = document.getElementById("win");
+      const dark = q.get("theme") !== "light";
+      frame.classList.add(dark ? "dark" : "light");
+      if (q.get("frame") === "0") frame.classList.add("bare");
+      win.width = size[1];
+      win.height = size[2];
+      const inner = new URLSearchParams(q);
+      inner.delete("frame");
+      inner.set("chrome", "0");
+      inner.set("size", size[1] + "x" + size[2]);
+      if (!inner.has("fake")) inner.set("fake", "");
+      win.src = "/settings.html?" + inner.toString();
+      // The "Fake data" badge says so in the app's dev page; on a screenshot it is noise.
+      let patched = false;
+      win.addEventListener("load", () => {
+        const s = win.contentDocument.createElement("style");
+        s.textContent = ".sp-fake { display: none !important; }";
+        win.contentDocument.head.appendChild(s);
+        patched = true;
+      });
+      const timer = setInterval(() => {
+        let ready = false;
+        try { ready = win.contentWindow.__shotReady === true && patched; } catch (e) { /* loading */ }
+        if (!ready) return;
+        const w = win.contentDocument.createTreeWalker(win.contentDocument.body, NodeFilter.SHOW_TEXT);
+        for (let n = w.nextNode(); n; n = w.nextNode()) n.nodeValue = n.nodeValue.replace('0.0.0-fake', '0.1.0');
+        clearInterval(timer);
+        window.__shotReady = true;
+      }, 50);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,504 @@
+{
+  "_": "Manifest of scripts/shots.mjs. See docs/screenshots.md. Fields: id, kind (auto|manual), used-in, page (stage|settings|agents), params, size (WxH), scale (percent), crop ({selector,pad} | {x,y,w,h}), variants, wallpaper, frame, alt, out, budgetKB, notes.",
+  "defaults": {
+    "size": "1600x900",
+    "scale": 100,
+    "wallpaper": "nook",
+    "variants": [
+      "dark",
+      "light"
+    ],
+    "budgetKB": 150
+  },
+  "shots": [
+    {
+      "id": "hero",
+      "kind": "auto",
+      "page": "stage",
+      "size": "1920x1080",
+      "budgetKB": 320,
+      "params": "home=4",
+      "used-in": [
+        "README.md"
+      ],
+      "out": "hero",
+      "alt": "Nook open at the top of a Windows desktop: one session needs permission, two are working, one is done, with CPU, GPU, RAM and Claude usage beside them.",
+      "notes": "The whole desktop, island open on Home with four sessions."
+    },
+    {
+      "id": "island-home",
+      "kind": "auto",
+      "page": "stage",
+      "params": "home=4",
+      "crop": {
+        "selector": "#island",
+        "pad": 40
+      },
+      "used-in": [
+        "guides/install",
+        "guides/first-run",
+        "README.md"
+      ],
+      "out": "island-home",
+      "alt": "The Nook island open on Home: a session card that needs permission, the working and done sessions, and CPU, GPU, RAM and Claude usage.",
+      "notes": "The island alone, with 40 px around it."
+    },
+    {
+      "id": "folded",
+      "kind": "auto",
+      "page": "stage",
+      "params": "home=4&fold=1",
+      "crop": {
+        "selector": "#compact",
+        "pad": 24
+      },
+      "used-in": [
+        "guides/first-run#tour"
+      ],
+      "out": "folded",
+      "alt": "The Nook island folded to a small pill: the character, a dot for each session, and the CPU, GPU, RAM and Claude usage readings.",
+      "notes": "The compact (folded) island alone with its metrics."
+    },
+    {
+      "id": "over-browser-tabs",
+      "kind": "auto",
+      "page": "stage",
+      "params": "home=4&scene=browser",
+      "crop": {
+        "x": 80,
+        "y": 0,
+        "w": 1440,
+        "h": 420
+      },
+      "used-in": [
+        "guides/first-run#auto-hide",
+        "README.md"
+      ],
+      "out": "over-browser-tabs",
+      "alt": "The Nook island floating over the tab strip of a browser window, so it never takes space from the page.",
+      "notes": "The island over a browser's tab strip."
+    },
+    {
+      "id": "over-terminal",
+      "kind": "auto",
+      "page": "stage",
+      "params": "view=session&scene=terminal",
+      "crop": {
+        "x": 160,
+        "y": 0,
+        "w": 1280,
+        "h": 560
+      },
+      "used-in": [
+        "guides/first-run#first-session"
+      ],
+      "out": "over-terminal",
+      "alt": "A Claude Code session open in the Nook island above a terminal window.",
+      "notes": "The session view over a terminal window."
+    },
+    {
+      "id": "over-editor",
+      "kind": "auto",
+      "page": "stage",
+      "params": "view=approval&diff=1&scene=editor&target=cursor",
+      "crop": {
+        "x": 160,
+        "y": 0,
+        "w": 1280,
+        "h": 460
+      },
+      "used-in": [
+        "guides/cursor#claude-in-cursor",
+        "README.md"
+      ],
+      "out": "over-editor",
+      "alt": "A permission request for an edit in the Nook island, with the changed lines as a diff and Deny and Allow buttons, above a code editor.",
+      "notes": "An edit approval with a diff over a code editor."
+    },
+    {
+      "id": "dock-bottom",
+      "kind": "auto",
+      "page": "stage",
+      "params": "home=4&dock=bottom",
+      "crop": {
+        "selector": "#island",
+        "pad": 70
+      },
+      "used-in": [
+        "guides/first-run#auto-hide",
+        "README.md"
+      ],
+      "out": "dock-bottom",
+      "alt": "Nook docked to the bottom edge of the screen, standing on the taskbar.",
+      "notes": "Island docked at the bottom, taskbar below."
+    },
+    {
+      "id": "dock-left",
+      "kind": "auto",
+      "page": "stage",
+      "params": "home=4&dock=left",
+      "crop": {
+        "selector": "#island",
+        "pad": 70
+      },
+      "used-in": [
+        "guides/first-run#auto-hide"
+      ],
+      "out": "dock-left",
+      "alt": "Nook docked to the left edge of the screen as a tall panel.",
+      "notes": "Island docked at the left edge."
+    },
+    {
+      "id": "approval-diff",
+      "kind": "auto",
+      "page": "stage",
+      "params": "view=approval&diff=1",
+      "crop": {
+        "selector": "#island",
+        "pad": 40
+      },
+      "used-in": [
+        "guides/first-run#approvals"
+      ],
+      "out": "approval-diff",
+      "alt": "An edit request in the island with the changed lines shown as a diff, removed lines in red and added lines in green.",
+      "notes": "An edit request with its diff."
+    },
+    {
+      "id": "question",
+      "kind": "auto",
+      "page": "stage",
+      "params": "view=question",
+      "crop": {
+        "selector": "#island",
+        "pad": 40
+      },
+      "used-in": [
+        "guides/first-run#approvals"
+      ],
+      "out": "question",
+      "alt": "A question from Claude Code in the island with the answer options as buttons.",
+      "notes": "A question with options."
+    },
+    {
+      "id": "session-agents",
+      "kind": "auto",
+      "page": "stage",
+      "params": "view=session&subagents=1&ask=none",
+      "crop": {
+        "selector": "#island",
+        "pad": 40
+      },
+      "used-in": [
+        "README.md"
+      ],
+      "out": "session-agents",
+      "alt": "A session page listing its subagents under the parent session, each with its own state.",
+      "notes": "A session with its subagents."
+    },
+    {
+      "id": "shelf",
+      "kind": "auto",
+      "page": "stage",
+      "params": "home=4&tab=shelf",
+      "crop": {
+        "selector": "#island",
+        "pad": 40
+      },
+      "used-in": [
+        "guides/shelf-widgets"
+      ],
+      "out": "shelf",
+      "alt": "The Shelf of the island with the six widget cards: To-do, Timer, Reminders, Media, Mirror and Projects.",
+      "notes": "The Shelf tab."
+    },
+    {
+      "id": "settings-connect",
+      "kind": "auto",
+      "page": "settings",
+      "size": "800x680",
+      "frame": true,
+      "params": "section=connect&hooks=none",
+      "used-in": [
+        "guides/first-run"
+      ],
+      "out": "settings-connect",
+      "alt": "Nook Settings on Connect: the Claude Code card says Not connected, with a Connect button.",
+      "notes": "Connect page before the hooks are installed."
+    },
+    {
+      "id": "settings-hooks-diff",
+      "kind": "auto",
+      "page": "settings",
+      "size": "800x680",
+      "frame": true,
+      "params": "section=connect&hooks=none&diff=hooks",
+      "used-in": [
+        "guides/first-run",
+        "guides/claude-code-hooks#safe-install"
+      ],
+      "out": "settings-hooks-diff",
+      "alt": "The preview of the change to settings.json, with added lines in green, the backup file name and a confirm button.",
+      "notes": "The diff preview with the backup path."
+    },
+    {
+      "id": "settings-usage-diff",
+      "kind": "auto",
+      "page": "settings",
+      "size": "800x680",
+      "frame": true,
+      "params": "section=connect&usage=none&diff=usage",
+      "used-in": [
+        "guides/first-run#usage-status-line"
+      ],
+      "out": "settings-usage-diff",
+      "alt": "The preview of the status line entry Nook would add to settings.json, with a confirm button.",
+      "notes": "The usage status line diff."
+    },
+    {
+      "id": "settings-cursor",
+      "kind": "auto",
+      "page": "settings",
+      "size": "800x680",
+      "frame": true,
+      "params": "section=connect&cursor=installed&details=cursor",
+      "used-in": [
+        "guides/cursor#setup"
+      ],
+      "out": "settings-cursor",
+      "alt": "Nook Settings on Connect with the Cursor entry set up and its details open.",
+      "notes": "Connect page with Cursor connected."
+    },
+    {
+      "id": "settings-island",
+      "kind": "auto",
+      "page": "settings",
+      "size": "800x680",
+      "frame": true,
+      "params": "section=island",
+      "used-in": [
+        "guides/troubleshooting#multi-monitor"
+      ],
+      "out": "settings-island",
+      "alt": "Nook Settings, Island page: where the island sits, which display it uses, its size and when it folds.",
+      "notes": "Island placement settings."
+    },
+    {
+      "id": "settings-look",
+      "kind": "auto",
+      "page": "settings",
+      "size": "800x680",
+      "frame": true,
+      "params": "section=look",
+      "used-in": [
+        "README.md"
+      ],
+      "out": "settings-look",
+      "alt": "Nook Settings, Look and colours page: theme, accent and the buddy.",
+      "notes": "Look and colours."
+    },
+    {
+      "id": "settings-shortcuts",
+      "kind": "auto",
+      "page": "settings",
+      "size": "800x680",
+      "frame": true,
+      "params": "section=shortcuts",
+      "used-in": [
+        "guides/first-run#shortcuts"
+      ],
+      "out": "settings-shortcuts",
+      "alt": "Nook Settings, Shortcuts page: the keyboard shortcuts for the large panel, the normal panel, jumping to a session, hiding and the agents list.",
+      "notes": "Shortcuts."
+    },
+    {
+      "id": "settings-shortcut-taken",
+      "kind": "auto",
+      "page": "settings",
+      "size": "800x680",
+      "frame": true,
+      "params": "section=shortcuts&shortcuts=launch",
+      "used-in": [
+        "guides/troubleshooting#shortcut-conflict"
+      ],
+      "out": "settings-shortcut-taken",
+      "alt": "Nook Settings, Shortcuts page, with a shortcut marked as already used by another app.",
+      "notes": "A shortcut another app holds."
+    },
+    {
+      "id": "settings-shelf",
+      "kind": "auto",
+      "page": "settings",
+      "size": "800x680",
+      "frame": true,
+      "params": "section=shelf",
+      "used-in": [
+        "guides/shelf-widgets#using-the-shelf"
+      ],
+      "out": "settings-shelf",
+      "alt": "Nook Settings, Shelf widgets page: switches for To-do, Timer, Reminders, Media, Mirror and Projects.",
+      "notes": "Shelf widget switches."
+    },
+    {
+      "id": "settings-about",
+      "kind": "auto",
+      "page": "settings",
+      "size": "800x680",
+      "frame": true,
+      "params": "section=about",
+      "used-in": [
+        "guides/troubleshooting#collect-logs"
+      ],
+      "out": "settings-about",
+      "alt": "Nook Settings, About and privacy page: the version, where Nook keeps its files and the privacy summary.",
+      "notes": "About and privacy."
+    },
+    {
+      "id": "install-release-page",
+      "kind": "manual",
+      "page": "web",
+      "size": "1280x720",
+      "variants": [],
+      "used-in": [
+        "guides/install"
+      ],
+      "out": "install-release-page",
+      "alt": "The latest release page on GitHub with Nook-Windows-0.1.0-setup.exe and SHA256SUMS.txt in the assets list.",
+      "notes": "Browser at github.com/zubairbinshaukat/nook/releases/latest, assets list expanded, the installer and SHA256SUMS.txt rows highlighted (a red or accent box). Crop to the page, no other tabs or bookmarks."
+    },
+    {
+      "id": "install-smartscreen",
+      "kind": "manual",
+      "page": "web",
+      "size": "960x640",
+      "variants": [],
+      "used-in": [
+        "guides/install",
+        "guides/troubleshooting#smartscreen"
+      ],
+      "out": "install-smartscreen",
+      "alt": "The Windows SmartScreen dialog 'Windows protected your PC' with More info expanded and the Run anyway button visible.",
+      "notes": "Run the installer on Windows 11: in the blue SmartScreen dialog click More info so the Run anyway button shows. Capture the dialog (Win+Shift+S, window snip). Needs the real Windows UI."
+    },
+    {
+      "id": "install-wizard",
+      "kind": "manual",
+      "page": "web",
+      "size": "700x520",
+      "variants": [],
+      "used-in": [
+        "guides/install#run-installer"
+      ],
+      "out": "install-wizard",
+      "alt": "The Nook installer wizard on its first page.",
+      "notes": "Run Nook-Windows-0.1.0-setup.exe past SmartScreen and capture the first page of the installer window (not the last). Window snip, 100 % scale."
+    },
+    {
+      "id": "tray-menu",
+      "kind": "manual",
+      "page": "web",
+      "size": "420x480",
+      "variants": [],
+      "used-in": [
+        "guides/install#run-installer",
+        "guides/troubleshooting#island-missing"
+      ],
+      "out": "tray-menu",
+      "alt": "The Nook icon in the Windows notification area with its context menu open.",
+      "notes": "Windows 11, dark taskbar, 100 % scale. Open the hidden-icons chevron, right-click the Nook icon so its menu is open, then snip the menu plus the icon row (Win+Shift+S rectangle). Needs the real tray."
+    },
+    {
+      "id": "log-folder",
+      "kind": "manual",
+      "page": "web",
+      "size": "900x520",
+      "variants": [],
+      "used-in": [
+        "guides/install#where-files",
+        "guides/troubleshooting#collect-logs"
+      ],
+      "out": "log-folder",
+      "alt": "File Explorer open at the Nook folder in LocalAppData, showing the log file and the bin folder.",
+      "notes": "File Explorer at %LOCALAPPDATA%\\Nook (type it in the address bar), details view so file names and sizes show. Hide your user name in the address bar if it is visible (blur or crop)."
+    },
+    {
+      "id": "hooks-in-claude-code",
+      "kind": "manual",
+      "page": "web",
+      "size": "1000x560",
+      "variants": [],
+      "used-in": [
+        "guides/claude-code-hooks#diagnose"
+      ],
+      "out": "hooks-in-claude-code",
+      "alt": "Claude Code's /hooks screen listing Nook's relay on the hook events.",
+      "notes": "Install the hooks, start `claude` in a terminal, type /hooks and capture the list that shows the nook-hook.exe entries. Use a dark terminal at a readable font size; crop to the list. Hide any private path."
+    },
+    {
+      "id": "cursor-hooks-panel",
+      "kind": "manual",
+      "page": "web",
+      "size": "1000x560",
+      "variants": [],
+      "used-in": [
+        "guides/cursor#setup"
+      ],
+      "out": "cursor-hooks-panel",
+      "alt": "Cursor's hooks settings showing Nook's entries after the install.",
+      "notes": "After Settings -> Cursor -> Install hooks and a restart of Cursor, open Cursor's Hooks view (Cursor Settings) and capture the list with Nook's entries. Crop to the panel."
+    },
+    {
+      "id": "camera-privacy",
+      "kind": "manual",
+      "page": "web",
+      "size": "900x560",
+      "variants": [],
+      "used-in": [
+        "guides/troubleshooting#camera"
+      ],
+      "out": "camera-privacy",
+      "alt": "Windows Settings, Privacy and security, Camera, with 'Let desktop apps access your camera' turned on.",
+      "notes": "Windows 11 Settings -> Privacy & security -> Camera, scrolled so the 'Let desktop apps access your camera' switch is visible and on. Light or dark, 100 % scale."
+    },
+    {
+      "id": "agents-list-real",
+      "kind": "manual",
+      "page": "web",
+      "size": "560x640",
+      "variants": [],
+      "used-in": [
+        "README.md"
+      ],
+      "out": "agents-list-real",
+      "alt": "The Nook agents list window next to a desktop, listing running sessions with their states.",
+      "notes": "In the real app turn on Settings -> Agents list with 3-4 real or fake-session sessions (npm run fake-session) so the small agents window shows rows. Snip the window with a bit of desktop around it; use the Nook wallpaper or a plain one. Not capturable in a plain browser."
+    },
+    {
+      "id": "real-approval-terminal",
+      "kind": "manual",
+      "page": "web",
+      "size": "1600x700",
+      "variants": [],
+      "used-in": [
+        "guides/first-run#approvals",
+        "README.md"
+      ],
+      "out": "real-approval-terminal",
+      "alt": "Claude Code asking for permission in a terminal while the real Nook island shows the same request at the top of the screen.",
+      "notes": "Real Windows 11 desktop, a Claude Code permission prompt waiting in Windows Terminal and the real island open on the same request above it (use a throwaway project; no private paths, no other windows). Crop to the top of the screen and the terminal."
+    },
+    {
+      "id": "cursor-session-list",
+      "kind": "manual",
+      "page": "web",
+      "size": "900x520",
+      "variants": [],
+      "used-in": [
+        "guides/cursor"
+      ],
+      "out": "cursor-session-list",
+      "alt": "The island's session list with Claude Code and Cursor rows, the filter chips and the sparkle and cube marks.",
+      "notes": "Real Nook with one Claude Code session and one Cursor agent session running (Cursor hooks installed). Open the island on Home / the session list so both rows show; snip the island with 30 px around it over the Nook wallpaper or a plain desktop."
+    }
+  ]
+}

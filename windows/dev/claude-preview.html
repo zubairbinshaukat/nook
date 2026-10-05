@@ -2,87 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Nook — Claude Code session preview</title>
-    <style>
-      /* A desktop-ish backdrop so the black island reads as it does on screen. */
-      html, body { background: #2a2d34 !important; }
-      #links { position: fixed; bottom: 12px; left: 0; right: 0; text-align: center; font: 12px system-ui; }
-      #links a { color: #c5c8cd; margin: 0 8px; }
-    </style>
+    <!-- The page is a screenshot stage: its layers, sidebar and options are dev/stage/ (see dev/README.md). -->
   </head>
   <body>
     <div id="root"></div>
-    <div id="links">
-      <a href="?view=overview">At work</a>
-      <a href="?view=session&amp;live=1">Writing a file</a>
-      <a href="?view=session">The file written last</a>
-      <a href="?view=session&amp;list=1">Changes</a>
-      <a href="?view=session&amp;list=1&amp;file=1">A file's diff</a>
-      <a href="?view=session&amp;idle=1">Session stopped</a>
-      <a href="?view=question">Question</a>
-      <a href="?view=question&amp;multi=1">Question, several answers</a>
-      <a href="?view=question&amp;many=1">Three questions</a>
-      <a href="?view=approval">Permission</a>
-      <a href="?view=approval&amp;diff=1">Permission, an edit</a>
-      <a href="?view=finished">Finished</a>
-      <a href="?view=session&amp;answered=1">What Claude said</a>
-      <br />
-      Replies:
-      <a href="?view=session&amp;reply=1&amp;target=vscode">Everything, in VS Code</a>
-      <a href="?view=session&amp;reply=1&amp;target=cursor">In Cursor</a>
-      <a href="?view=session&amp;reply=1&amp;target=wt">In a terminal</a>
-      <a href="?view=session&amp;reply=long&amp;target=vscode">A very long reply, cut</a>
-      <a href="?view=finished&amp;reply=1&amp;target=vscode">Finished card: Read reply</a>
-      <a href="?home=4&amp;decision=1">Home: needs your decision</a>
-      <a href="?home=1&amp;decision=main">Home: the bot's card</a>
-      <a href="?home=4&amp;decision=1&amp;fold=1">Folded</a>
-      <br />
-      <a href="?view=session&amp;subagents=1&amp;sessions=1">Subagents</a>
-      <a href="?view=approval&amp;subagents=1">A subagent asks</a>
-      <a href="?view=approval&amp;subagents=1&amp;queued=1">Two subagents ask</a>
-      <a href="?view=question&amp;subagents=1&amp;ask=question">A subagent's question</a>
-      <a href="?view=session&amp;subagents=1&amp;ask=none&amp;stop=early">Stop, subagents still running</a>
-      <a href="?view=session&amp;subagents=1&amp;ask=none&amp;stop=real">The turn really ends</a>
-      <a href="?view=session&amp;subagents=1&amp;ids=missing">No agent ids</a>
-      <br />
-      Home:
-      <a href="?home=0">0</a>
-      <a href="?home=0&amp;hooks=0">0, no hooks</a>
-      <a href="?home=1">1</a>
-      <a href="?home=4">4</a>
-      <a href="?home=8">8</a>
-      <a href="?home=needs">8 asking</a>
-      <a href="?home=long">Long name</a>
-      <a href="?home=4&amp;subs=two">2 subagents</a>
-      <a href="?home=4&amp;subs=asking">A subagent asks</a>
-      <a href="?home=4&amp;subs=stopped">Stopped, subagents run</a>
-      <a href="?home=4&amp;usage=stale">Usage stale</a>
-      <a href="?home=4&amp;usage=reset">Usage reset</a>
-      <a href="?home=4&amp;usage=soon">Resets in 20 s</a>
-      <a href="?home=4&amp;usage=old">Usage 3 h old</a>
-      <a href="?home=4&amp;usage=none">No usage</a>
-      <a href="?home=4&amp;usage=off">Usage off</a>
-      <a href="?home=4&amp;metrics=wait">No CPU yet</a>
-      <br />
-      Folded:
-      <a href="?home=6&amp;fold=1&amp;metrics=worst&amp;usage=worst">Worst case</a>
-      <a href="?home=4&amp;fold=1&amp;cells=none">0 metrics</a>
-      <a href="?home=0&amp;fold=1">0 sessions</a>
-      <a href="?home=9&amp;fold=1">9 sessions</a>
-      <a href="?home=9&amp;fold=1&amp;screen=800">Narrow screen</a>
-      <a href="?home=4&amp;fold=1&amp;light=1">Light</a>
-      <a href="?home=4&amp;fold=1&amp;light=1&amp;zoom=1.25">Light, 125 %</a>
-      <a href="?home=4&amp;light=1&amp;zoom=1.25">Home, light, 125 %</a>
-      <br />
-      Shelf:
-      <a href="?home=4&amp;tab=shelf">Shelf</a>
-      <a href="?home=4&amp;tab=shelf&amp;hidden=all">Every widget hidden</a>
-      <a href="?home=4&amp;tab=shelf&amp;hidden=mirror,media">Two hidden</a>
-      <a href="?home=4&amp;tab=shelf&amp;order=projects,timer,reminders">Another order</a>
-      <a href="?home=4&amp;tab=shelf&amp;zoom=1.25">125 %</a>
-      <a href="?home=4&amp;tab=shelf&amp;motion=reduce">Reduced motion</a>
-      <a href="?home=4&amp;tab=shelf&amp;check=swipe">Swipe self-check</a>
-    </div>
     <script type="module" src="./claude-preview.ts"></script>
   </body>
 </html>

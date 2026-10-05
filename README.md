@@ -48,6 +48,34 @@ telemetry.
 > Nook is an independent project. It is not affiliated with or endorsed by
 > Anthropic or Cursor.
 
+## Screenshots
+
+<div align="center">
+
+<picture><source media="(prefers-color-scheme: light)" srcset="site/assets/img/shots/hero-light.webp"><img src="site/assets/img/shots/hero-dark.webp" alt="Nook open at the top of a Windows desktop: one session needs permission, two are working, one is done, with CPU, GPU, RAM and Claude usage beside them." width="860"></picture>
+
+</div>
+
+<table>
+<tr>
+<td width="50%"><picture><source media="(prefers-color-scheme: light)" srcset="site/assets/img/shots/over-browser-tabs-light.webp"><img src="site/assets/img/shots/over-browser-tabs-dark.webp" alt="The Nook island floating over the tab strip of a browser window, so it never takes space from the page." width="420"></picture><br><sub>Over a browser's tabs, never in the way.</sub></td>
+<td width="50%"><picture><source media="(prefers-color-scheme: light)" srcset="site/assets/img/shots/over-editor-light.webp"><img src="site/assets/img/shots/over-editor-dark.webp" alt="A permission request for an edit in the Nook island, with the changed lines as a diff and Deny and Allow buttons, above a code editor." width="420"></picture><br><sub>An edit request with its diff, over an editor.</sub></td>
+</tr>
+<tr>
+<td width="50%"><picture><source media="(prefers-color-scheme: light)" srcset="site/assets/img/shots/dock-bottom-light.webp"><img src="site/assets/img/shots/dock-bottom-dark.webp" alt="Nook docked to the bottom edge of the screen, standing on the taskbar." width="420"></picture><br><sub>Docked to the bottom edge.</sub></td>
+<td width="50%"><picture><source media="(prefers-color-scheme: light)" srcset="site/assets/img/shots/session-agents-light.webp"><img src="site/assets/img/shots/session-agents-dark.webp" alt="A session page listing its subagents under the parent session, each with its own state." width="420"></picture><br><sub>A session and its subagents.</sub></td>
+</tr>
+<tr>
+<td colspan="2" align="center"><picture><source media="(prefers-color-scheme: light)" srcset="site/assets/img/shots/settings-look-light.webp"><img src="site/assets/img/shots/settings-look-dark.webp" alt="Nook Settings, Look and colours page: theme, accent and the buddy." width="520"></picture><br><sub>Settings: colours, island, shortcuts and more.</sub></td>
+</tr>
+</table>
+
+<!-- TODO screenshot: real-approval-terminal (see docs/screenshots.md) -->
+<!-- TODO screenshot: agents-list-real (see docs/screenshots.md) -->
+
+The images change with your GitHub theme. They are made by 
+pm run shots from a
+fake desktop and made-up sessions: see [docs/screenshots.md](docs/screenshots.md).
 ## Features
 
 | | |
@@ -88,7 +116,7 @@ on as if Nook were not installed. Nook never blocks an agent.
 3. Run the installer. It installs for your user, with no admin rights. The
    installer is not code-signed yet, so SmartScreen may say "Windows protected
    your PC": choose **More info**, then **Run anyway**.
-4. Open **Settings → Claude Code → Install hooks** and click through the
+4. Open **Settings → Connect → Connect…** and click through the
    preview. Start a new Claude Code session and it appears in the island.
 
 Step-by-step guides, with fixes for common problems, are on
@@ -106,7 +134,7 @@ report the false positive to Microsoft at
 
 ## Cursor
 
-Settings → **Cursor** → **Install hooks** writes Nook's entries to
+Settings → **Connect** → **Cursor** → **Connect…** writes Nook's entries to
 `~/.cursor/hooks.json`, after a diff preview and a dated backup. Nook follows
 only the events that cannot change what Cursor does, so it can never allow,
 deny or delay anything there. Restart Cursor afterwards. Details in

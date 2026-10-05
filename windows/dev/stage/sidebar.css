@@ -1,0 +1,54 @@
+/* The stage's sidebar. It overlays the page; hidden, it is not rendered at all
+   (visibility), so it has no scrollbar, no focus ring and no hover. Colours are
+   written out: it must look the same on any theme of the stage. */
+
+.sb {
+  position: fixed; z-index: 50; top: 0; left: 0; bottom: 0; width: 320px; display: flex; flex-direction: column;
+  background: rgba(17, 18, 21, 0.97); color: #d5d8de; border-right: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 14px 0 40px rgba(0, 0, 0, 0.35);
+  font: 400 12.5px/1.4 system-ui, "Segoe UI Variable Text", "Segoe UI", sans-serif; cursor: default;
+  transform: translateX(-102%); visibility: hidden; transition: transform 0.18s ease-out, visibility 0s linear 0.18s;
+}
+html[data-sb="open"] .sb { transform: none; visibility: visible; transition: transform 0.18s ease-out; }
+
+.sb-head { display: flex; align-items: baseline; gap: 10px; padding: 14px 16px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.sb-head b { font-size: 14px; font-weight: 600; color: #f5f6f8; }
+.sb-head span { color: #7d838d; font-size: 12px; }
+.sb-x { margin-left: auto; width: 24px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: #9da2ab; font-size: 18px; line-height: 1; cursor: pointer; }
+.sb-x:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+
+.sb-scroll { flex: 1; overflow-y: auto; padding: 4px 16px 24px; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.18) transparent; }
+.sb-group { padding: 14px 0 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.sb-group:last-child { border-bottom: 0; }
+.sb-group h2 { margin: 0 0 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #8fb4ff; }
+.sb-group h3 { margin: 12px 0 6px; font-size: 11.5px; font-weight: 500; color: #7d838d; }
+.sb-row { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+.sb-row label { flex: 0 0 84px; padding-top: 5px; color: #9da2ab; font-size: 12px; }
+.sb-opts { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.sb-wrap { margin-bottom: 4px; }
+
+.sb-chip {
+  appearance: none; font: 500 11.5px system-ui, "Segoe UI Variable Text", "Segoe UI", sans-serif; padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 999px; background: transparent; color: #d5d8de; cursor: pointer;
+}
+.sb-chip:hover { background: rgba(255, 255, 255, 0.1); }
+.sb-chip.on { background: #f5f6f8; border-color: #f5f6f8; color: #0b0c0e; }
+.sb-chip:focus-visible, .sb-in:focus-visible, .sb-x:focus-visible, .sb-toggle:focus-visible { outline: 2px solid #8fb4ff; outline-offset: 1px; }
+
+.sb-in {
+  height: 26px; padding: 0 9px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 7px; background: rgba(255, 255, 255, 0.05);
+  color: #f1f2f4; font: 12px ui-monospace, "Cascadia Mono", Consolas, monospace; user-select: text;
+}
+.sb-in.wide { width: 100%; margin-top: 4px; }
+.sb-in::placeholder { color: #5f646d; }
+
+.sb-toggle {
+  position: fixed; z-index: 49; top: 8px; right: 8px; width: 28px; height: 28px; padding: 0; display: grid; place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 8px; background: rgba(17, 18, 21, 0.72); color: #d5d8de; opacity: 0.55; cursor: pointer;
+}
+.sb-toggle:hover { opacity: 1; }
+.sb-toggle[hidden] { display: none; }
+
+.sb-fold { margin: 2px 0; }
+.sb-fold summary { padding: 5px 0; font-size: 11.5px; font-weight: 500; color: #9da2ab; cursor: pointer; }
+.sb-fold[open] summary { color: #d5d8de; }

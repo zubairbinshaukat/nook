@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- Nook's stage wallpaper, drawn procedurally (WebGL, no dependency, no network).
+     Open it straight from disk or from the dev server (http://127.0.0.1:1420/dev/stage/wallpaper-gen/?theme=light&fit=1)
+     to look at it, or let `node scripts/make-wallpaper.mjs` render both JPEGs into dev/stage/wallpapers/.
+     Keys: theme=dark|light, seed=<int> (default 1), w, h (default 3840x2400), fit=1 (scale the canvas to the window). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nook wallpaper</title>
+<style>
+  html, body { margin: 0; background: #0b0d10; }
+  canvas { display: block; }
+  body.fit canvas { width: 100vw; height: auto; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script src="./gen.js"></script>
+</body>
+</html>

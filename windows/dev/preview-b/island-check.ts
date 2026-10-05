@@ -7,7 +7,7 @@
 
 import { compactPlan, compactSlots, reading, type Gauges } from "../../src/island/compact";
 import {
-  FOLDED_AUTO_HIDE, State, USAGE_OLD_MS, USAGE_RESET_WORDS, foldedAutoHide, keepKnown, nextUsageReset, resetCountdown, usageShown,
+  FOLDED_AUTO_HIDE, State, USAGE_OLD_MS, USAGE_RESET_WORDS, USAGE_SOURCE_WORDS, foldedAutoHide, keepKnown, nextUsageReset, resetCountdown, usageShown,
   type Metrics, type Usage,
 } from "../../src/core/state";
 import { IslandStateMachine, type FsmTimers } from "../../src/island/fsm";
@@ -51,10 +51,11 @@ export function checkSlots() {
   // Nothing known: every cell is there, and says "—" (the count of sessions waiting is always known).
   for (const kind of ["cpu", "gpu", "ram", "usage5h", "usage7d"] as const) t.same(`nothing known: ${kind}`, reading(kind, none).text, "—");
   t.same("nothing known: waiting", reading("waiting", none).text, "0");
-  const known: Gauges = { metrics: sample, usage, waiting: 3 };
+  // `now: 0` is the moment the sample's usage was reported, so it is fresh; the tooltip is the source note (no reset time was said).
+  const known: Gauges = { metrics: sample, usage, waiting: 3, now: 0 };
   t.same("cpu", reading("cpu", known).text, "31%");
   t.same("ram", reading("ram", known), { text: "50%", more: "8.0 of 16.0 GB" });
-  t.same("5-hour usage, coloured", reading("usage5h", known), { text: "70%", level: "warm" });
+  t.same("5-hour usage, coloured", reading("usage5h", known), { text: "70%", more: USAGE_SOURCE_WORDS, level: "warm", dim: false });
   t.same("7-day usage", reading("usage7d", known).text, "12%");
   t.same("waiting", reading("waiting", known).text, "3");
 
@@ -348,7 +349,8 @@ export function checkUsage() {
   t.same("two hours old, to the millisecond, is not old yet", usageShown(win, at - USAGE_OLD_MS, at)?.state, "fresh");
   t.same("past two hours it is old, and still the number", usageShown(win, at - USAGE_OLD_MS - 1, at), { percent: 83, state: "old", countdown: "resets in 2h 14m" });
   // Around the reset.
-  t.same("a millisecond before: still the number", usageShown(win, at, win.resetsAt - 1), { percent: 83, state: "fresh", countdown: "resets in <1m" });
+  // (reported a minute before, so it is not hours old: the reset is what is being tested)
+  t.same("a millisecond before: still the number", usageShown(win, win.resetsAt - MIN, win.resetsAt - 1), { percent: 83, state: "fresh", countdown: "resets in <1m" });
   t.same("at the reset: 0 %, waiting", usageShown(win, at, win.resetsAt), { percent: 0, state: "reset", countdown: USAGE_RESET_WORDS });
   t.same("after it, however fresh the report was", usageShown(win, win.resetsAt + MIN - 1, win.resetsAt + MIN)?.state, "reset");
   t.same("reset wins over old", usageShown(win, at - 9 * HOUR, win.resetsAt + HOUR)?.state, "reset");

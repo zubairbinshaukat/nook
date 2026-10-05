@@ -18,3 +18,9 @@ _prive/
 
 # Nook planning notes (local only)
 plans/
+
+# Screenshots made by windows/scripts/shot.mjs
+windows/shots/
+
+# Microsoft's Windows 11 Bloom wallpapers for the screenshot stage: local only, never committed or shipped
+windows/dev/stage/assets/

@@ -556,6 +556,15 @@ svg.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-l
   background:repeating-linear-gradient(135deg,transparent 0 14px,color-mix(in srgb,var(--ink) 3.5%,transparent) 14px 28px)}
 .shot-box b{color:var(--ink)}
 .shot figcaption{margin-top:10px;font-size:14px;color:var(--dim)}
+/* Real screenshots (scripts/shots.mjs): a dark and a light image, one shown, following the same theme switch as the tokens. */
+.shot-pair{width:fit-content;max-width:100%}
+.shot-img{display:block;max-width:100%;height:auto;border-radius:14px;border:1px solid var(--line);box-shadow:0 14px 36px -18px rgba(0,0,0,.5)}
+.shot-light{display:none}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .shot-dark{display:none}:root:not([data-theme="dark"]) .shot-light{display:block}}
+:root[data-theme="light"] .shot-dark{display:none}:root[data-theme="light"] .shot-light{display:block}
+:root[data-theme="dark"] .shot-dark{display:block}:root[data-theme="dark"] .shot-light{display:none}
+.shot-frame .shot-img{border:0;border-radius:0;box-shadow:none}
+@media print{.shot-img{box-shadow:none}}
 .prose .fix{display:grid;gap:10px;margin:1em 0 0;padding:0}
 .fix>div{display:grid;grid-template-columns:92px minmax(0,1fr);gap:14px;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
 .fix>div:nth-child(1){--c:var(--need)}.fix>div:nth-child(2){--c:var(--thinking)}.fix>div:nth-child(3){--c:var(--done)}

@@ -12,10 +12,15 @@ What Nook ships instead is its own:
   `windows/scripts/gen-icons.mjs`;
 - **the sounds** in `windows/sounds/`, synthesized from plain sine and triangle
   tones by `windows/scripts/make-sounds.mjs`; nothing in them is sampled;
+- **the wallpapers** of the screenshot stage, `windows/dev/stage/wallpapers/nook-dark.jpg` and
+  `nook-light.jpg`, drawn procedurally by the shader in `windows/dev/stage/wallpaper-gen/` and rendered by
+  `windows/scripts/make-wallpaper.mjs`; no photo, render or other picture went into them (the optional
+  Windows 11 Bloom wallpaper the stage can show is Microsoft's, stays on the developer's machine and is
+  never committed);
 - **the interface icons**, which come from Lucide and Simple Icons under their
   own licences (see [NOTICE](NOTICE)).
 
-Gullu, the icons and the sounds are original to Nook and are covered by the
+Gullu, the icons, the sounds and the wallpapers are original to Nook and are covered by the
 same MIT licence as the code. The name "Nook" and the look of Gullu are the
 project's; if you fork Nook to ship your own app, give it your own name and icon.
 

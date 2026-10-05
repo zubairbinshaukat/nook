@@ -1,0 +1,398 @@
+[
+  {
+    "id": "approval-diff",
+    "variant": "dark",
+    "file": "approval-diff-dark.webp",
+    "width": 720,
+    "height": 360,
+    "bytes": 21030,
+    "alt": "An edit request in the island with the changed lines shown as a diff, removed lines in red and added lines in green."
+  },
+  {
+    "id": "approval-diff",
+    "variant": "light",
+    "file": "approval-diff-light.webp",
+    "width": 720,
+    "height": 360,
+    "bytes": 20344,
+    "alt": "An edit request in the island with the changed lines shown as a diff, removed lines in red and added lines in green."
+  },
+  {
+    "id": "dock-bottom",
+    "variant": "dark",
+    "file": "dock-bottom-dark.webp",
+    "width": 780,
+    "height": 366,
+    "bytes": 30440,
+    "alt": "Nook docked to the bottom edge of the screen, standing on the taskbar."
+  },
+  {
+    "id": "dock-bottom",
+    "variant": "light",
+    "file": "dock-bottom-light.webp",
+    "width": 780,
+    "height": 366,
+    "bytes": 28156,
+    "alt": "Nook docked to the bottom edge of the screen, standing on the taskbar."
+  },
+  {
+    "id": "dock-left",
+    "variant": "dark",
+    "file": "dock-left-dark.webp",
+    "width": 390,
+    "height": 562,
+    "bytes": 22890,
+    "alt": "Nook docked to the left edge of the screen as a tall panel."
+  },
+  {
+    "id": "dock-left",
+    "variant": "light",
+    "file": "dock-left-light.webp",
+    "width": 390,
+    "height": 562,
+    "bytes": 21346,
+    "alt": "Nook docked to the left edge of the screen as a tall panel."
+  },
+  {
+    "id": "folded",
+    "variant": "dark",
+    "file": "folded-dark.webp",
+    "width": 352,
+    "height": 62,
+    "bytes": 2962,
+    "alt": "The Nook island folded to a small pill: the character, a dot for each session, and the CPU, GPU, RAM and Claude usage readings."
+  },
+  {
+    "id": "folded",
+    "variant": "light",
+    "file": "folded-light.webp",
+    "width": 352,
+    "height": 62,
+    "bytes": 3054,
+    "alt": "The Nook island folded to a small pill: the character, a dot for each session, and the CPU, GPU, RAM and Claude usage readings."
+  },
+  {
+    "id": "hero",
+    "variant": "dark",
+    "file": "hero-dark.webp",
+    "width": 1920,
+    "height": 1080,
+    "bytes": 128344,
+    "alt": "Nook open at the top of a Windows desktop: one session needs permission, two are working, one is done, with CPU, GPU, RAM and Claude usage beside them."
+  },
+  {
+    "id": "hero",
+    "variant": "light",
+    "file": "hero-light.webp",
+    "width": 1920,
+    "height": 1080,
+    "bytes": 107858,
+    "alt": "Nook open at the top of a Windows desktop: one session needs permission, two are working, one is done, with CPU, GPU, RAM and Claude usage beside them."
+  },
+  {
+    "id": "island-home",
+    "variant": "dark",
+    "file": "island-home-dark.webp",
+    "width": 720,
+    "height": 288,
+    "bytes": 19214,
+    "alt": "The Nook island open on Home: a session card that needs permission, the working and done sessions, and CPU, GPU, RAM and Claude usage."
+  },
+  {
+    "id": "island-home",
+    "variant": "light",
+    "file": "island-home-light.webp",
+    "width": 720,
+    "height": 288,
+    "bytes": 18706,
+    "alt": "The Nook island open on Home: a session card that needs permission, the working and done sessions, and CPU, GPU, RAM and Claude usage."
+  },
+  {
+    "id": "over-browser-tabs",
+    "variant": "dark",
+    "file": "over-browser-tabs-dark.webp",
+    "width": 1440,
+    "height": 420,
+    "bytes": 35742,
+    "alt": "The Nook island floating over the tab strip of a browser window, so it never takes space from the page."
+  },
+  {
+    "id": "over-browser-tabs",
+    "variant": "light",
+    "file": "over-browser-tabs-light.webp",
+    "width": 1440,
+    "height": 420,
+    "bytes": 36714,
+    "alt": "The Nook island floating over the tab strip of a browser window, so it never takes space from the page."
+  },
+  {
+    "id": "over-editor",
+    "variant": "dark",
+    "file": "over-editor-dark.webp",
+    "width": 1280,
+    "height": 460,
+    "bytes": 31344,
+    "alt": "A permission request for an edit in the Nook island, with the changed lines as a diff and Deny and Allow buttons, above a code editor."
+  },
+  {
+    "id": "over-editor",
+    "variant": "light",
+    "file": "over-editor-light.webp",
+    "width": 1280,
+    "height": 460,
+    "bytes": 32322,
+    "alt": "A permission request for an edit in the Nook island, with the changed lines as a diff and Deny and Allow buttons, above a code editor."
+  },
+  {
+    "id": "over-terminal",
+    "variant": "dark",
+    "file": "over-terminal-dark.webp",
+    "width": 1280,
+    "height": 560,
+    "bytes": 51692,
+    "alt": "A Claude Code session open in the Nook island above a terminal window."
+  },
+  {
+    "id": "over-terminal",
+    "variant": "light",
+    "file": "over-terminal-light.webp",
+    "width": 1280,
+    "height": 560,
+    "bytes": 50498,
+    "alt": "A Claude Code session open in the Nook island above a terminal window."
+  },
+  {
+    "id": "question",
+    "variant": "dark",
+    "file": "question-dark.webp",
+    "width": 720,
+    "height": 331,
+    "bytes": 21268,
+    "alt": "A question from Claude Code in the island with the answer options as buttons."
+  },
+  {
+    "id": "question",
+    "variant": "light",
+    "file": "question-light.webp",
+    "width": 720,
+    "height": 331,
+    "bytes": 20798,
+    "alt": "A question from Claude Code in the island with the answer options as buttons."
+  },
+  {
+    "id": "session-agents",
+    "variant": "dark",
+    "file": "session-agents-dark.webp",
+    "width": 800,
+    "height": 360,
+    "bytes": 31768,
+    "alt": "A session page listing its subagents under the parent session, each with its own state."
+  },
+  {
+    "id": "session-agents",
+    "variant": "light",
+    "file": "session-agents-light.webp",
+    "width": 800,
+    "height": 360,
+    "bytes": 30704,
+    "alt": "A session page listing its subagents under the parent session, each with its own state."
+  },
+  {
+    "id": "settings-about",
+    "variant": "dark",
+    "file": "settings-about-dark.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 51578,
+    "alt": "Nook Settings, About and privacy page: the version, where Nook keeps its files and the privacy summary."
+  },
+  {
+    "id": "settings-about",
+    "variant": "light",
+    "file": "settings-about-light.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 54768,
+    "alt": "Nook Settings, About and privacy page: the version, where Nook keeps its files and the privacy summary."
+  },
+  {
+    "id": "settings-connect",
+    "variant": "dark",
+    "file": "settings-connect-dark.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 50884,
+    "alt": "Nook Settings on Connect: the Claude Code card says Not connected, with a Connect button."
+  },
+  {
+    "id": "settings-connect",
+    "variant": "light",
+    "file": "settings-connect-light.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 54540,
+    "alt": "Nook Settings on Connect: the Claude Code card says Not connected, with a Connect button."
+  },
+  {
+    "id": "settings-cursor",
+    "variant": "dark",
+    "file": "settings-cursor-dark.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 51446,
+    "alt": "Nook Settings on Connect with the Cursor entry set up and its details open."
+  },
+  {
+    "id": "settings-cursor",
+    "variant": "light",
+    "file": "settings-cursor-light.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 54520,
+    "alt": "Nook Settings on Connect with the Cursor entry set up and its details open."
+  },
+  {
+    "id": "settings-hooks-diff",
+    "variant": "dark",
+    "file": "settings-hooks-diff-dark.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 69514,
+    "alt": "The preview of the change to settings.json, with added lines in green, the backup file name and a confirm button."
+  },
+  {
+    "id": "settings-hooks-diff",
+    "variant": "light",
+    "file": "settings-hooks-diff-light.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 72118,
+    "alt": "The preview of the change to settings.json, with added lines in green, the backup file name and a confirm button."
+  },
+  {
+    "id": "settings-island",
+    "variant": "dark",
+    "file": "settings-island-dark.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 53276,
+    "alt": "Nook Settings, Island page: where the island sits, which display it uses, its size and when it folds."
+  },
+  {
+    "id": "settings-island",
+    "variant": "light",
+    "file": "settings-island-light.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 56504,
+    "alt": "Nook Settings, Island page: where the island sits, which display it uses, its size and when it folds."
+  },
+  {
+    "id": "settings-look",
+    "variant": "dark",
+    "file": "settings-look-dark.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 50452,
+    "alt": "Nook Settings, Look and colours page: theme, accent and the buddy."
+  },
+  {
+    "id": "settings-look",
+    "variant": "light",
+    "file": "settings-look-light.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 53596,
+    "alt": "Nook Settings, Look and colours page: theme, accent and the buddy."
+  },
+  {
+    "id": "settings-shelf",
+    "variant": "dark",
+    "file": "settings-shelf-dark.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 56686,
+    "alt": "Nook Settings, Shelf widgets page: switches for To-do, Timer, Reminders, Media, Mirror and Projects."
+  },
+  {
+    "id": "settings-shelf",
+    "variant": "light",
+    "file": "settings-shelf-light.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 58766,
+    "alt": "Nook Settings, Shelf widgets page: switches for To-do, Timer, Reminders, Media, Mirror and Projects."
+  },
+  {
+    "id": "settings-shortcut-taken",
+    "variant": "dark",
+    "file": "settings-shortcut-taken-dark.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 59358,
+    "alt": "Nook Settings, Shortcuts page, with a shortcut marked as already used by another app."
+  },
+  {
+    "id": "settings-shortcut-taken",
+    "variant": "light",
+    "file": "settings-shortcut-taken-light.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 62876,
+    "alt": "Nook Settings, Shortcuts page, with a shortcut marked as already used by another app."
+  },
+  {
+    "id": "settings-shortcuts",
+    "variant": "dark",
+    "file": "settings-shortcuts-dark.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 57908,
+    "alt": "Nook Settings, Shortcuts page: the keyboard shortcuts for the large panel, the normal panel, jumping to a session, hiding and the agents list."
+  },
+  {
+    "id": "settings-shortcuts",
+    "variant": "light",
+    "file": "settings-shortcuts-light.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 61414,
+    "alt": "Nook Settings, Shortcuts page: the keyboard shortcuts for the large panel, the normal panel, jumping to a session, hiding and the agents list."
+  },
+  {
+    "id": "settings-usage-diff",
+    "variant": "dark",
+    "file": "settings-usage-diff-dark.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 57940,
+    "alt": "The preview of the status line entry Nook would add to settings.json, with a confirm button."
+  },
+  {
+    "id": "settings-usage-diff",
+    "variant": "light",
+    "file": "settings-usage-diff-light.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 60950,
+    "alt": "The preview of the status line entry Nook would add to settings.json, with a confirm button."
+  },
+  {
+    "id": "shelf",
+    "variant": "dark",
+    "file": "shelf-dark.webp",
+    "width": 952,
+    "height": 252,
+    "bytes": 14890,
+    "alt": "The Shelf of the island with the six widget cards: To-do, Timer, Reminders, Media, Mirror and Projects."
+  },
+  {
+    "id": "shelf",
+    "variant": "light",
+    "file": "shelf-light.webp",
+    "width": 952,
+    "height": 252,
+    "bytes": 14378,
+    "alt": "The Shelf of the island with the six widget cards: To-do, Timer, Reminders, Media, Mirror and Projects."
+  }
+]
