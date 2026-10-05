@@ -109,7 +109,7 @@ on as if Nook were not installed. Nook never blocks an agent.
 2. Check the download:
 
    ```powershell
-   Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256
+   Get-FileHash .\Nook-Windows-0.2.0-setup.exe -Algorithm SHA256
    ```
 
    The hash must match the installer's line in `SHA256SUMS.txt`.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Nook Changelog: Release Notes and What Is Planned</title>
-<meta name="description" content="Release notes for Nook, the free Dynamic Island for Claude Code on Windows: version 0.1.0 highlights, Cursor sessions in the unreleased build, and plans.">
+<meta name="description" content="Release notes for Nook, the free Dynamic Island for Claude Code on Windows: versions 0.2.0 and 0.1.0, with Cursor sessions, docking and the agents list, and plans.">
 <link rel="canonical" href="https://nook.zubyr.dev/changelog/">
 <link rel="alternate" hreflang="x-default" href="https://nook.zubyr.dev/changelog/">
 <link rel="alternate" hreflang="en" href="https://nook.zubyr.dev/changelog/">
@@ -18,7 +18,7 @@
 <meta property="og:site_name" content="Nook">
 <meta property="og:locale" content="en_US">
 <meta property="og:title" content="Nook Changelog: Release Notes and What Is Planned">
-<meta property="og:description" content="Release notes for Nook, the free Dynamic Island for Claude Code on Windows: version 0.1.0 highlights, Cursor sessions in the unreleased build, and plans.">
+<meta property="og:description" content="Release notes for Nook, the free Dynamic Island for Claude Code on Windows: versions 0.2.0 and 0.1.0, with Cursor sessions, docking and the agents list, and plans.">
 <meta property="og:url" content="https://nook.zubyr.dev/changelog/">
 <meta property="og:image" content="https://nook.zubyr.dev/assets/img/og.png">
 <meta property="og:image:type" content="image/png">
@@ -29,7 +29,7 @@
 <meta name="twitter:site" content="@zubyrdev">
 <meta name="twitter:creator" content="@zubyrdev">
 <meta name="twitter:title" content="Nook Changelog: Release Notes and What Is Planned">
-<meta name="twitter:description" content="Release notes for Nook, the free Dynamic Island for Claude Code on Windows: version 0.1.0 highlights, Cursor sessions in the unreleased build, and plans.">
+<meta name="twitter:description" content="Release notes for Nook, the free Dynamic Island for Claude Code on Windows: versions 0.2.0 and 0.1.0, with Cursor sessions, docking and the agents list, and plans.">
 <meta name="twitter:image" content="https://nook.zubyr.dev/assets/img/og.png">
 <meta name="twitter:image:alt" content="Nook, a Dynamic Island for Windows, showing Claude Code agents">
 <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
@@ -47,7 +47,7 @@
 <script>
 (function(){var r=document.documentElement;r.classList.add('js');try{var t=localStorage.getItem('nook-theme');if(t==='light'||t==='dark')r.setAttribute('data-theme',t)}catch(e){}})();
 </script>
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://nook.zubyr.dev/#website","url":"https://nook.zubyr.dev/","name":"Nook","inLanguage":"en","publisher":{"@id":"https://nook.zubyr.dev/#author"}},{"@type":"Person","@id":"https://nook.zubyr.dev/#author","name":"Zubair Bin Shaukat","url":"https://zubyr.dev","sameAs":["https://zubyr.dev","https://github.com/zubairbinshaukat","https://www.linkedin.com/in/zubairbinshaukat","https://x.com/zubyrdev"]},{"@type":"WebPage","@id":"https://nook.zubyr.dev/changelog/#webpage","url":"https://nook.zubyr.dev/changelog/","name":"Nook Changelog: Release Notes and What Is Planned","description":"Release notes for Nook, the free Dynamic Island for Claude Code on Windows: version 0.1.0 highlights, Cursor sessions in the unreleased build, and plans.","inLanguage":"en","isPartOf":{"@id":"https://nook.zubyr.dev/#website"},"dateModified":"2026-10-04"},{"@type":"BreadcrumbList","@id":"https://nook.zubyr.dev/changelog/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Nook","item":"https://nook.zubyr.dev/"},{"@type":"ListItem","position":2,"name":"Changelog","item":"https://nook.zubyr.dev/changelog/"}]}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://nook.zubyr.dev/#website","url":"https://nook.zubyr.dev/","name":"Nook","inLanguage":"en","publisher":{"@id":"https://nook.zubyr.dev/#author"}},{"@type":"Person","@id":"https://nook.zubyr.dev/#author","name":"Zubair Bin Shaukat","url":"https://zubyr.dev","sameAs":["https://zubyr.dev","https://github.com/zubairbinshaukat","https://www.linkedin.com/in/zubairbinshaukat","https://x.com/zubyrdev"]},{"@type":"WebPage","@id":"https://nook.zubyr.dev/changelog/#webpage","url":"https://nook.zubyr.dev/changelog/","name":"Nook Changelog: Release Notes and What Is Planned","description":"Release notes for Nook, the free Dynamic Island for Claude Code on Windows: versions 0.2.0 and 0.1.0, with Cursor sessions, docking and the agents list, and plans.","inLanguage":"en","isPartOf":{"@id":"https://nook.zubyr.dev/#website"},"dateModified":"2026-10-06"},{"@type":"BreadcrumbList","@id":"https://nook.zubyr.dev/changelog/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Nook","item":"https://nook.zubyr.dev/"},{"@type":"ListItem","position":2,"name":"Changelog","item":"https://nook.zubyr.dev/changelog/"}]}]}</script>
 </head>
 <body id="top">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -91,13 +91,27 @@
   <header class="doc-head">
     <p class="eyebrow">Release notes</p>
     <h1>Changelog</h1>
-    <p class="lede">What shipped in each release, what is in the unreleased build, and what is planned next. Planned items are intentions, not promises, and carry no dates.</p>
-    <p class="doc-meta">Last updated <time datetime="2026-10-04">2026-10-04</time> &middot; Nook 0.1.0 &middot; <a href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer">Was this helpful? Report a problem</a></p>
+    <p class="lede">What shipped in each release, and what is planned next. Planned items are intentions, not promises, and carry no dates.</p>
+    <p class="doc-meta">Last updated <time datetime="2026-10-06">2026-10-06</time> &middot; Nook 0.2.0 &middot; <a href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer">Was this helpful? Report a problem</a></p>
   </header>
   <div class="doc-grid">
-    <aside class="doc-side"><nav class="toc" aria-label="On this page"><p class="toc-h">On this page</p><ol><li><a href="#v0-1-0">0.1.0 — first release</a></li><li><a href="#unreleased">New in v0.1.x (unreleased build)</a></li><li><a href="#planned">Planned</a></li></ol></nav></aside>
+    <aside class="doc-side"><nav class="toc" aria-label="On this page"><p class="toc-h">On this page</p><ol><li><a href="#v0-2-0">0.2.0 — Cursor, docking and the agents list</a></li><li><a href="#v0-1-0">0.1.0 — first release</a></li><li><a href="#planned">Planned</a></li></ol></nav></aside>
     <article class="prose doc-body">
 
+<h2 id="v0-2-0">0.2.0 &mdash; Cursor, docking and the agents list</h2>
+<ul>
+<li><strong>Cursor agent sessions</strong> are shown next to Claude Code ones, status only: nothing to approve or answer from the island. Claude sessions wear the sparkle mark and Cursor sessions the cube; the session list has All, Claude Code and Cursor filter chips; Cursor dots on the folded island have a hole.</li>
+<li><strong>Cursor setup</strong> is in Settings, Connect, Cursor, Connect: a preview of the diff, a dated backup and an explicit click, writing <code>~/.cursor/hooks.json</code>. Restart Cursor afterwards. It listens only to observational events, never allows, denies or delays anything in Cursor, and its relay always exits immediately. See <a href="/guides/cursor/">Cursor and Nook</a>.</li>
+<li><strong>Docking.</strong> Dock the island to the top, bottom, left or right of the screen. On the sides, Home, the Shelf and the compact island stand upright. It sits inside the work area, above the taskbar.</li>
+<li><strong>The agents list.</strong> An optional window with one row per project: status, elapsed time and context size. It stays on top and on every virtual desktop, can be resized, fades when idle, and a click goes to that session. Rows carry the Claude Code or Cursor mark.</li>
+<li><strong>Hide and show.</strong> A global shortcut (Ctrl+Alt+N) and a tray item hide and show the island. While it is hidden, it pops up for a request and hides again.</li>
+<li><strong>Context meter.</strong> Each session shows how full its context is, in green, amber or red, read from the Claude Code transcript. Cursor sessions show none.</li>
+<li><strong>Reading protection.</strong> An agent that finishes no longer takes over what you are reading. The jump-to-end button, or the agent&rsquo;s row in the sidebar, wiggles instead. Permission requests and questions still appear at once.</li>
+<li><strong>The expanded session view</strong> stays at the end of the conversation, and a small jump-to-end button appears when you scroll up.</li>
+<li><strong>Settings</strong> reorganised into eight plain pages with coloured icons, a search and a reset for each section. Writing the Claude Code hooks is unchanged: a diff preview, a dated backup and an explicit click.</li>
+<li><strong>The installer</strong> uses the Nook icon.</li>
+<li><strong>Fixed:</strong> the island no longer ends up shifted after it is hidden and shown again.</li>
+</ul>
 <h2 id="v0-1-0">0.1.0 &mdash; first release</h2>
 <p>The first release of Nook, a fork of Coucou for Windows. Highlights:</p>
 <ul>
@@ -116,11 +130,6 @@
 </ul>
 <p>The full list is in the <a href="https://github.com/zubairbinshaukat/nook/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">CHANGELOG.md in the repository</a>.</p>
 
-<h2 id="unreleased">New in v0.1.x (unreleased build)</h2>
-<ul>
-<li><strong>Cursor agent sessions</strong> are shown next to Claude Code ones, status only: nothing to approve or answer from the island. Claude sessions wear the sparkle mark and Cursor sessions the cube; the session list has All, Claude Code and Cursor filter chips; Cursor dots on the folded island have a hole.</li>
-<li><strong>Setup</strong> is in Settings, Connect, Cursor, Connect: a preview of the diff, a dated backup and an explicit click, writing <code>~/.cursor/hooks.json</code>. Restart Cursor afterwards. It listens only to observational events, never allows, denies or delays anything in Cursor, and its relay always exits immediately. See <a href="/guides/cursor/">Cursor and Nook</a>.</li>
-</ul>
 <h2 id="planned">Planned</h2>
 <div class="callout"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><p><strong>Planned means planned.</strong> These are things we intend to do. They are not built yet, and no dates are promised.</p></div>
 <ul>

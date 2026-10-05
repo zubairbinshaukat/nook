@@ -68,7 +68,7 @@
         try { ready = win.contentWindow.__shotReady === true && patched; } catch (e) { /* loading */ }
         if (!ready) return;
         const w = win.contentDocument.createTreeWalker(win.contentDocument.body, NodeFilter.SHOW_TEXT);
-        for (let n = w.nextNode(); n; n = w.nextNode()) n.nodeValue = n.nodeValue.replace('0.0.0-fake', '0.1.0');
+        for (let n = w.nextNode(); n; n = w.nextNode()) n.nodeValue = n.nodeValue.replace('0.0.0-fake', '0.2.0');
         clearInterval(timer);
         window.__shotReady = true;
       }, 50);

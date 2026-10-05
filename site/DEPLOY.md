@@ -38,7 +38,7 @@ The site is deployed on Vercel, connected directly to this repo.
 - [ ] Record a ~20 second demo (island folding and opening, approving a permission, jumping to a session) and add it to the home page; also use it in the GitHub README.
 - [ ] Replace `assets/img/og.png` if the design changes (1200x630).
 - [ ] GitHub repo: set the description and website (https://nook.zubyr.dev), and add the topics: `claude-code`, `dynamic-island`, `windows`, `tauri`, `ai-agents`, `developer-tools`, `nook`.
-- [ ] Publish release 0.1.0 with `Nook-Windows-0.1.0-setup.exe` and `SHA256SUMS.txt`; check the Download buttons land on it.
+- [ ] Publish release 0.2.0 with `Nook-Windows-0.2.0-setup.exe` and `SHA256SUMS.txt`; check the Download buttons land on it.
 - [ ] Submit the sitemap to Google Search Console and Bing Webmaster Tools; ping IndexNow.
 - [ ] Share honestly: Product Hunt, Hacker News (Show HN), r/ClaudeAI. Say what it is, that it is free and open source, that the installer is unsigned for now, and that it is a fork of Coucou. Answer questions, take criticism well.
 - [ ] Apply to the SignPath Foundation for free code signing when the project qualifies.

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
 - Cursor's agent sessions in the island, next to Claude Code's, for their
   status only (no approvals). Hooks installed from Settings into
@@ -9,7 +9,28 @@
   Cursor's cube) in the session list, the home view, the cards and the folded
   island, and an All / Claude Code / Cursor filter.
 - "Show Cursor sessions" in Settings.
-
+- Dock the island to the top, bottom, left or right of the screen. On the
+  sides, Home, the Shelf and the compact island stand upright. It sits inside
+  the work area, above the taskbar.
+- An optional agents list window: one row per project with its status, elapsed
+  time and context size. It stays on top and on every virtual desktop, can be
+  resized, fades when idle, and a click goes to that session. Rows carry the
+  Claude Code or Cursor mark.
+- A global shortcut (Ctrl+Alt+N) and a tray item to hide and show the island.
+  While it is hidden, it pops up for a request and hides again.
+- A context meter for each session, green, amber or red, read from the Claude
+  Code transcript. Cursor sessions show none.
+- Reading protection: an agent that finishes no longer takes over what you are
+  reading. The jump-to-end button, or the agent's row in the sidebar, wiggles
+  instead. Permission requests and questions still appear at once.
+- The expanded session view stays at the end of the conversation, and a small
+  jump-to-end button appears when you scroll up.
+- Settings reorganised into eight plain pages with coloured icons, a search and
+  a reset for each section. Writing the Claude Code hooks is unchanged: a diff
+  preview, a dated backup and an explicit click.
+- The installer uses the Nook icon.
+- Fixed: the island no longer ends up shifted after it is hidden and shown
+  again.
 ## 0.1.0
 
 First release of Nook, a fork of Coucou for Windows.

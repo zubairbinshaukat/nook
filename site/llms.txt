@@ -1,8 +1,8 @@
 # Nook
 
-> Nook is a free, open-source Dynamic Island for Claude Code agents on Windows 10 and 11. It shows every running Claude Code session at the top of your screen, with approvals and answers from the island. It is 100% local: no network calls, no telemetry, no account. Version 0.1.0, MIT-licensed, by Zubair Bin Shaukat. Not affiliated with Anthropic.
+> Nook is a free, open-source Dynamic Island for Claude Code agents on Windows 10 and 11. It shows every running Claude Code session at the top of your screen, with approvals and answers from the island. It is 100% local: no network calls, no telemetry, no account. Version 0.2.0, MIT-licensed, by Zubair Bin Shaukat. Not affiliated with Anthropic.
 
-Nook listens to Claude Code through its hooks and a small local relay (nook-hook.exe) over a named pipe. It never approves anything without a click and never blocks Claude Code. It also shows Cursor agent sessions next to Claude Code ones, status only (new in v0.1.x, unreleased build).
+Nook listens to Claude Code through its hooks and a small local relay (nook-hook.exe) over a named pipe. It never approves anything without a click and never blocks Claude Code. It also shows Cursor agent sessions next to Claude Code ones, status only (new in 0.2.0).
 
 ## Guides
 
@@ -20,7 +20,7 @@ Nook listens to Claude Code through its hooks and a small local relay (nook-hook
 - [All guides](https://nook.zubyr.dev/guides/): Index of every guide.
 - [Privacy policy](https://nook.zubyr.dev/privacy/): No network, no telemetry, what is stored locally and where.
 - [Terms of use](https://nook.zubyr.dev/terms/): MIT license, as is, no affiliation with Anthropic or Cursor.
-- [Changelog](https://nook.zubyr.dev/changelog/): Release notes for 0.1.0, the unreleased build (Cursor sessions) and what is planned.
+- [Changelog](https://nook.zubyr.dev/changelog/): Release notes for 0.2.0 and 0.1.0, and what is planned.
 - [Download](https://github.com/zubairbinshaukat/nook/releases/latest): Latest release on GitHub.
 - [Source code](https://github.com/zubairbinshaukat/nook): Open-source repository.
 

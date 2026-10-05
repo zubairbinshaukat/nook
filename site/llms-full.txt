@@ -2,7 +2,7 @@
 
 > Nook is a free, open-source Dynamic Island for Claude Code agents on Windows 10 and 11. It shows every running Claude Code session at the top of the screen and lets you approve permissions and answer questions with a click. 100% local: no network calls, no telemetry, no account.
 
-This file contains the full text of the Nook website (https://nook.zubyr.dev/) in Markdown, so a model can read the whole site in one fetch. It mirrors the pages; if they differ, the pages and the repository (https://github.com/zubairbinshaukat/nook) are authoritative. Site last updated 2026-10-04. Index of pages: https://nook.zubyr.dev/llms.txt
+This file contains the full text of the Nook website (https://nook.zubyr.dev/) in Markdown, so a model can read the whole site in one fetch. It mirrors the pages; if they differ, the pages and the repository (https://github.com/zubairbinshaukat/nook) are authoritative. Site last updated 2026-10-06. Index of pages: https://nook.zubyr.dev/llms.txt
 
 ---
 
@@ -10,7 +10,7 @@ This file contains the full text of the Nook website (https://nook.zubyr.dev/) i
 
 URL: https://nook.zubyr.dev/
 
-Nook for Windows is a free, open-source Dynamic Island for Claude Code agents. It sits at the top of your screen and shows every running Claude Code session across your projects. See who is working, who is done and who needs you, then approve or answer with a click. 100% local. Windows 10 and 11. Version 0.1.0. Free and open source (MIT). Download: https://github.com/zubairbinshaukat/nook/releases/latest
+Nook for Windows is a free, open-source Dynamic Island for Claude Code agents. It sits at the top of your screen and shows every running Claude Code session across your projects. See who is working, who is done and who needs you, then approve or answer with a click. 100% local. Windows 10 and 11. Version 0.2.0. Free and open source (MIT). Download: https://github.com/zubairbinshaukat/nook/releases/latest
 
 ## How it works
 
@@ -33,7 +33,7 @@ Flow: Claude Code -> nook-hook -> local pipe -> Nook island.
 - **Go to the session that needs you.** One shortcut jumps to the session waiting on you.
 - **Keyboard shortcuts.** Defaults, all changeable in Settings: Ctrl+Alt+Space expands or shrinks the panel; Ctrl+Shift+Space opens the panel at normal size; Ctrl+Alt+Enter goes to the session that needs you.
 
-New in v0.1.x (unreleased build): Cursor agent sessions appear next to Claude Code ones, status only (no approving or answering from the island). Set up in Settings > Cursor > Install.
+New in 0.2.0: Cursor agent sessions appear next to Claude Code ones, status only (no approving or answering from the island). Set up in Settings > Cursor > Install.
 
 ## Privacy and trust
 
@@ -52,14 +52,14 @@ Gullu is Nook's mascot, a fluffy cream character with a small green sprout on it
 
 Windows 10 or 11. WebView2 ships with both.
 
-1. Download `Nook-Windows-0.1.0-setup.exe` from the latest release on GitHub: https://github.com/zubairbinshaukat/nook/releases/latest
+1. Download `Nook-Windows-0.2.0-setup.exe` from the latest release on GitHub: https://github.com/zubairbinshaukat/nook/releases/latest
 2. Run it, then confirm once. The installer is not code-signed yet, so SmartScreen may say "Windows protected your PC". Choose More info, then Run anyway.
 3. Install the hooks: Settings > Claude Code > Install hooks, review the preview, click. Start a Claude Code session and watch the island.
 
 Check the download (optional, recommended): compare the hash with the one for the installer in SHA256SUMS.txt on the release page.
 
 ```powershell
-Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256
+Get-FileHash .\Nook-Windows-0.2.0-setup.exe -Algorithm SHA256
 ```
 
 ## Landing page FAQ
@@ -82,7 +82,7 @@ Only when you ask. Installing hooks shows the exact diff of what will change in 
 
 ### Why does Windows show "Windows protected your PC"?
 
-The installer is not code-signed yet, and SmartScreen does not know new, unsigned programs. If you downloaded it from the official GitHub release, choose More info, then Run anyway. You can verify the download with Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256 and compare it with SHA256SUMS.txt, or build Nook from source.
+The installer is not code-signed yet, and SmartScreen does not know new, unsigned programs. If you downloaded it from the official GitHub release, choose More info, then Run anyway. You can verify the download with Get-FileHash .\Nook-Windows-0.2.0-setup.exe -Algorithm SHA256 and compare it with SHA256SUMS.txt, or build Nook from source.
 
 ### My antivirus flagged nook-hook.exe. What now?
 
@@ -90,11 +90,11 @@ That is a typical false positive for small, unsigned programs that other program
 
 ### Which systems and Claude Code setups does it work with?
 
-Nook 0.1.0 is built for Windows 10 and 11. It follows Claude Code through Claude Code’s hooks, so sessions appear whether you start Claude Code in a terminal window or in the integrated terminal of an editor such as VS Code.
+Nook 0.2.0 is built for Windows 10 and 11. It follows Claude Code through Claude Code’s hooks, so sessions appear whether you start Claude Code in a terminal window or in the integrated terminal of an editor such as VS Code.
 
 ### Does Nook support Cursor or other agents?
 
-Yes. Nook shows Cursor agent sessions next to Claude Code ones, status only: you can see what a Cursor agent is doing, but you cannot approve or answer from the island. Turn it on in Settings, Cursor, Install (preview, dated backup, click). New in v0.1.x (unreleased build). Claude Code running inside Cursor’s terminal works as a normal Claude Code session.
+Yes. Nook shows Cursor agent sessions next to Claude Code ones, status only: you can see what a Cursor agent is doing, but you cannot approve or answer from the island. Turn it on in Settings, Cursor, Install (preview, dated backup, click). New in 0.2.0. Claude Code running inside Cursor’s terminal works as a normal Claude Code session.
 
 ### Does it slow down my PC?
 
@@ -113,15 +113,15 @@ Nook is an independent open-source project by Zubair Bin Shaukat, a software eng
 # How to download and install Nook on Windows
 
 URL: https://nook.zubyr.dev/guides/install/
-Last updated: 2026-10-04
+Last updated: 2026-10-06
 
 Nook is a free, open-source Dynamic Island for Claude Code agents. This guide takes you from the download to your first session, including the SmartScreen warning and a clean uninstall.
 
 ## Install in six steps
 
 1. **Check the requirements.** You need Windows 10 or 11 (64-bit), Claude Code, and the WebView2 runtime, which comes with Windows 11 and with current Windows 10.
-2. **Download the installer.** Open the [latest release on GitHub](https://github.com/zubairbinshaukat/nook/releases/latest) and download `Nook-Windows-0.1.0-setup.exe` and `SHA256SUMS.txt`.
-3. **Verify the SHA256 hash.** In PowerShell run `Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256` and compare the result with the installer line in `SHA256SUMS.txt`.
+2. **Download the installer.** Open the [latest release on GitHub](https://github.com/zubairbinshaukat/nook/releases/latest) and download `Nook-Windows-0.2.0-setup.exe` and `SHA256SUMS.txt`.
+3. **Verify the SHA256 hash.** In PowerShell run `Get-FileHash .\Nook-Windows-0.2.0-setup.exe -Algorithm SHA256` and compare the result with the installer line in `SHA256SUMS.txt`.
 4. **Run the installer.** Double-click the installer. If Windows shows “Windows protected your PC”, choose **More info**, then **Run anyway**. The installer is not code-signed yet.
 5. **Let Nook start.** The installer works for your user account and needs no administrator rights. When it finishes, Nook starts: look for the thin island at the top of your screen and the Nook icon in the notification area.
 6. **Install the Claude Code hooks.** Open **Settings → Claude Code → Install hooks…**, read the preview, and click. Then start a new Claude Code session.
@@ -139,7 +139,7 @@ The sections below explain each step. If anything goes wrong, see [troubleshooti
 
 Get the files from the [latest release on GitHub](https://github.com/zubairbinshaukat/nook/releases/latest). Download two files:
 
-- `Nook-Windows-0.1.0-setup.exe`, the installer.
+- `Nook-Windows-0.2.0-setup.exe`, the installer.
 - `SHA256SUMS.txt`, the SHA-256 hash of the installer and of the two programs inside it (`nook.exe` and `nook-hook.exe`).
 
 Only download Nook from the official release page linked above. You can also build it from source; the [README](https://github.com/zubairbinshaukat/nook#build-from-source) lists the tools you need.
@@ -149,7 +149,7 @@ Only download Nook from the official release page linked above. You can also bui
 A checksum proves the file you have is the file that was published. Open PowerShell in the folder with the download and run:
 
 ```powershell
-Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256
+Get-FileHash .\Nook-Windows-0.2.0-setup.exe -Algorithm SHA256
 ```
 
 The hash PowerShell prints must be the same as the one on the installer’s line in `SHA256SUMS.txt`. Compare them letter by letter, or paste both into a text editor and search for one in the other. If they differ, delete the file and download it again from the release page. The same check works for an installed `nook.exe` or `nook-hook.exe`.
@@ -204,7 +204,7 @@ The uninstaller removes `%LOCALAPPDATA%\Nook\bin` and `nook.log`. Your preferenc
 # Nook first run: hooks, your first session and a tour
 
 URL: https://nook.zubyr.dev/guides/first-run/
-Last updated: 2026-10-04
+Last updated: 2026-10-06
 
 After installing Nook you connect it to Claude Code once. This guide covers the hooks, the optional usage status line, what you will see, the shortcuts, approvals and auto-hide.
 
@@ -301,7 +301,7 @@ Next: [how the hooks work](https://nook.zubyr.dev/guides/claude-code-hooks/), or
 # How Nook talks to Claude Code: hooks, relay and pipe
 
 URL: https://nook.zubyr.dev/guides/claude-code-hooks/
-Last updated: 2026-10-04
+Last updated: 2026-10-06
 
 Nook does not read your terminal. Claude Code tells it what is happening through hooks. This page explains the whole path, what is written to your settings, and the rules Nook follows.
 
@@ -395,7 +395,7 @@ Use it when the “go to session” button goes to the wrong window, or when you
 # Shelf widgets: To-do, Timer, Reminders, Media, Mirror and Projects
 
 URL: https://nook.zubyr.dev/guides/shelf-widgets/
-Last updated: 2026-10-04
+Last updated: 2026-10-06
 
 The Shelf is a row of small cards in the island for the moments between prompts. Each card is a compact view; open one to expand it. Nothing on the Shelf uses the network.
 
@@ -447,13 +447,13 @@ Next: [Cursor and Nook](https://nook.zubyr.dev/guides/cursor/), or back to the [
 # Cursor and Nook
 
 URL: https://nook.zubyr.dev/guides/cursor/
-Last updated: 2026-10-04
+Last updated: 2026-10-06
 
 Nook shows Cursor agent sessions next to your Claude Code sessions, status only. This page covers what you see, how to turn it on and what it never does.
 
 ## What you get
 
-> **New in v0.1.x (unreleased build).** Cursor support is not in the 0.1.0 installer. It arrives with the next release; no date is promised.
+> **New in 0.2.0.** Cursor support first shipped in 0.2.0. It is not in the 0.1.0 installer.
 
 Cursor agent sessions show up in the same island as your Claude Code sessions, each with its own row and state (for example working or done).
 
@@ -485,7 +485,7 @@ This is separate and works as before. If you run `claude` in **Cursor’s integr
 
 |  | Claude Code (incl. in Cursor’s terminal) | Cursor’s own agent |
 | --- | --- | --- |
-| Shown in Nook | Yes (0.1.0) | Yes (new in v0.1.x, unreleased build) |
+| Shown in Nook | Yes (0.1.0) | Yes (new in 0.2.0) |
 | Approve and answer from the island | Yes, same as any session | No: status only |
 | Set up with | Settings, Claude Code, Install hooks | Settings, Cursor, Install (then restart Cursor) |
 | Mark | Claude sparkle | Cursor cube |
@@ -497,7 +497,7 @@ Disclaimer: Nook is an independent project, not affiliated with or endorsed by C
 # Troubleshooting Nook
 
 URL: https://nook.zubyr.dev/guides/troubleshooting/
-Last updated: 2026-10-04
+Last updated: 2026-10-06
 
 Each problem below has a symptom, a likely cause and a fix. Where Nook cannot know for sure, this page says “usually”. The last section tells you how to file an issue we can act on.
 
@@ -507,7 +507,7 @@ Each problem below has a symptom, a likely cause and a fix. Where Nook cannot kn
 - **Cause:** The installer is not code-signed yet, and SmartScreen does not know new unsigned programs.
 - **Fix:**
 
-1. Check the download first: `Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256`, then compare with `SHA256SUMS.txt` from the release.
+1. Check the download first: `Get-FileHash .\Nook-Windows-0.2.0-setup.exe -Algorithm SHA256`, then compare with `SHA256SUMS.txt` from the release.
 2. Choose **More info**, then **Run anyway**.
 
 Details in the [install guide](https://nook.zubyr.dev/guides/install/#smartscreen). Signing through SignPath is planned.
@@ -669,7 +669,7 @@ Look for the tab with the session’s project name. Running `nook-hook --where` 
 A good issue gets fixed faster. Open one at [github.com/zubairbinshaukat/nook/issues/new](https://github.com/zubairbinshaukat/nook/issues/new) and include:
 
 - What you expected and what happened, with steps to repeat it.
-- Your **Nook version** (Settings → About; this site documents 0.1.0), your **Windows version** (`winver`), and your **Claude Code version** (`claude --version`).
+- Your **Nook version** (Settings → About; this site documents 0.2.0), your **Windows version** (`winver`), and your **Claude Code version** (`claude --version`).
 - The last lines of `%LOCALAPPDATA%\Nook\nook.log`. The log has event names and decisions, never the content of your sessions.
 - If it is about hooks, the output of `nook-hook --where`, and the Nook entries from `settings.json` (only those).
 - A screenshot if the problem is visual.
@@ -683,7 +683,7 @@ A false positive from an antivirus can be reported to its vendor, see [above](#a
 # Frequently asked questions about Nook
 
 URL: https://nook.zubyr.dev/guides/faq/
-Last updated: 2026-10-04
+Last updated: 2026-10-06
 
 Short, honest answers. For step-by-step help see the guides, and for fixes see troubleshooting.
 
@@ -705,7 +705,7 @@ Only when you ask. Installing hooks shows the exact diff of what will change in 
 
 ## Why does Windows show "Windows protected your PC"?
 
-The installer is not code-signed yet, and SmartScreen does not know new, unsigned programs. If you downloaded it from the official GitHub release, choose More info, then Run anyway. You can verify the download with Get-FileHash .\Nook-Windows-0.1.0-setup.exe -Algorithm SHA256 and compare it with SHA256SUMS.txt, or build Nook from source.
+The installer is not code-signed yet, and SmartScreen does not know new, unsigned programs. If you downloaded it from the official GitHub release, choose More info, then Run anyway. You can verify the download with Get-FileHash .\Nook-Windows-0.2.0-setup.exe -Algorithm SHA256 and compare it with SHA256SUMS.txt, or build Nook from source.
 
 ## My antivirus flagged nook-hook.exe. What now?
 
@@ -713,11 +713,11 @@ That is a typical false positive for small, unsigned programs that other program
 
 ## Which systems and Claude Code setups does it work with?
 
-Nook 0.1.0 is built for Windows 10 and 11. It follows Claude Code through Claude Code’s hooks, so sessions appear whether you start Claude Code in a terminal window or in the integrated terminal of an editor such as VS Code.
+Nook 0.2.0 is built for Windows 10 and 11. It follows Claude Code through Claude Code’s hooks, so sessions appear whether you start Claude Code in a terminal window or in the integrated terminal of an editor such as VS Code.
 
 ## Does Nook support Cursor or other agents?
 
-Yes. Nook shows Cursor agent sessions next to Claude Code ones, status only: you can see what a Cursor agent is doing, but you cannot approve or answer from the island. Turn it on in Settings, Cursor, Install (preview, dated backup, click). New in v0.1.x (unreleased build). Claude Code running inside Cursor’s terminal works as a normal Claude Code session.
+Yes. Nook shows Cursor agent sessions next to Claude Code ones, status only: you can see what a Cursor agent is doing, but you cannot approve or answer from the island. Turn it on in Settings, Cursor, Install (preview, dated backup, click). New in 0.2.0. Claude Code running inside Cursor’s terminal works as a normal Claude Code session.
 
 ## Does it slow down my PC?
 
@@ -745,7 +745,7 @@ No. They come from Claude Code’s status line, so you have to install the usage
 
 ## Does Nook work on macOS or Linux?
 
-The 0.1.0 release is for Windows 10 and 11. The same code can be built for Linux from source. Nook is a fork of Coucou, the project it is based on; look there if you want the original.
+The 0.2.0 release is for Windows 10 and 11. The same code can be built for Linux from source. Nook is a fork of Coucou, the project it is based on; look there if you want the original.
 
 ## Will the installer be code-signed?
 
@@ -760,7 +760,7 @@ Open an issue on GitHub at https://github.com/zubairbinshaukat/nook/issues/new w
 # Privacy policy (Privacy)
 
 URL: https://nook.zubyr.dev/privacy/
-Effective/last updated: 2026-10-04
+Effective 2026-10-04, last updated 2026-10-06
 
 Short version: Nook makes no network connections, collects nothing about you, and keeps everything on your own PC. Effective 2026-10-04.
 
@@ -816,7 +816,7 @@ Questions about privacy: [open an issue on GitHub](https://github.com/zubairbins
 # Terms of use (Terms)
 
 URL: https://nook.zubyr.dev/terms/
-Effective/last updated: 2026-10-04
+Effective 2026-10-04, last updated 2026-10-06
 
 Nook is free software under the MIT license. These short terms say what that means in practice. Effective 2026-10-04.
 
@@ -851,10 +851,23 @@ Questions or problems: [open an issue](https://github.com/zubairbinshaukat/nook/
 # Changelog (Changelog)
 
 URL: https://nook.zubyr.dev/changelog/
-Effective/last updated: 2026-10-04
+Effective 2026-10-04, last updated 2026-10-06
 
-What shipped in each release, what is in the unreleased build, and what is planned next. Planned items are intentions, not promises, and carry no dates.
+What shipped in each release, and what is planned next. Planned items are intentions, not promises, and carry no dates.
 
+## 0.2.0 — Cursor, docking and the agents list
+
+- **Cursor agent sessions** are shown next to Claude Code ones, status only: nothing to approve or answer from the island. Claude sessions wear the sparkle mark and Cursor sessions the cube; the session list has All, Claude Code and Cursor filter chips; Cursor dots on the folded island have a hole.
+- **Cursor setup** is in Settings, Connect, Cursor, Connect: a preview of the diff, a dated backup and an explicit click, writing `~/.cursor/hooks.json`. Restart Cursor afterwards. It listens only to observational events, never allows, denies or delays anything in Cursor, and its relay always exits immediately. See [Cursor and Nook](https://nook.zubyr.dev/guides/cursor/).
+- **Docking.** Dock the island to the top, bottom, left or right of the screen. On the sides, Home, the Shelf and the compact island stand upright. It sits inside the work area, above the taskbar.
+- **The agents list.** An optional window with one row per project: status, elapsed time and context size. It stays on top and on every virtual desktop, can be resized, fades when idle, and a click goes to that session. Rows carry the Claude Code or Cursor mark.
+- **Hide and show.** A global shortcut (Ctrl+Alt+N) and a tray item hide and show the island. While it is hidden, it pops up for a request and hides again.
+- **Context meter.** Each session shows how full its context is, in green, amber or red, read from the Claude Code transcript. Cursor sessions show none.
+- **Reading protection.** An agent that finishes no longer takes over what you are reading. The jump-to-end button, or the agent’s row in the sidebar, wiggles instead. Permission requests and questions still appear at once.
+- **The expanded session view** stays at the end of the conversation, and a small jump-to-end button appears when you scroll up.
+- **Settings** reorganised into eight plain pages with coloured icons, a search and a reset for each section. Writing the Claude Code hooks is unchanged: a diff preview, a dated backup and an explicit click.
+- **The installer** uses the Nook icon.
+- **Fixed:** the island no longer ends up shifted after it is hidden and shown again.
 ## 0.1.0 — first release
 
 The first release of Nook, a fork of Coucou for Windows. Highlights:
@@ -873,11 +886,6 @@ The first release of Nook, a fork of Coucou for Windows. Highlights:
 - **Linux.** The same code builds for Linux.
 
 The full list is in the [CHANGELOG.md in the repository](https://github.com/zubairbinshaukat/nook/blob/main/CHANGELOG.md).
-
-## New in v0.1.x (unreleased build)
-
-- **Cursor agent sessions** are shown next to Claude Code ones, status only: nothing to approve or answer from the island. Claude sessions wear the sparkle mark and Cursor sessions the cube; the session list has All, Claude Code and Cursor filter chips; Cursor dots on the folded island have a hole.
-- **Setup** is in Settings, Cursor, Install: a preview of the diff, a dated backup and an explicit click, writing `~/.cursor/hooks.json`. Restart Cursor afterwards. It listens only to observational events, never allows, denies or delays anything in Cursor, and its relay always exits immediately. See [Cursor and Nook](https://nook.zubyr.dev/guides/cursor/).
 
 ## Planned
 
