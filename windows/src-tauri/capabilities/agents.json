@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "agents",
+  "description": "The agents list: what every window may do, and dragging it by its header.",
+  "windows": ["agents"],
+  "permissions": ["core:default", "core:window:allow-start-dragging"]
+}

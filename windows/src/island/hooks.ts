@@ -10,6 +10,7 @@
 // with its question tool, answered on the island.
 
 import { Bridge, onEvent } from "../core/bridge";
+import { Reader } from "../core/reading";
 import { Sound } from "../core/sound";
 import {
   CLAUDE_ID, QUESTION_TOOL, SESSION_UNNAMED, State, TURN_DONE, isQuestion, newSession, newStep, nextRequest, readModel, readTarget, requestsOf, taskStart,
@@ -68,6 +69,8 @@ export interface HookPayload {
   proposal?: { patch: string; additions: number; deletions: number; truncated: boolean; created: boolean };
   /** The conversation's title, read by nook-hook from the session's transcript. */
   session_title?: string;
+  /** Tokens the session's last answer was given to read, counted by nook-hook in the transcript; only on the events that read it. */
+  context_tokens?: number;
   /** On a Stop: what Claude said to end its turn. On a SubagentStop: what the subagent said last. */
   last_message?: string;
   /**
@@ -97,6 +100,8 @@ export interface HookPayload {
 interface SessionModelPayload {
   sessionId?: string;
   model?: unknown;
+  /** The size of its context window in tokens, when the status line said it. */
+  contextWindow?: number | null;
 }
 
 /**
@@ -348,7 +353,7 @@ function closeSubagent(island: Island, session: ClaudeSession, agent: Subagent, 
   if (result) agent.result = result;
   settle(agent.steps);
   for (const request of requestsOf(session)) {
-    if (request.agentId === agent.id) dropRequest(island, session, request.requestId, true);
+    if (request.agentId === agent.id) dropRequest(island, session, request.requestId);
   }
 }
 
@@ -469,6 +474,8 @@ function sessionOf(island: Island, payload: HookPayload): ClaudeSession {
   // The model it runs on, on the events that say it — and only the session's
   // own: an event from inside a subagent would name the subagent's.
   if (!payload.agent_id) session.model = readModel(payload.model) ?? session.model;
+  // How full its context is, on the events that read the transcript; the others keep what was known.
+  if (typeof payload.context_tokens === "number" && payload.context_tokens > 0 && !payload.agent_id) session.contextTokens = payload.context_tokens;
   if (payload.cwd) {
     session.cwd = payload.cwd;
     session.project = lastPathComponent(payload.cwd) || SESSION_UNNAMED;
@@ -597,15 +604,17 @@ function stopWaiting(requestId: string) {
  * A request is no longer needed: it was answered in Claude Code itself, the
  * relay stopped waiting, or whoever asked has stopped. The island lets go of
  * it — the one on the card, and the next in line takes the card, or one that
- * was waiting behind it. With `decline`, the relay is told too: it may still
- * be holding the connection.
+ * was waiting behind it. The relay is told too: it may still be holding
+ * the connection.
  */
-function dropRequest(island: Island, session: ClaudeSession, requestId: string, decline = false) {
+function dropRequest(island: Island, session: ClaudeSession, requestId: string) {
   stopWaiting(requestId);
   const queued = session.queued.findIndex((request) => request.requestId === requestId);
   const held = (session.approval ?? session.question)?.requestId === requestId;
   if (!held && queued < 0) return;
-  if (decline) void Bridge.approvalDecline(requestId);
+  // Rust is told even of one answered elsewhere: it frees the relay, and an island
+  // that came up for the request can go away again (visibility.rs).
+  void Bridge.approvalDecline(requestId);
   if (!held) {
     session.queued.splice(queued, 1);
     return;
@@ -729,8 +738,11 @@ export function registerHookHandlers(island: Island) {
 export function tellModel(payload: SessionModelPayload) {
   const session = State.sessions.find((s) => s.id === payload?.sessionId);
   const model = readModel(payload?.model);
-  if (!session || !model || (session.model?.id === model.id && session.model.label === model.label)) return;
+  if (!session || !model) return;
+  const window = typeof payload.contextWindow === "number" ? payload.contextWindow : session.contextWindow;
+  if (session.model?.id === model.id && session.model.label === model.label && session.contextWindow === window) return;
   session.model = model;
+  session.contextWindow = window;
   State.notify();
 }
 
@@ -906,17 +918,38 @@ export function handleHook(island: Island, payload: HookPayload) {
   };
 
   /**
+   * Something of this session ended — a turn, a subagent — while its panel is
+   * being read (`core/reading.ts`): nothing is taken from the reader, not the
+   * panel's session, not its place. The panel is told to signal it instead:
+   * the jump button for the session in front, the line of the sidebar (and a
+   * mark that stays until it is opened) for another. Never for a request: that
+   * one has Claude Code waiting, and always shows.
+   */
+  const hold = (): boolean => {
+    if (State.mode !== "expanded" || State.view !== "session" || !Reader.reading()) return false;
+    session.nudges++;
+    if (!front) session.attention = true;
+    return true;
+  };
+
+  /**
    * A turn's end, good or bad: its card when the session is in front, a mark
    * on its tab when it is behind, a badge on the pill when Claude's is not
    * the one in front.
    */
   const tell = (what: "finished" | "error") => {
     if (focused) {
+      // Someone is reading the panel: the card would take it from under them,
+      // so it does not come up. The panel wiggles, and the result stays unseen.
+      if (hold()) return;
       // Its card comes up: what the turn ended on has been shown.
       session.unseen = false;
       return surface(what, true);
     }
-    if (!front) session.news = what;
+    if (!front) {
+      session.news = what;
+      hold();
+    }
     if (State.focusId !== CLAUDE_ID) State.setPillBadge(CLAUDE_ID, what);
   };
 
@@ -1061,7 +1094,7 @@ export function handleHook(island: Island, payload: HookPayload) {
       // subagents leave the sidebar.
       session.parked = false;
       session.launching = [];
-      for (const request of requestsOf(session)) dropRequest(island, session, request.requestId, true);
+      for (const request of requestsOf(session)) dropRequest(island, session, request.requestId);
       for (const sub of session.subagents) {
         if (sub.state === "running") closeSubagent(island, session, sub, "done", null);
         sub.past = true;

@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Bridge, IS_TAURI, onEvent, type PanelSize } from "./core/bridge";
 import { Sound } from "./core/sound";
 import { State, readMetrics, readUsage, type Settings } from "./core/state";
+import { startAgentsFeed } from "./agents/feed";
 import { Island } from "./island/island";
 import { registerHookHandlers } from "./island/hooks";
 import { startWidgets } from "./widgets";
@@ -41,14 +42,14 @@ async function main() {
   const boot = await Bridge.boot();
   if (boot) {
     State.settings = { ...State.settings, ...boot.settings };
-    island.setRoom(boot.panel.width, boot.panel.height);
-    island.setScreenWidth(boot.screen.width);
+    island.setRoom(boot.panel.width, boot.panel.height, boot.panel.dock);
+    island.setScreenWidth(boot.screen.width, boot.screen.height);
   }
   // Another display, or the same one at another size: the window was sized again.
-  await onEvent<PanelSize>("panel-size", ({ width, height }) => {
-    island.setRoom(width, height);
-    // The display's own width caps the folded island: asked again, it may be another display.
-    void Bridge.boot().then((again) => again && island.setScreenWidth(again.screen.width));
+  await onEvent<PanelSize>("panel-size", ({ width, height, dock }) => {
+    island.setRoom(width, height, dock);
+    // The display's own width caps the folded island (its height, on a side): asked again, it may be another display.
+    void Bridge.boot().then((again) => again && island.setScreenWidth(again.screen.width, again.screen.height));
   });
 
   // The machine, every 2.5 s while the island is on show, and Claude's usage
@@ -103,6 +104,11 @@ async function main() {
 
   await onEvent<null>("screen-changed", () => void Bridge.reposition());
 
+  // The window was hidden by the shortcut or the tray, and is on show again (Rust, visibility.rs).
+  await onEvent<boolean>("island-shown", (shown) => {
+    if (shown) island.onShown();
+  });
+
   // A full-screen app came in front on the island's display, or left: said
   // by Rust's poll, which runs only while the island is on show.
   await onEvent<boolean>("fullscreen", (full) => island.onFullscreen(full === true));
@@ -117,15 +123,20 @@ async function main() {
   });
 
   // The settings window writes preferences; apply them here without a restart.
+  const agentsFeed = startAgentsFeed();
   await onEvent<Settings>("settings-changed", (s) => {
     State.settings = { ...State.settings, ...s };
     island.applySettings();
+    // The agents list may have just been turned on: it is sent the rows.
+    agentsFeed.poke();
     State.loadIntegrationTasks();
     // Usage limits are switched on and off in that window too.
     void readUsageInstalled().then(() => State.setUsage(State.usage));
   });
 
   registerHookHandlers(island);
+  // Switched on in the last run, the list is there at launch: it is sent the rows at once.
+  agentsFeed.poke();
 
   island.launch();
 

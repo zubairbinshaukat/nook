@@ -3,7 +3,9 @@
 //
 // It is laid out by the island's own arithmetic — core/layout.ts
 // `compactLayout` and its COMPACT_* slots — and drawn like island/compact.ts:
-// the bot (the real engine), a dot per session, the metric cells picked. What
+// the bot (the real engine), a dot per session, the metric cells picked — in
+// a row, or in a column against the desk's edge for a side dock — and outlined
+// by the island's own path (island/notch.ts). What
 // it does not share with the island is the strip itself: island/compact.ts
 // reads the live State and sits under the island's own canvas, neither of
 // which this window has. When that strip can be built from a plan handed to
@@ -12,9 +14,10 @@
 
 import { Tracked } from "../core/anim";
 import {
-  COMPACT_BOT_SLOT, COMPACT_DOT, COMPACT_DOT_GAP, COMPACT_METRIC_GAP, COMPACT_PAD, COMPACT_SLOT_GAP,
-  EAR_COMPACT, NOTCH_H, ROUNDED_CORNER, botPosition, compactLayout,
+  COMPACT_BOT_SLOT, COMPACT_CELL_H, COMPACT_COLUMN_W, COMPACT_DOT, COMPACT_DOT_GAP, COMPACT_METRIC_GAP, COMPACT_PAD,
+  COMPACT_SLOT_GAP, EAR_COMPACT, NOTCH_H, ROUNDED_CORNER, botPosition, compactLayout, sideDock, type Dock,
 } from "../core/layout";
+import { notchPath } from "../island/notch";
 import { usageLevel, type CompactMetric } from "../core/state";
 import { clear, h } from "../views/dom";
 import { LUCIDE, lucide } from "../views/iconset";
@@ -43,40 +46,19 @@ export const COMPACT_BOT = botPosition("compact", "overview", NOTCH_H).diameter;
 
 /** Three sample sessions: one calling for the user, one working, one done. */
 const SAMPLE_DOTS: { color: string; calls?: boolean }[] = [{ color: "#FFB547", calls: true }, { color: "#5AA9FF" }, { color: "#4FD69C" }];
+/** The desk on a side: the column with its three sample dots and three cells, its ears, and air above and below. */
+const SIDE_DESK_H = compactLayout(SAMPLE_DOTS.length, [52, 52, 52], "left", Infinity).height + 2 * EAR_COMPACT + 24;
 /** What the CPU cell goes through, so the preview shows that a number moves and its cell does not. */
 const SAMPLE_CPU = ["31%", "34%", "28%", "47%", "39%", "100%", "36%"];
 
-// ── The island's outline: one filled path, ears and all ───────────────────────
-
-/** How far along each edge a bottom corner of radius r runs, and how square its curve is. */
-const SMOOTH_REACH = 1.45;
-const SMOOTH_HANDLE = 0.2;
-/** The outline starts above the screen's edge: nothing can show between the two. */
-const ABOVE = 2;
-
-/** The outline, with the island's body at x 0…w, y 0…h and the ears outside it. */
-function notchPath(w: number, height: number, ear: number, corner: number): string {
-  const e = Math.max(0, ear);
-  const reach = Math.max(0, Math.min(corner * SMOOTH_REACH, w / 2, height - e));
-  const k = reach * SMOOTH_HANDLE;
-  const n = (v: number) => Number(v.toFixed(3));
-  return [
-    `M${n(-e)} ${-ABOVE}V0`,
-    `A${n(e)} ${n(e)} 0 0 1 0 ${n(e)}`,
-    `V${n(height - reach)}`,
-    `C0 ${n(height - k)} ${n(k)} ${n(height)} ${n(reach)} ${n(height)}`,
-    `H${n(w - reach)}`,
-    `C${n(w - k)} ${n(height)} ${n(w)} ${n(height - k)} ${n(w)} ${n(height - reach)}`,
-    `V${n(e)}`,
-    `A${n(e)} ${n(e)} 0 0 1 ${n(w + e)} 0`,
-    `V${-ABOVE}Z`,
-  ].join("");
-}
-
 export interface IslandPreview {
   el: HTMLElement;
-  /** Shows these cells, in this order; the island goes to its new width on its own spring unless `animate` is false. */
-  update(kinds: readonly CompactMetric[], animate: boolean): void;
+  /**
+   * Shows these cells, in this order, folded as on this dock: a row hanging
+   * from the top or standing on the bottom, a column flush with a side. The
+   * island goes to its new length on its own spring unless `animate` is false.
+   */
+  update(kinds: readonly CompactMetric[], animate: boolean, dock?: Dock): void;
   /** Starts the sample CPU number moving; the returned function stops it. */
   run(): () => void;
 }
@@ -88,8 +70,12 @@ export function islandPreview(bot: Bot): IslandPreview {
     dots.append(h("i", { class: d.calls ? "calls" : "", style: `width:${COMPACT_DOT}px;height:${COMPACT_DOT}px;--c:${d.color}` }));
   }
   const cells = h("div", { class: "sp-ci-metrics", style: `gap:${COMPACT_METRIC_GAP}px` });
-  const island = h("div", { class: "sp-ci", style: `height:${NOTCH_H}px;padding:0 ${COMPACT_PAD}px;gap:${COMPACT_SLOT_GAP}px` },
-    h("div", { class: "sp-ci-bot", style: `flex-basis:${COMPACT_BOT_SLOT}px` }, bot.el), dots, cells);
+  // The slots' sizes, as the island's (style.css `#compact`): settings.css lays them out in a row, or a column on a side.
+  const island = h("div", {
+    class: "sp-ci",
+    style: `--pad:${COMPACT_PAD}px;--slot-gap:${COMPACT_SLOT_GAP}px;--bot-slot:${COMPACT_BOT_SLOT}px;` +
+      `--column-w:${COMPACT_COLUMN_W}px;--cell-h:${COMPACT_CELL_H}px`,
+  }, h("div", { class: "sp-ci-bot" }, bot.el), dots, cells);
   const words = h("span");
   const width = h("span");
   const desk = h("div", { class: "sp-desk", role: "img" }, island);
@@ -103,15 +89,22 @@ export function islandPreview(bot: Bot): IslandPreview {
   outline.append(path);
   island.prepend(outline);
 
-  // The island's own motion: the open spring when it grows, the close curve when it shrinks.
+  // The island's own motion along its edge: the open spring when it grows, the close curve when it shrinks.
   const w = new Tracked(0);
   let wanted = 0;
   let moving = false;
   let last = 0;
+  /** The dock it is drawn for; only a side's differs from the top. */
+  let side: Dock | null = null;
+  let drawnFor: Dock | null | undefined;
   const draw = () => {
-    path.setAttribute("d", notchPath(w.value, NOTCH_H, EAR_COMPACT, ROUNDED_CORNER));
-    // Centred on the island's box, as the island is on the screen.
-    outline.style.left = `${(wanted - w.value) / 2}px`;
+    // The island's own outline (island/notch.ts), turned for a side as the island's is.
+    path.setAttribute("d", side
+      ? notchPath({ w: COMPACT_COLUMN_W, h: w.value, ear: EAR_COMPACT, corner: ROUNDED_CORNER, dock: side })
+      : notchPath({ w: w.value, h: NOTCH_H, ear: EAR_COMPACT, corner: ROUNDED_CORNER }));
+    // Centred on the island's box along its edge, as the island is on the screen.
+    outline.style.left = side ? "" : `${(wanted - w.value) / 2}px`;
+    outline.style.top = side ? `${(wanted - w.value) / 2}px` : "";
   };
   const frame = (now: number) => {
     w.step(Math.min(0.05, (now - last) / 1000));
@@ -124,8 +117,18 @@ export function islandPreview(bot: Bot): IslandPreview {
   let shown: string | null = null;
   return {
     el,
-    update(kinds, animate) {
-      const layout = compactLayout(SAMPLE_DOTS.length, kinds.map((k) => COMPACT_CELLS[k].width));
+    update(kinds, animate, dock = "top") {
+      side = sideDock(dock) ? dock : null;
+      // Another dock: the island is drawn at once in its new shape, not sprung from the old one.
+      if (side !== drawnFor) {
+        drawnFor = side;
+        animate = false;
+        desk.dataset.dock = side ?? "";
+        el.classList.toggle("side", side != null);
+        // Tall enough for the longest column the samples make, whatever is picked: the page does not jump as cells come and go.
+        desk.style.height = side ? `${SIDE_DESK_H}px` : "";
+      }
+      const layout = compactLayout(SAMPLE_DOTS.length, kinds.map((k) => COMPACT_CELLS[k].width), side ?? "top");
       const on = kinds.slice(0, layout.metrics);
       if (on.join() !== shown) {
         shown = on.join();
@@ -134,13 +137,15 @@ export function islandPreview(bot: Bot): IslandPreview {
           const cell = COMPACT_CELLS[kind];
           // A usage cell's number wears its level's colour, as on the island.
           const level = kind === "usage5h" || kind === "usage7d" ? usageLevel(parseInt(cell.sample, 10)) : undefined;
-          cells.append(h("span", { class: "sp-ci-metric", style: `width:${cell.width}px`, title: cell.name, "data-id": kind },
+          cells.append(h("span", { class: "sp-ci-metric", style: `--w:${cell.width}px`, title: cell.name, "data-id": kind },
             cellIcon(kind, COMPACT_ICON), h("b", { text: cell.sample, "data-level": level })));
         }
       }
-      wanted = layout.width;
-      island.style.width = `${wanted}px`;
-      island.style.marginLeft = `${-Math.round(wanted / 2)}px`;
+      wanted = side ? layout.height : layout.width;
+      island.style.width = side ? "" : `${wanted}px`;
+      island.style.marginLeft = side ? "" : `${-Math.round(wanted / 2)}px`;
+      island.style.height = side ? `${wanted}px` : "";
+      island.style.marginTop = side ? `${-Math.round(wanted / 2)}px` : "";
       if (!animate) w.jump(wanted);
       else if (wanted >= w.value) w.springTo(wanted);
       else w.curveTowards(wanted);
@@ -152,7 +157,8 @@ export function islandPreview(bot: Bot): IslandPreview {
       draw();
       const names = on.map((k) => COMPACT_CELLS[k].name);
       words.textContent = names.length ? `Bot · sessions · ${names.join(" · ")}` : "Bot · sessions — no metrics, so the island is narrower";
-      width.textContent = `${wanted + 2 * EAR_COMPACT} px`;
+      // Its length along the edge, ears included; on a side, the column's width beside it.
+      width.textContent = side ? `${COMPACT_COLUMN_W} × ${wanted + 2 * EAR_COMPACT} px` : `${wanted + 2 * EAR_COMPACT} px`;
       desk.setAttribute("aria-label", `Preview of the folded island, with sample values: ${words.textContent}`);
     },
     run() {

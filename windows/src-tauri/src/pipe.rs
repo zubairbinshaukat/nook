@@ -37,7 +37,7 @@ use tokio::sync::mpsc;
 
 use crate::island::WINDOW_LABEL;
 use crate::target::{self, Sessions};
-use crate::{log, platform, usage};
+use crate::{log, platform, usage, visibility};
 
 /// Slightly under nook-hook's own 110 s wait, so we always answer first.
 const DECISION_TIMEOUT: Duration = Duration::from_secs(108);
@@ -373,8 +373,11 @@ async fn handle(app: AppHandle, mut pipe: impl Relay) {
     log::line(format!("hook PermissionRequest id={id}"));
     let _ = app.emit_to(WINDOW_LABEL, "hook", payload);
 
-    let decision = wait_for_decision(&id, &mut rx).await;
+    let mut card = Card { app: app.clone(), up: false };
+    let decision = wait_for_decision(&id, &mut rx, || card.raise()).await;
     app.state::<Pending>().0.lock().unwrap().remove(&id);
+    // Over, however it ended: an island that came up for it may go.
+    drop(card);
 
     // No decision: say nothing at all. nook-hook then writes nothing to stdout
     // and Claude Code asks in the terminal, exactly as if Nook were closed.
@@ -385,10 +388,37 @@ async fn handle(app: AppHandle, mut pipe: impl Relay) {
     pipe.finish();
 }
 
+/// A request whose card is up on the island, for as long as the relay waits for it:
+/// a hidden island shows itself for it, and goes again once none is left
+/// (visibility.rs). Dropped, so it ends with the wait whatever ends that — a
+/// click, the terminal, a timeout, the task itself.
+struct Card {
+    app: AppHandle,
+    up: bool,
+}
+
+impl Card {
+    fn raise(&mut self) {
+        if !self.up {
+            self.up = true;
+            visibility::request_up(&self.app);
+        }
+    }
+}
+
+impl Drop for Card {
+    fn drop(&mut self) {
+        if self.up {
+            visibility::request_done(&self.app);
+        }
+    }
+}
+
 /// Two waits: a short one for "the card is up", then the long one for a human.
-async fn wait_for_decision(id: &str, rx: &mut mpsc::Receiver<Reply>) -> Option<String> {
+/// on_ack is called when it is.
+async fn wait_for_decision(id: &str, rx: &mut mpsc::Receiver<Reply>, on_ack: impl FnOnce()) -> Option<String> {
     match tokio::time::timeout(ACK_TIMEOUT, rx.recv()).await {
-        Ok(Some(Reply::Ack)) => {}
+        Ok(Some(Reply::Ack)) => on_ack(),
         // A click that beats the ack is still a click.
         Ok(Some(Reply::Decision(d))) => {
             log::line(format!("hook id={id} answered {}", word(&d)));

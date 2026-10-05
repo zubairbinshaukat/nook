@@ -38,6 +38,8 @@ import { TOOL_NAME, toolMark } from "./tool";
 import type { SessionAgent } from "../core/state";
 import { stepIcon, stepName, stepPreview, type ToType } from "./step";
 import { botGlowColor } from "../core/layout";
+import { contextUse } from "../core/context";
+import { Reader } from "../core/reading";
 import type { ViewActions, ViewHost } from "./views";
 
 /** What a session is called until it has a project or a title to go by. */
@@ -56,6 +58,10 @@ const TICK_MS = 16;
 const JOURNAL_LINES = { normal: 6, large: 14 };
 /** This close to the journal's end, it is being followed: what comes next is scrolled to. */
 const FOLLOW_PX = 24;
+/** Further than this above its end, the journal shows the way back down. */
+const JUMP_PX = 120;
+/** A wiggle (the jump button's, a line's) is not repeated sooner than this: a run of finishes is one shake, not a constant one. */
+const WIGGLE_GAP_MS = 1_500;
 /** A reply brought into view starts this far under the journal's top edge. */
 const REVEAL_GAP = 6;
 /** The window is asked for the keyboard; this long later it has it, and a row can take the focus. */
@@ -228,7 +234,10 @@ const QUIET_TIP = "Nothing has come from this session for 10 minutes. It may be 
 const DECISION_TIP = "Its last reply has something marked IMPORTANT. The mark goes once that reply has been read whole here, or when you answer it.";
 
 /** Something a session wants looked at: it is waiting for an answer, or has news nobody has seen. */
-const calls = (session: ClaudeSession) => session.news != null || session.question != null || session.approval != null || session.decision;
+const calls = (session: ClaudeSession) => session.news != null || session.question != null || session.approval != null || session.decision || session.attention;
+
+/** What the mark of a turn that ended while the panel was being read says. */
+const ATTENTION_WORDS = "New activity";
 
 /**
  * The way to the sessions, where a session is shown: a chip that says how
@@ -247,7 +256,7 @@ export function sessionsChip(onOpen: () => void): { el: HTMLElement; sync(): voi
       const calling = State.sessions.find((s) => s.id !== State.frontId && calls(s));
       el.classList.toggle("calls", calling != null);
       el.style.setProperty("--c", calling ? standing(calling).color : "currentColor");
-      el.title = calling ? `${sessionName(calling)} ${standing(calling).words}` : "Every session followed, Claude Code and Cursor";
+      el.title = calling ? `${sessionName(calling)} ${standing(calling).words}${calling.attention ? ` — ${ATTENTION_WORDS.toLowerCase()}` : ""}` :"Every session followed, Claude Code and Cursor";
     },
   };
 }
@@ -572,7 +581,11 @@ export function buildSession(actions: ViewActions): ViewHost {
   const journal = h("div", { class: "gh-list sess-journal" });
   const list = h("div", { class: "gh-list" });
 
-  const main = h("div", { class: "gh-main" }, head, crumb, filters, journal, list);
+  // The way back to the journal's end, from further up. A sibling of the
+  // scroller, not a child: the journal is redrawn and fades out at its edge.
+  const jumpDot = h("i", { class: "sess-jump-dot" });
+  const jump = h("button", { class: "sess-jump", type: "button", "aria-label": "Jump to latest", title: "Jump to latest", hidden: true }, svg(ICONS.chevronDown, 12, { stroke: 2.4 }), jumpDot);
+  const main = h("div", { class: "gh-main" }, head, crumb, filters, journal, list, jump);
   // The panel itself can hold the focus, unseen: keys then reach the island
   // without any line of the sidebar having been given it.
   const el = h("div", { class: "view gh-view session-view", tabindex: "-1" }, h("div", { class: "card gh-card" }, rail, main));
@@ -587,6 +600,79 @@ export function buildSession(actions: ViewActions): ViewHost {
     scroller.addEventListener("scroll", fade, { passive: true });
     new ResizeObserver(fade).observe(scroller);
   }
+
+  // Where the reader wants the journal: at its end, until they scroll up on
+  // purpose. Kept apart from where it is now, because a size change moves the
+  // end without a scroll: the panel growing or shrinking, a session's lines
+  // drawn longer at the large size. Only a scroll upward, away from the end,
+  // lets go of it; one back to the end takes it up again.
+  let pinned = true;
+  let lastTop = 0;
+  /** Something came in under a reader who is further up. */
+  let unread = false;
+  /** A turn ended under the reader (hooks.ts `hold`): the button shows for it, however near the end they are. */
+  let held = false;
+  /** The sync under way is one a turn's end was held back for: set by `sync`, for the front session. */
+  let holding = false;
+  /** The front session's turn ended while its journal was not on show (the changes, a file): its line wears the mark until the journal is back, where the button takes it up. */
+  let owed: ClaudeSession | null = null;
+
+  /** `pinned`, told to the one who asks whether the panel is being read (`core/reading.ts`). */
+  function pin(on: boolean) {
+    pinned = on;
+    Reader.away = !on;
+  }
+
+  // Whoever touches the panel is reading it, for a while.
+  for (const type of ["wheel", "keydown", "pointerdown", "pointermove"]) el.addEventListener(type, () => Reader.touch(), { passive: true, capture: true });
+
+  const gapBelow = () => journal.scrollHeight - journal.scrollTop - journal.clientHeight;
+
+  function placeJump() {
+    // Not when the journal has no height (the island folded, the journal hidden): nothing was reached.
+    if (journal.clientHeight > 0 && gapBelow() <= FOLLOW_PX) unread = held = false;
+    const far = journal.clientHeight > 0 && journal.scrollHeight > journal.clientHeight && gapBelow() > JUMP_PX;
+    // Something that ended under a reader who is near the end, though not far
+    // from it: the button shows for it, with its dot, until the end is reached.
+    const behind = held && journal.clientHeight > 0 && journal.scrollHeight > journal.clientHeight;
+    jump.hidden = !(far || behind);
+    jump.classList.toggle("fresh", !jump.hidden && unread);
+  }
+
+  /** Last time something wiggled, by what: a session's line, or the jump button. */
+  const wiggled = new WeakMap<object, number>();
+
+  /** A short shake of `el`, once; not again within `WIGGLE_GAP_MS`. It takes no pointer and no focus. */
+  function wiggle(el: HTMLElement, by: object) {
+    const now = Date.now();
+    if (now - (wiggled.get(by) ?? 0) < WIGGLE_GAP_MS) return;
+    wiggled.set(by, now);
+    replay(el, "sess-wiggle");
+  }
+  el.addEventListener("animationend", (e) => (e.target as HTMLElement).classList.remove("sess-wiggle"));
+
+  journal.addEventListener("scroll", () => {
+    const top = journal.scrollTop;
+    if (gapBelow() <= FOLLOW_PX) pin(true);
+    else if (top < lastTop) pin(false);
+    lastTop = top;
+    placeJump();
+  }, { passive: true });
+
+  // Every step of the panel's animation resizes the journal: it is put back at
+  // its end each time, so that it is there when the panel settles.
+  new ResizeObserver(() => {
+    if (pinned && journal.clientHeight > 0) journal.scrollTop = journal.scrollHeight;
+    placeJump();
+  }).observe(journal);
+
+  jump.addEventListener("click", () => {
+    pin(true);
+    unread = held = false;
+    const still = document.documentElement.dataset.motion === "reduce";
+    journal.scrollTo({ top: journal.scrollHeight, behavior: still ? "auto" : "smooth" });
+    placeJump();
+  });
 
   /** A session picked in the sidebar: it comes in front, on its journal. The one in front goes back to its journal. */
   function pickSession(id: string) {
@@ -672,10 +758,11 @@ export function buildSession(actions: ViewActions): ViewHost {
     const next = lines
       .map(({ session, subs, open, at }) =>
         [
-          session.id, session.agent, folderOf(session), session.title, at.words, at.color, open, targetTip(session), session.target.kind, session.model?.label, session.decision,
+          session.id, session.agent, folderOf(session), session.title, at.words, at.color, open, targetTip(session), session.target.kind, session.model?.label, session.decision, session.attention,
+          contextUse(session.contextTokens, session.contextWindow, session.model?.id)?.percent,
           ...subs.map((a) => [a.id, a.type, subagentTask(a), subagentStanding(session, a), a.model?.label].join(":")),
         ].join("~"))
-      .concat(front.id, onAgent ?? "")
+      .concat(front.id, onAgent ?? "", owed?.id ?? "")
       .join("|");
     if (next === railKey) return;
     railKey = next;
@@ -745,6 +832,20 @@ export function buildSession(actions: ViewActions): ViewHost {
         });
         goto.addEventListener("dblclick", (e) => e.stopPropagation());
         row.append(goto);
+      }
+      // How full its context is, for the one to go and /compact: a cue, as Nook cannot do it.
+      // Said in words as well as colour; none before an answer has been counted.
+      const use = contextUse(session.contextTokens, session.contextWindow, session.model?.id);
+      if (use) {
+        const words = `Context ${use.percent}%`;
+        row.append(h("i", { class: `sess-ctx ${use.level}`, title: words }, h("u", { style: `width:${use.percent}%` }), h("span", { class: "sess-ctx-words", text: words })));
+        row.title += ` — ${words}`;
+      }
+      // A turn of its ended while the panel was being read: not said by sound or card, but here, until it is opened.
+      if ((session.attention && !inFront) || session === owed) {
+        row.classList.add("attn");
+        row.append(h("i", { class: "sess-new", role: "img", "aria-label": ATTENTION_WORDS, title: ATTENTION_WORDS }));
+        row.title += ` — ${ATTENTION_WORDS.toLowerCase()}`;
       }
       row.append(mark);
       row.addEventListener("click", () => pickSession(session.id));
@@ -932,7 +1033,8 @@ export function buildSession(actions: ViewActions): ViewHost {
     const finish = (line: ToType) => line.row.replaceWith(diffLine(line.number, "+", line.text, kind));
     const begin = (line: ToType) => {
       line.row.classList.remove("untyped");
-      line.row.scrollIntoView({ block: "nearest" });
+      // Only for one who follows the end: a reader who is further up keeps their place.
+      if (pinned || gapBelow() <= FOLLOW_PX) line.row.scrollIntoView({ block: "nearest" });
     };
     begin(lines[0]);
     finishTyping = () => lines.slice(at).forEach(finish);
@@ -955,7 +1057,7 @@ export function buildSession(actions: ViewActions): ViewHost {
       }
       if (at >= lines.length) {
         stopTyping();
-        journal.scrollTop = journal.scrollHeight;
+        if (pinned || gapBelow() <= FOLLOW_PX) journal.scrollTop = journal.scrollHeight;
         return;
       }
       const cell = lines[at].row.querySelector(".t");
@@ -1099,7 +1201,18 @@ export function buildSession(actions: ViewActions): ViewHost {
     const source = `${session.id}/${agent?.id ?? ""}`;
     const entering = opened !== `${source}:${stamp}`;
     opened = `${source}:${stamp}`;
-    const following = entering || journal.scrollTop + journal.clientHeight >= journal.scrollHeight - FOLLOW_PX;
+    if (entering) {
+      pin(true);
+      unread = held = false;
+    }
+    // A turn ended while this was being read: the journal does not follow its
+    // end, nor move at all, until the reader goes down by themselves (the
+    // button) — whether they were at the end or further up.
+    const keep = holding && !entering;
+    if (keep) pin(false);
+    const following = entering || (!keep && (pinned || gapBelow() <= FOLLOW_PX));
+    const was = journal.scrollHeight;
+    const place = journal.scrollTop;
     const large = State.large;
     const told = agent == null || stepsApart(session, agent);
 
@@ -1143,6 +1256,11 @@ export function buildSession(actions: ViewActions): ViewHost {
     if (agent) nodes.push(ending(session, agent));
     const same = journal.children.length === nodes.length && nodes.every((node, i) => journal.children[i] === node);
     if (!same) journal.replaceChildren(...nodes);
+    if (keep) {
+      journal.scrollTop = place;
+      // No scroll event comes if the end did not move: where the reader stands decides.
+      pin(gapBelow() <= FOLLOW_PX);
+    }
 
     // Another session's journal comes in from the side; a subagent's, and the
     // way back from it, rise into place.
@@ -1159,8 +1277,17 @@ export function buildSession(actions: ViewActions): ViewHost {
     const revealed = reveal ? (reveal === ended?.of ? ended.el : entries.get(reveal as SessionStep)?.el) : null;
     reveal = null;
     if (toType) type(toType.lines, toType.kind);
-    else if (revealed?.isConnected) journal.scrollTop += revealed.getBoundingClientRect().top - journal.getBoundingClientRect().top - REVEAL_GAP;
-    else if (following && typing == null) journal.scrollTo({ top: journal.scrollHeight, behavior: entering ? "auto" : "smooth" });
+    else if (revealed?.isConnected) {
+      journal.scrollTop += revealed.getBoundingClientRect().top - journal.getBoundingClientRect().top - REVEAL_GAP;
+      // Moved down, the scroll listener would not let go of the end: the panel's
+      // next resize would take the reply from its top. Reaching the end by the
+      // reader's own scroll pins again.
+      if (gapBelow() > FOLLOW_PX) pin(false);
+    } else if (following && typing == null) journal.scrollTo({ top: journal.scrollHeight, behavior: entering ? "auto" : "smooth" });
+    if (!following && journal.scrollHeight > was) unread = true;
+    if (keep) unread = held = true;
+    placeJump();
+    if (keep && !jump.hidden) wiggle(jump, jump);
   }
 
   // ── Above the journal ───────────────────────────────────────────────────────
@@ -1268,6 +1395,8 @@ export function buildSession(actions: ViewActions): ViewHost {
 
   /** The session the panel was last drawn for. */
   let followed = "";
+  /** How many held-back turn ends of each session the panel has shown. */
+  const shownNudges = new WeakMap<ClaudeSession, number>();
   let key = "";
   let headKey = "";
   /** What the list last drew, to keep its scroll when it draws the same again. */
@@ -1295,9 +1424,19 @@ export function buildSession(actions: ViewActions): ViewHost {
       const session = State.session;
       const files = State.sessionFiles;
 
+      // Turns that ended since the last sync, while the panel was being read
+      // (hooks.ts `hold`): each session's count is compared with what was shown.
+      // A session met for the first time shows nothing for what came before.
+      const nudged = State.sessions.filter((s) => s.nudges !== (shownNudges.get(s) ?? s.nudges));
+      for (const s of State.sessions) shownNudges.set(s, s.nudges);
+      holding = nudged.includes(session);
+
       // Another session came in front: whatever of the last one was open — a
       // file, a subagent — its journal.
       if (session.id !== followed) {
+        // A finish still owed to the one left behind is not lost: its line keeps the mark.
+        if (owed && owed !== session) owed.attention = true;
+        owed = null;
         followed = session.id;
         if (!(screen.kind === "agent" && screen.session === session.id)) screen = { kind: "live" };
         filter = "all";
@@ -1312,6 +1451,12 @@ export function buildSession(actions: ViewActions): ViewHost {
       const picked = openedFile ? (files.find((f) => f.path === openedFile) ?? null) : null;
       if (openedFile && !picked) screen = { kind: "list" };
       const live = screen.kind === "live" || screen.kind === "agent";
+      // A finish held back while the journal is not on show: signalled on the line now, on the button when the journal is back.
+      if (holding && !live) owed = session;
+      else if (live && owed === session) {
+        holding = true;
+        owed = null;
+      }
 
       // The panel's size: what the large one shows more of is drawn from this.
       el.classList.toggle("large", State.large);
@@ -1332,6 +1477,11 @@ export function buildSession(actions: ViewActions): ViewHost {
       if (live) settleReply(session, agent);
       drawRail(session);
       tree.classList.toggle("kbd", byKeyboard);
+      // Another session's turn ended: its line shakes, if it is on show.
+      for (const s of nudged) {
+        const line = s === session && live ? null : rows().find((r) => r.dataset.key === sessionKey(s.id));
+        if (line) wiggle(line, s);
+      }
 
       journal.style.display = live ? "" : "none";
       list.style.display = live ? "none" : "";

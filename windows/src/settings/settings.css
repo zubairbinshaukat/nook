@@ -509,6 +509,11 @@ body.settings-window {
   transition: background 0.16s ease-out, border-color 0.16s ease-out;
 }
 
+.sp-toggle:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .sp-toggle i {
   position: absolute;
   top: 50%;
@@ -1046,18 +1051,67 @@ body.settings-window {
   top: 0;
   left: 50%;
   height: 38px;
-  padding: 0 12px;
+  padding: 0 var(--pad);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--slot-gap);
   color: #f1f2f4;
 }
 
 .sp-ci-bot {
-  flex: 0 0 34px;
+  flex: 0 0 var(--bot-slot);
   height: 100%;
   display: grid;
   place-items: center;
+}
+
+/* Docked to a side: the column, flush with the desk's edge and centred along
+   it, as the island folds there (style.css `#compact` on a side). The preview
+   is too tall then to stay in sight as the choices scroll. */
+.sp-live.side {
+  position: static;
+}
+
+.sp-desk:is([data-dock="left"], [data-dock="right"]) .sp-ci {
+  top: 50%;
+  width: var(--column-w);
+  padding: var(--pad) 0;
+  flex-direction: column;
+}
+
+.sp-desk[data-dock="left"] .sp-ci {
+  left: 0;
+}
+
+.sp-desk[data-dock="right"] .sp-ci {
+  left: auto;
+  right: 0;
+}
+
+.sp-desk:is([data-dock="left"], [data-dock="right"]) .sp-ci-bot {
+  align-self: stretch;
+  height: auto;
+}
+
+.sp-desk:is([data-dock="left"], [data-dock="right"]) :is(.sp-ci-dots, .sp-ci-metrics) {
+  flex-direction: column;
+}
+
+.sp-desk:is([data-dock="left"], [data-dock="right"]) .sp-ci-metrics {
+  align-self: stretch;
+  align-items: stretch;
+}
+
+.sp-desk:is([data-dock="left"], [data-dock="right"]) .sp-ci-metric {
+  width: auto;
+  height: var(--cell-h);
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.sp-desk:is([data-dock="left"], [data-dock="right"]) .sp-ci-metric b {
+  line-height: 16px;
 }
 
 .sp-ci-dots {
@@ -1091,6 +1145,7 @@ body.settings-window {
 
 .sp-ci-metric {
   flex: 0 0 auto;
+  width: var(--w);
   display: flex;
   align-items: center;
   gap: 5px;

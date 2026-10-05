@@ -1,0 +1,300 @@
+/* The agents list. Same ground, palette and type as the island (style.css,
+   imported with it): black, hairline-edged, the island's colours for a state. */
+
+.agents-window {
+  overflow: hidden;
+  --row-h: 54px;
+}
+
+/* The width is the user's (two thin handles, below); the page only follows it. The
+   name and the last line take what is left, with an ellipsis; the badge, the time
+   and the tokens are fixed. Nothing scrolls sideways at any width. */
+/* The panel takes the height its rows give it, and the window is made that tall,
+   up to the user's cap (Rust `agents_fit`). Past the window the list scrolls and
+   the header stays: the panel is never taller than the window. */
+#ag-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #000;
+  border: 1px solid var(--gh-edge, rgba(255, 255, 255, 0.07));
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 100vh;
+  /* Full strength comes back at once; only the dimming is eased (below). */
+  transition: none;
+}
+
+/* Left alone, the panel dims (main.ts, fade.ts); the window itself stays as solid to the pointer as ever. */
+#ag-panel[data-faded] {
+  opacity: var(--ag-fade, 0.5);
+  transition: opacity 0.6s ease;
+}
+
+.ag-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 8px 0 12px;
+  flex: none;
+  cursor: grab;
+}
+
+.ag-title {
+  flex: none;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-right: auto;
+}
+
+.ag-pill {
+  flex: none;
+  display: inline-flex;
+  gap: 5px;
+  align-items: baseline;
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.06);
+  font: 600 10.5px/1.3 var(--mono);
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.ag-pill b {
+  font-weight: 500;
+  color: var(--dim-2);
+}
+
+.ag-pill[data-level="warm"] { color: var(--amber); }
+.ag-pill[data-level="hot"] { color: var(--red-text); }
+.ag-pill[data-state="old"],
+.ag-pill[data-state="reset"] { opacity: 0.55; }
+
+.ag-x {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-left: 2px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dim-3);
+  font: 400 15px/1 var(--font);
+  cursor: pointer;
+}
+
+.ag-x:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+}
+
+.ag-list {
+  list-style: none;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* The side margins keep the scrollbar clear of the side handles. */
+  margin: 0 3px;
+  padding: 0 4px 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.ag-empty {
+  padding: 4px 12px 14px;
+  font-size: 12px;
+  color: var(--dim-3);
+}
+
+.ag-row {
+  height: var(--row-h);
+  border-radius: 10px;
+  transition: background 0.12s;
+}
+
+.ag-row + .ag-row {
+  box-shadow: 0 -1px 0 var(--hairline);
+}
+
+.ag-hit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 2px;
+  align-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0 8px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ag-row:hover {
+  background: var(--gh-hover, rgba(255, 255, 255, 0.05));
+}
+
+.ag-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+/* One mark for each tool that has a session in the project (views/tool.ts); the room is kept to what is drawn. */
+.ag-marks {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.ag-marks .tool-mark {
+  margin: 0;
+  vertical-align: baseline;
+}
+
+.ag-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.ag-count {
+  flex: none;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--red-text);
+}
+
+.ag-badge {
+  flex: none;
+  min-width: 42px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--t);
+  background: color-mix(in srgb, var(--c) 18%, transparent);
+}
+
+.ag-row[data-status="work"] { --c: var(--blue); --t: var(--blue-text); }
+.ag-row[data-status="wait"] { --c: var(--amber); --t: #ffc266; }
+.ag-row[data-status="done"] { --c: var(--green-2); --t: #6fe0af; }
+.ag-row[data-status="idle"] { --c: var(--dim-3); --t: var(--dim); }
+
+.ag-elapsed {
+  flex: none;
+  min-width: 40px;
+  text-align: right;
+  font: 500 11px/1 var(--mono);
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.ag-tokens {
+  flex: none;
+  min-width: 34px;
+  text-align: right;
+  font: 600 12px/1 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.ag-tokens[data-level="ok"] { color: var(--green-2); }
+.ag-tokens[data-level="warn"] { color: var(--amber); }
+.ag-tokens[data-level="full"] { color: var(--red-text); }
+
+.ag-message {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--dim-3);
+}
+
+/* A row whose window was not found: dimmed, and shaken once. */
+.ag-row.nogo {
+  opacity: 0.5;
+  animation: ag-shake 0.32s;
+}
+
+@keyframes ag-shake {
+  20% { transform: translateX(-3px); }
+  45% { transform: translateX(3px); }
+  70% { transform: translateX(-2px); }
+}
+
+:root[data-motion="reduce"] .ag-row,
+:root[data-motion="reduce"] #ag-panel[data-faded],
+:root[data-motion="reduce"] .ag-row.nogo {
+  transition: none;
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .ag-row,
+  :root:not([data-motion="full"]) #ag-panel[data-faded],
+  :root:not([data-motion="full"]) .ag-row.nogo {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* Invisible handles on the side edges, the bottom edge and the bottom corners:
+   the sides set the width, the bottom the most the window may be tall, a corner
+   both (main.ts). Rust sets the size from the cursor while one is held. */
+.ag-grip {
+  position: fixed;
+  touch-action: none;
+  z-index: 2;
+}
+
+.ag-grip-left,
+.ag-grip-right {
+  top: 0;
+  bottom: 10px;
+  width: 6px;
+  cursor: col-resize;
+}
+
+.ag-grip-left { left: 0; }
+.ag-grip-right { right: 0; }
+
+.ag-grip-bottom {
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 6px;
+  cursor: row-resize;
+}
+
+.ag-grip-bottom-left,
+.ag-grip-bottom-right {
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  z-index: 3;
+}
+
+.ag-grip-bottom-left { left: 0; cursor: nesw-resize; }
+.ag-grip-bottom-right { right: 0; cursor: nwse-resize; }

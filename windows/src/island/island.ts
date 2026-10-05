@@ -5,8 +5,8 @@ import { Tracked, Spring, clamp, mixColor } from "../core/anim";
 import { Bridge, IS_TAURI } from "../core/bridge";
 import { wipe } from "../core/canvas";
 import {
-  Display, EAR_COMPACT, EAR_EXPANDED, EXPANDED_CORNER, EXPANDED_W, LARGE_H, LARGE_W, NOTCH_W, OVERSHOOT_H, OVERSHOOT_W, PANEL_H, PANEL_W,
-  ROUNDED_CORNER, Room, VIEW_LAYOUTS, botGlowColor, botGlowOpacity, botPosition,
+  type Dock, Display, EAR_COMPACT, EAR_EXPANDED, EXPANDED_CORNER, EXPANDED_W, LARGE_H, LARGE_W, NOTCH_H, NOTCH_W, OVERSHOOT_H, OVERSHOOT_W, PANEL_H, PANEL_W,
+  ROUNDED_CORNER, Room, botGlowColor, botGlowOpacity, botPosition, islandOrigin, sideDock, viewLayout,
   islandSize, shelfWidth,
   type BotStateName, type IslandMode, type IslandViewName,
 } from "../core/layout";
@@ -18,7 +18,7 @@ import { leaveMiniBots, miniBotManners, miniBotsLively, miniBotsNextDue, pointMi
 import { GulluReactions, type GulluCue } from "../bot/reactions";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { enterSessionPanel, leaveSubagent } from "../views/session";
-import { ensureMorphCurve, scrollRow, settleRow, type MorphNames, type ShelfHost } from "../views/shelf";
+import { ensureMorphCurve, rowScroll, scrollRow, settleRow, type MorphNames, type ShelfHost } from "../views/shelf";
 import { widgetsSettingsChanged } from "../widgets";
 import { ShelfHooks } from "../widgets/core";
 import { widgetOn, type ShelfWidgetId } from "../widgets/defs";
@@ -42,6 +42,14 @@ const modeOrder = (m: IslandMode) => (m === "hidden" ? 0 : m === "compact" ? 1 :
  */
 const PAGE_MARGIN_W = 32;
 const PAGE_MARGIN_H = 24;
+
+/** The island's corners on each dock, from its radius (CSS `border-radius`): square where it meets the screen's edge. */
+const ISLAND_RADIUS: Record<Dock, (r: string) => string> = {
+  top: (r) => `0 0 ${r} ${r}`,
+  bottom: (r) => `${r} ${r} 0 0`,
+  left: (r) => `0 ${r} ${r} 0`,
+  right: (r) => `${r} 0 0 ${r}`,
+};
 
 /** True for something typed in: Escape there is the field's own business. */
 const isField = (target: EventTarget | null) =>
@@ -80,6 +88,14 @@ const reducedMotion = () => {
   if (wanted === "off") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 };
+
+/**
+ * The tabs cross-fade instead of paging sideways: with motion reduced, where
+ * nothing travels, and on a side dock, where Home and the Shelf stand upright
+ * and a sideways page would have no room to travel in (`.view.tab-cut`). No
+ * swipe or wheel pages there either: the arrow keys and the tabs still go.
+ */
+const tabsCut = () => reducedMotion() || sideDock(Room.dock);
 
 /** The same choice, as the bot's reactions take it: true, false, or null to follow the system. */
 const reduceMotionChoice = (): boolean | null => {
@@ -215,8 +231,8 @@ export class Island {
   private radius = new Tracked(ROUNDED_CORNER);
   /** The ears' radius: with the island's size, on the same spring. */
   private ear = new Tracked(0);
-  /** The folded island's width, as it was last asked for: it follows what the island holds. */
-  private compactW = 0;
+  /** The folded island's size, as it was last asked for: it follows what the island holds, a row or (on a side) a column. */
+  private compactSize = { w: 0, h: NOTCH_H };
   /** The state of the most urgent session: what the bot wears folded, and on the home view. */
   private overall: BotStateName = "idle";
   /** The home view's slow timer: see HOME_TICK_MS. */
@@ -250,6 +266,8 @@ export class Island {
   private wasInIsland = false;
   /** Last shape handed to Rust for the click-through test. */
   private pushedRect = { x: -1, y: -1, w: -1, h: -1 };
+  /** Rust has said once what the window is and which edge it is on (`setRoom`). */
+  private roomKnown = false;
   private homeCollapseAt: number | null = null;
 
   /**
@@ -646,7 +664,7 @@ export class Island {
     }
     // From one tab to the other — or back to the one a swipe is on its way from —
     // the page slides on the island's spring, from where it is.
-    if (TAB_VIEWS.has(State.view) && TAB_VIEWS.has(view) && !reducedMotion()) {
+    if (TAB_VIEWS.has(State.view) && TAB_VIEWS.has(view) && !tabsCut()) {
       if (this.paging || (State.view === "shelf") !== (view === "shelf")) {
         this.pageTo(view === "shelf" ? 1 : 0);
         State.lastActivity = performance.now();
@@ -655,7 +673,7 @@ export class Island {
     }
     this.abortPaging();
     // The large panel is the largest shape there is: leaving it is always shrinking.
-    const grew = !State.large && VIEW_LAYOUTS[view].height >= VIEW_LAYOUTS[State.view].height;
+    const grew = !State.large && viewLayout(view).height >= viewLayout(State.view).height;
     // A card that asks something has just come on show: whatever click brought it up does not answer it.
     if (view !== State.view) this.views.get(view)?.arm?.();
     const tabbed = this.show(view);
@@ -681,15 +699,16 @@ export class Island {
     if (from === "shelf" && view !== "shelf") this.shelf.visible(false);
     this.overShelf = CARD_VIEWS.has(view) && open && (from === "shelf" || (this.overShelf && CARD_VIEWS.has(from)));
     const tabbed = open && TAB_VIEWS.has(from) && TAB_VIEWS.has(view) && (from === "shelf") !== (view === "shelf");
-    this.crossFade(tabbed && reducedMotion() ? from : null, view);
+    this.crossFade(tabbed && tabsCut() ? from : null, view);
     State.view = view;
     return tabbed;
   }
 
   /**
-   * With motion reduced nothing travels between the tabs: the two cross-fade,
-   * briefly (`.view.tab-cut`). With motion, the tabs page (`pageTo`, and the
-   * swipe) and any other change of view is the views' own.
+   * With motion reduced, or on a side dock, nothing travels between the tabs:
+   * the two cross-fade, briefly (`.view.tab-cut`, `tabsCut`). Otherwise the
+   * tabs page (`pageTo`, and the swipe) and any other change of view is the
+   * views' own.
    */
   private crossFade(from: IslandViewName | null, to: IslandViewName) {
     for (const view of this.views.values()) view.el.classList.remove("tab-cut");
@@ -736,6 +755,10 @@ export class Island {
   private swipeTabs(e: WheelEvent) {
     if (State.mode !== "expanded" || !TAB_VIEWS.has(State.view)) return;
     if (!within(this.islandEl.getBoundingClientRect(), e.clientX, e.clientY)) return;
+    if (sideDock(Room.dock)) {
+      this.wheelUpright(e);
+      return;
+    }
     const unit = e.deltaMode === 1 ? WHEEL_LINE_PX : e.deltaMode === 2 ? this.pageW() : 1;
     const dx = e.deltaX * unit;
     if (Math.abs(dx) <= Math.abs(e.deltaY * unit)) return;
@@ -770,6 +793,35 @@ export class Island {
     if (step.kind === "scroll" && row) this.scrollShelf(row, dx);
     else if (step.kind === "drag" && !reducedMotion()) this.dragTo(step.pos);
     this.armPan();
+  }
+
+  /**
+   * The wheel on a side dock, where the tabs do not page (`tabsCut`): a
+   * sideways swipe over an expanded widget takes it back to the column, as on
+   * the other docks; up and down over the Shelf scrolls its column, moved here
+   * by the pointer's place for the reason `swipeTabs` gives. Anything else
+   * scrolls whatever is under it, as it always did.
+   */
+  private wheelUpright(e: WheelEvent) {
+    const now = performance.now();
+    const unit = e.deltaMode === 1 ? WHEEL_LINE_PX : 1;
+    const dx = e.deltaX * unit;
+    if (State.view === "shelf" && this.shelf.focused) {
+      if (Math.abs(dx) <= Math.abs(e.deltaY * unit)) return;
+      e.preventDefault();
+      State.lastActivity = now;
+      this.swipeBack(dx, now);
+      return;
+    }
+    const row = this.shelfRow(e.clientX, e.clientY);
+    if (!row) return;
+    // A page of the wheel is a column's height; Shift with a mouse's wheel says sideways what it means down.
+    const shifted = e.shiftKey && e.deltaY === 0;
+    const d = shifted ? dx : e.deltaY * (e.deltaMode === 2 ? row.clientHeight : unit);
+    if (d === 0 || (!shifted && Math.abs(d) < Math.abs(dx))) return;
+    e.preventDefault();
+    State.lastActivity = now;
+    if (canScroll(rowScroll(row), d)) this.scrollShelf(row, d);
   }
 
   /** Where the page is: under the fingers or on its way while paging, else at the tab on show. */
@@ -1534,7 +1586,7 @@ export class Island {
     const proposal = State.pendingApproval?.proposal != null;
     const fitted = this.views?.get(view)?.height ?? null;
     const fittedW = this.views?.get(view)?.width ?? null;
-    return islandSize("expanded", view, proposal, fitted, State.large, this.compactW, fittedW);
+    return islandSize("expanded", view, proposal, fitted, State.large, this.compactSize, fittedW);
   }
 
   private targetSize(): { w: number; h: number; r: number; ear: number } {
@@ -1542,9 +1594,13 @@ export class Island {
     // A view that knows how tall its content is has the last word.
     const fitted = this.views?.get(State.view)?.height ?? null;
     const fittedW = this.views?.get(State.view)?.width ?? null;
-    // Folded, the island is as wide as what it holds: its slots, each of a fixed width, under the cap.
-    if (State.mode === "compact") this.compactW = compactPlan().width;
-    const { w, h } = islandSize(State.mode, State.view, proposal, fitted, State.large, this.compactW, fittedW);
+    // Folded, the island is as long as what it holds: its slots, each of a fixed size, under the cap.
+    // Hidden on a side, it retracts into the edge at that length: it is asked for then too.
+    if (State.mode === "compact" || (State.mode === "hidden" && sideDock(Room.dock))) {
+      const plan = compactPlan();
+      this.compactSize = { w: plan.width, h: plan.height };
+    }
+    const { w, h } = islandSize(State.mode, State.view, proposal, fitted, State.large, this.compactSize, fittedW);
     const expanded = State.mode === "expanded";
     const r = expanded ? EXPANDED_CORNER : ROUNDED_CORNER;
     // Retracted, there is no island to flare into the edge.
@@ -1594,31 +1650,42 @@ export class Island {
    * of its own — a scrolling list, say — kept that fraction once the island
    * had settled: its text stayed smeared until it was drawn again.
    */
-  private snapped(): { x: number; w: number; h: number; shift: number; dpr: number } {
+  private snapped(): { x: number; y: number; w: number; h: number; shift: number; dpr: number } {
     const real = window.devicePixelRatio || 1;
     const dpr = real * Display.zoom;
-    const half = Math.round((this.width.value / 2) * dpr);
-    const w = (2 * half) / dpr;
-    const hh = Math.round(this.height.value * dpr) / dpr;
-    const centre = (this.windowW * dpr) / 2;
-    // From `left: 50%` to the island's left edge.
+    // Along the edge it is docked to, the island is centred: an even number of
+    // pixels about the window's middle. Across it, a whole number of them.
+    const side = sideDock(Room.dock);
+    const span = side ? this.windowH : this.windowW;
+    const half = Math.round(((side ? this.height.value : this.width.value) / 2) * dpr);
+    const along = (2 * half) / dpr;
+    const across = Math.round((side ? this.width.value : this.height.value) * dpr) / dpr;
+    const w = side ? across : along;
+    const hh = side ? along : across;
+    const centre = (span * dpr) / 2;
+    // From `left: 50%` (`top: 50%` on a side) to the island's first edge along its own.
     const shift = (Math.round(centre) - centre - half) / dpr;
-    return { x: this.windowW / 2 + shift, w, h: hh, shift, dpr };
+    const at = islandOrigin(Room.dock, this.windowW, this.windowH, span / 2 + shift, w, hh, dpr);
+    return { x: at.x, y: at.y, w, h: hh, shift, dpr };
   }
 
   private applyGeometry() {
-    const { x, w, h: hh, shift, dpr } = this.snapped();
+    const { x, y, w, h: hh, shift, dpr } = this.snapped();
     const r = this.radius.value;
+    const dock = Room.dock;
+    const side = sideDock(dock);
     put(this.islandEl, "width", `${w}px`);
     put(this.islandEl, "height", `${hh}px`);
-    put(this.islandEl, "border-radius", `0 0 ${r}px ${r}px`);
-    put(this.islandEl, "transform", `translateX(${shift}px)`);
-    // The outline: the body, and an ear on each side where it meets the top
-    // edge — never wider than what the window has beside the island.
+    // Square where it meets the screen's edge, round on the side away from it:
+    // the bottom edge's island is rounded on top, a side's on its free side.
+    put(this.islandEl, "border-radius", ISLAND_RADIUS[dock](`${r}px`));
+    put(this.islandEl, "transform", side ? `translateY(${shift}px)` : `translateX(${shift}px)`);
+    // The outline: the body, and an ear on each side where it meets the
+    // screen's edge — never wider than what the window has beside the island.
     // An ear at rest ends on a whole pixel too: 11 px is 13.75 at 125 %, and
     // its tip would be drawn a soft quarter of a pixel past the island.
     const ear = this.ear.animating ? this.ear.value : Math.round(this.ear.value * dpr) / dpr;
-    this.shape.draw({ w, h: hh, ear: Math.min(ear, Math.max(0, x)), corner: r });
+    this.shape.draw({ w, h: hh, ear: Math.min(ear, Math.max(0, side ? y : x)), corner: r, dock });
     // This follows the island as it resizes, so it belongs here rather than in
     // the state-driven DOM sync.
     put(this.greetingCanvas, "left", `${(w - EXPANDED_W) / 2}px`);
@@ -1628,9 +1695,12 @@ export class Island {
     // (HIT_MARGIN), which covers all of a folded island's ears and most of an
     // open one's — and a click on one does nothing, like a click on the rest
     // of that margin.
-    const rect = { x, y: 0, w, h: hh };
+    const rect = { x, y, w, h: hh };
     const p = this.pushedRect;
-    if (this.forceRect || Math.abs(p.x - rect.x) > 0.5 || Math.abs(p.w - rect.w) > 0.5 || Math.abs(p.h - rect.h) > 0.5) {
+    if (
+      this.forceRect ||
+      Math.abs(p.x - rect.x) > 0.5 || Math.abs(p.y - rect.y) > 0.5 || Math.abs(p.w - rect.w) > 0.5 || Math.abs(p.h - rect.h) > 0.5
+    ) {
       this.forceRect = false;
       this.pushedRect = rect;
       void Bridge.setIslandRect(rect.x, rect.y, rect.w, rect.h);
@@ -1639,8 +1709,8 @@ export class Island {
 
   /** Island rect in window coordinates (origin top-left of the full window). */
   private islandRect(): { x: number; y: number; w: number; h: number } {
-    const { x, w, h: hh } = this.snapped();
-    return { x, y: 0, w, h: hh };
+    const { x, y, w, h: hh } = this.snapped();
+    return { x, y, w, h: hh };
   }
 
   /**
@@ -1652,28 +1722,64 @@ export class Island {
     return IS_TAURI ? Room.w : window.innerWidth / Display.zoom;
   }
 
+  /** The height of the same window: Rust's, at full size; in a plain browser, the page's. */
+  private get windowH(): number {
+    return IS_TAURI ? Room.h : window.innerHeight / Display.zoom;
+  }
+
   /**
    * The display's logical width, from Rust: at boot, and when the display
-   * changes. It caps the folded island (layout.ts `compactCap`).
+   * changes. It caps the folded island (layout.ts `compactCap`); its height,
+   * when said, caps the folded column on a side.
    */
-  setScreenWidth(width: number) {
-    if (!(width > 0) || width === Display.w) return;
+  setScreenWidth(width: number, height = Display.h) {
+    const h = height > 0 ? height : Display.h;
+    if (!(width > 0) || (width === Display.w && h === Display.h)) return;
     Display.w = width;
+    Display.h = h;
     State.notify();
   }
 
   /**
    * The window's size on this display, from Rust: at boot, and again when the
-   * display changes. The island is centred in it, and the large panel fills it.
+   * display or the dock changes. The island hangs in it from the edge it is
+   * docked to, and the large panel fills it.
    */
-  setRoom(width: number, height: number) {
+  setRoom(width: number, height: number, dock: Dock = Room.dock) {
+    // The first word of it is where the island starts, not a move: the greeting is left to open as it does.
+    const moved = this.roomKnown && dock !== Room.dock;
+    this.roomKnown = true;
     Room.w = Math.max(PANEL_W, width);
     Room.h = Math.max(PANEL_H, height);
-    // Whatever was pushed was centred in the window as it was.
+    // The edge the island hangs from: the stylesheet puts it, its wake strip and the tabs' layout there.
+    Room.dock = dock;
+    document.documentElement.dataset.dock = dock;
+    // Whatever was pushed was placed in the window as it was.
     this.pushedRect = { x: -1, y: -1, w: -1, h: -1 };
-    if (State.large) this.animateGeometry(false);
+    if (moved) this.redock();
+    else if (State.large) this.animateGeometry(false);
     this.dirty = true;
     this.ensureRunning();
+  }
+
+  /**
+   * Docked to another edge, live (Settings): whatever was on its way — a page
+   * between the tabs, a widget's morph — ends where it is, the Shelf's row
+   * starts again from its first card on its new axis, and the island is at its
+   * size for the new edge at once, whatever it was doing: open, folded, hidden.
+   * Nothing is asked or answered by it.
+   */
+  private redock() {
+    this.abortPaging();
+    this.endMorph();
+    this.crossFade(null, State.view);
+    const row = this.views.get("shelf")?.el.querySelector<HTMLElement>(".shelf-row");
+    if (row) {
+      row.classList.remove("swiping");
+      row.scrollTo({ left: 0, top: 0 });
+    }
+    this.jumpGeometry();
+    this.forceRect = true;
   }
 
   /** In a plain browser the page stands for the window: the large panel is cut to what it shows. */
@@ -1682,6 +1788,7 @@ export class Island {
       this.setRoom(
         Math.min(LARGE_W + OVERSHOOT_W, window.innerWidth - PAGE_MARGIN_W),
         Math.min(LARGE_H + OVERSHOOT_H, window.innerHeight - PAGE_MARGIN_H),
+        State.settings.dock,
       );
     window.addEventListener("resize", fit);
     fit();
@@ -1712,6 +1819,21 @@ export class Island {
       // The window's new size reaches the page a little after Rust has answered.
       window.addEventListener("resize", () => this.redrawGrown(), { once: true });
     }
+  }
+
+  /**
+   * The window was hidden altogether (Rust, visibility.rs) and is on show again.
+   * Hidden, the webview gets no frames: the page went on — a request came, a
+   * timer folded the island — but the island's size stayed where the last
+   * frame left it. It is put at its size at once, as if it had never been
+   * away, drawn whole, and its shape told to Rust again for click-through.
+   */
+  onShown() {
+    this.forceRect = true;
+    // Paging sets the size itself, frame by frame.
+    if (!this.paging) this.jumpGeometry();
+    this.dirty = true;
+    this.ensureRunning();
   }
 
   /** The window is whole again: the folded slots are built anew in it, and the island drawn again. */
@@ -2258,7 +2380,11 @@ export class Island {
     const plan = compactPlan();
     this.compact.sync(plan);
     this.compact.el.classList.toggle("on", State.mode === "compact");
-    if (State.mode === "compact" && Math.abs(plan.width - this.compactW) > 0.5) this.animateGeometry(plan.width < this.compactW);
+    const was = this.compactSize;
+    if (State.mode === "compact" && (Math.abs(plan.width - was.w) > 0.5 || Math.abs(plan.height - was.h) > 0.5)) {
+      // One of the two is the folded island's own (width in the row, height in the column); the other stays.
+      this.animateGeometry(plan.width + plan.height < was.w + was.h);
+    }
 
     this.overall = overallState(plan.live);
     // What may hold the folded island on show: looked at again whenever the sessions' state changes.

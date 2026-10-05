@@ -1,5 +1,6 @@
 // The Shelf (plans/tabs-plan.md §2): the island's second tab, a row of small
-// widgets that scroll sideways and come to rest on a card. Each widget is one
+// widgets that scroll sideways and come to rest on a card — on a side dock, a
+// column of them that scrolls up and down. Each widget is one
 // thing in two sizes: the small card works where it stands, and the expanded
 // view — the card morphing into it — is the same state with more in it
 // (src/widgets/).
@@ -16,7 +17,7 @@
 
 import { Bridge } from "../core/bridge";
 import { Spring, clamp } from "../core/anim";
-import { SHELF_CARD_GAP, SHELF_CARD_W } from "../core/layout";
+import { Room, SHELF_CARD_GAP, SHELF_CARD_H, SHELF_CARD_W, sideDock } from "../core/layout";
 import { State } from "../core/state";
 import { BUILDERS } from "../widgets";
 import { flushWidgets, onShelfChange } from "../widgets/core";
@@ -92,35 +93,58 @@ export function ensureMorphCurve() {
 // ── The row, scrolled by hand ─────────────────────────────────────────────────
 
 /**
- * The row scrolled by hand. The island moves it itself, by the travel of each
- * wheel event (island.ts `swipeTabs`): left to the browser, a wheel event goes
- * to whatever was under the pointer before the view changed, and scrolls
- * nothing until the pointer moves. While it is moved so, the row does not snap
- * (`.swiping`): each small step would be pulled back to the card it left.
+ * The row runs up and down on a side dock, where the Shelf is a column
+ * (style.css), and sideways on the others: everything that scrolls it by hand
+ * asks which, here.
  */
-export function scrollRow(row: HTMLElement, dx: number) {
+const upright = () => sideDock(Room.dock);
+
+/** How far the row is scrolled along its own axis. */
+const scrolled = (row: HTMLElement) => (upright() ? row.scrollTop : row.scrollLeft);
+
+function scrollRowTo(row: HTMLElement, at: number) {
+  if (upright()) row.scrollTop = at;
+  else row.scrollLeft = at;
+}
+
+/** The row's scroll along its own axis, in the three numbers island/swipe.ts `canScroll` reads. */
+export function rowScroll(row: HTMLElement): { scrollLeft: number; scrollWidth: number; clientWidth: number } {
+  if (!upright()) return row;
+  return { scrollLeft: row.scrollTop, scrollWidth: row.scrollHeight, clientWidth: row.clientHeight };
+}
+
+/**
+ * The row scrolled by hand. The island moves it itself, by the travel of each
+ * wheel event (island.ts `swipeTabs`, `wheelUpright`): left to the browser, a
+ * wheel event goes to whatever was under the pointer before the view changed,
+ * and scrolls nothing until the pointer moves. While it is moved so, the row
+ * does not snap (`.swiping`): each small step would be pulled back to the card it left.
+ */
+export function scrollRow(row: HTMLElement, by: number) {
   row.classList.add("swiping");
-  row.scrollLeft += dx;
+  scrollRowTo(row, scrolled(row) + by);
 }
 
 /** The gesture has paused: the row comes to rest on a card, as it does when the browser scrolls it. */
 export function settleRow(row: HTMLElement, still: boolean) {
   if (!row.classList.contains("swiping")) return;
-  const step = SHELF_CARD_W + SHELF_CARD_GAP;
-  const max = Math.max(0, row.scrollWidth - row.clientWidth);
+  const step = (upright() ? SHELF_CARD_H : SHELF_CARD_W) + SHELF_CARD_GAP;
+  const { scrollWidth, clientWidth } = rowScroll(row);
+  const now = scrolled(row);
+  const max = Math.max(0, scrollWidth - clientWidth);
   // The nearest card's edge — or the row's end, when that is nearer than the last edge before it.
-  const edge = Math.min(max, Math.round(row.scrollLeft / step) * step);
-  const left = Math.abs(max - row.scrollLeft) < Math.abs(row.scrollLeft - edge) ? max : edge;
+  const edge = Math.min(max, Math.round(now / step) * step);
+  const to = Math.abs(max - now) < Math.abs(now - edge) ? max : edge;
   const snap = () => row.classList.remove("swiping");
-  if (still || Math.abs(left - row.scrollLeft) < 1) {
-    row.scrollLeft = left;
+  if (still || Math.abs(to - now) < 1) {
+    scrollRowTo(row, to);
     snap();
     return;
   }
   // Snapping comes back once it has arrived; a scroll that is taken over meanwhile says so again.
   row.addEventListener("scrollend", snap, { once: true });
   window.setTimeout(snap, 600);
-  row.scrollTo({ left, behavior: "smooth" });
+  row.scrollTo(upright() ? { top: to, behavior: "smooth" } : { left: to, behavior: "smooth" });
 }
 
 /** A widget that is not built yet has its place in the row, and nothing in it. */
@@ -139,8 +163,9 @@ export function buildShelf(actions: ViewActions): ShelfHost {
   const rowLayer = h("div", { class: "shelf-layer on" }, row, empty);
   const focusLayer = h("div", { class: "shelf-layer" });
   const el = h("div", { class: "view shelf-view" }, rowLayer, focusLayer);
-  // The card's width and the gap, said once (layout.ts): the stylesheet reads them here.
+  // The card's width (its height in a side's column) and the gap, said once (layout.ts): the stylesheet reads them here.
   el.style.setProperty("--shelf-card-w", `${SHELF_CARD_W}px`);
+  el.style.setProperty("--shelf-card-h", `${SHELF_CARD_H}px`);
   el.style.setProperty("--shelf-card-gap", `${SHELF_CARD_GAP}px`);
 
   // ── The widgets ─────────────────────────────────────────────────────────────
@@ -175,11 +200,12 @@ export function buildShelf(actions: ViewActions): ShelfHost {
     });
   }
 
-  /** More cards past an edge: that edge fades. */
+  /** More cards past an edge: that edge fades. In a side's column, "left" is above and "right" below. */
   const edges = () => {
-    const max = row.scrollWidth - row.clientWidth;
-    row.classList.toggle("more-left", row.scrollLeft > 2);
-    row.classList.toggle("more-right", row.scrollLeft < max - 2);
+    const { scrollLeft: at, scrollWidth, clientWidth } = rowScroll(row);
+    const max = scrollWidth - clientWidth;
+    row.classList.toggle("more-left", at > 2);
+    row.classList.toggle("more-right", at < max - 2);
   };
   row.addEventListener("scroll", edges, { passive: true });
   // The row is narrower while the island is still opening.
@@ -209,7 +235,7 @@ export function buildShelf(actions: ViewActions): ShelfHost {
     for (const id of shown) row.append(widgets.get(id)?.small ?? placeholders.get(id)!);
     row.style.display = shown.length ? "" : "none";
     empty.style.display = shown.length ? "none" : "";
-    row.scrollLeft = 0;
+    row.scrollTo({ left: 0, top: 0 });
     edges();
   }
 
@@ -217,6 +243,7 @@ export function buildShelf(actions: ViewActions): ShelfHost {
   // two settings the Settings window writes, and the island follows it live.
   enableGestures({
     row,
+    upright,
     card: ".wmini",
     control: CONTROL,
     longPressMs: LONG_PRESS_MS,
@@ -319,13 +346,16 @@ export function buildShelf(actions: ViewActions): ShelfHost {
 
   /** Brings a card wholly into the row's view, at once: what is cut by the row's edge would grow from outside the island. */
   function revealCard(card: HTMLElement) {
-    const left = card.offsetLeft - row.offsetLeft;
-    const right = left + card.offsetWidth;
-    if (left >= row.scrollLeft && right <= row.scrollLeft + row.clientWidth) return;
+    const up = upright();
+    const start = up ? card.offsetTop - row.offsetTop : card.offsetLeft - row.offsetLeft;
+    const end = start + (up ? card.offsetHeight : card.offsetWidth);
+    const at = scrolled(row);
+    const seen = up ? row.clientHeight : row.clientWidth;
+    if (start >= at && end <= at + seen) return;
     // Set by hand, so not while the row snaps by itself.
     window.clearTimeout(revealTimer);
     row.classList.add("swiping");
-    row.scrollLeft = left < row.scrollLeft ? left : right - row.clientWidth;
+    scrollRowTo(row, start < at ? start : end - seen);
     revealTimer = window.setTimeout(() => row.classList.remove("swiping"), 800);
   }
 

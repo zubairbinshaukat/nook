@@ -21,6 +21,7 @@ use gtk::prelude::*;
 use tauri::WebviewWindow;
 
 use super::{home_dir, LocalTime};
+use crate::dock::Dock;
 
 /// File name of the Claude Code relay.
 pub const HOOK_EXE: &str = "nook-hook";
@@ -232,7 +233,10 @@ mod layer {
     use std::os::raw::{c_char, c_int};
 
     pub const LAYER_OVERLAY: c_int = 3;
+    pub const EDGE_LEFT: c_int = 0;
+    pub const EDGE_RIGHT: c_int = 1;
     pub const EDGE_TOP: c_int = 2;
+    pub const EDGE_BOTTOM: c_int = 3;
     pub const KEYBOARD_NONE: c_int = 0;
     pub const KEYBOARD_ON_DEMAND: c_int = 2;
 
@@ -324,6 +328,35 @@ pub fn make_non_activating(win: &WebviewWindow) {
     crate::log::line("island is a layer-shell overlay");
 }
 
+/// Anchors the island to the edge it is docked to: the old anchor is cleared, the
+/// new one set, and the compositor centres the surface along it. Only the top
+/// ignores other panels (-1: right against the screen edge, over a top bar, as
+/// the island always was); the others take the free area (0), so a bottom or
+/// side panel is never covered. Without layer-shell this does nothing and
+/// `set_position` (dock.rs `window_pos`) governs.
+pub fn set_dock(win: &WebviewWindow, dock: Dock) {
+    if !LAYER_SURFACE.load(Ordering::Relaxed) {
+        return;
+    }
+    let Ok(gw) = win.gtk_window() else { return };
+    let wanted = match dock {
+        Dock::Top => layer::EDGE_TOP,
+        Dock::Bottom => layer::EDGE_BOTTOM,
+        Dock::Left => layer::EDGE_LEFT,
+        Dock::Right => layer::EDGE_RIGHT,
+    };
+    let ptr = gtk_window_ptr(&gw);
+    unsafe {
+        for edge in [layer::EDGE_LEFT, layer::EDGE_RIGHT, layer::EDGE_TOP, layer::EDGE_BOTTOM] {
+            if edge != wanted {
+                layer::gtk_layer_set_anchor(ptr, edge, 0);
+            }
+        }
+        layer::gtk_layer_set_anchor(ptr, wanted, 1);
+        layer::gtk_layer_set_exclusive_zone(ptr, if dock == Dock::Top { -1 } else { 0 });
+    }
+}
+
 /// Temporarily allow keyboard focus so the island can take the keyboard: a text
 /// field to type in, Escape in the large panel, the arrows in the sidebar.
 /// Giving it up needs nothing more here: a surface that no longer takes the
@@ -337,6 +370,22 @@ pub fn set_activating(win: &WebviewWindow, activating: bool) {
         let mode = if activating { layer::KEYBOARD_ON_DEMAND } else { layer::KEYBOARD_NONE };
         unsafe { layer::gtk_layer_set_keyboard_mode(gtk_window_ptr(&gw), mode) };
     }
+}
+
+/// Shows the island again after it was hidden. Created `focusable: false`, it
+/// takes no focus by being shown: nothing more to do here.
+pub fn show_inactive(win: &WebviewWindow) {
+    let _ = win.show();
+}
+
+/// The agents list is an ordinary small window here, not a layer surface (that
+/// is the island's own): created `focusable: false`, it has nothing more to be told.
+pub fn prepare_list_window(_win: &WebviewWindow) {}
+
+/// The agents list on every workspace, or on the one it was made on: GTK and
+/// tao do this one themselves (a window manager may still ignore it).
+pub fn follow_desktops(win: &WebviewWindow, on: bool) {
+    let _ = win.set_visible_on_all_workspaces(on);
 }
 
 /// Only this rectangle (window-logical pixels) takes the mouse; `None` means

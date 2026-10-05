@@ -1,6 +1,6 @@
 // App state — mirror of AppState.swift (the parts the island needs).
 
-import type { BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./layout";
+import type { BotEmoteName, BotStateName, Dock, IslandMode, IslandViewName } from "./layout";
 import type { EyeShape } from "../bot/engine";
 
 export type AgentSource = "claudeCode" | "agent";
@@ -501,6 +501,13 @@ export interface ClaudeSession {
   /** That turn's result has not been looked at yet: it keeps a green mark on the home view, and stays there longer. */
   unseen: boolean;
   /**
+   * A turn of its ended while the panel was being read (`core/reading.ts`), and
+   * it was left alone: its line of the sidebar wears a mark until it is opened.
+   */
+  attention: boolean;
+  /** How many such ends there have been: the panel wiggles once for each it has not yet shown. */
+  nudges: number;
+  /**
    * Its latest reply holds an `[!IMPORTANT]` alert that has not been read in
    * full yet: its line of the sidebar and its mini bot say "Needs your
    * decision". A mark and nothing more — no sound, no card, no pin. It goes
@@ -510,6 +517,14 @@ export interface ClaudeSession {
   decision: boolean;
   /** The model it runs on, when an event of its said; never guessed. */
   model: ModelInfo | null;
+  /**
+   * How many tokens its last answer was given to read, as the relay counts them
+   * in the transcript; null until one has been seen — no answer yet is not 0%.
+   * Events that read no transcript leave it as it was. See `core/context.ts`.
+   */
+  contextTokens: number | null;
+  /** The size of its context window, when its status line said it. */
+  contextWindow: number | null;
 }
 
 /** What the mark of a reply that waits on a decision says. */
@@ -526,7 +541,8 @@ export function newSession(id: string, agent: SessionAgent = "claude"): ClaudeSe
     id, agent, target: NO_TARGET, title: null, project: SESSION_UNNAMED, cwd: null, state: "idle",
     lines: [], steps: [], asked: null, answer: null, answeredAt: 0,
     approval: null, question: null, queued: [], subagents: [], launching: [], parked: false, toldReply: null, attributed: null,
-    news: null, heardAt: 0, restedAt: 0, unseen: false, decision: false, model: null,
+    news: null, heardAt: 0, restedAt: 0, unseen: false, attention: false, nudges: 0, decision: false, model: null,
+    contextTokens: null, contextWindow: null,
   };
 }
 
@@ -550,6 +566,8 @@ export interface Settings {
   autoCloseInterval: number;
   absenceInterval: number;
   screen: "primary" | "cursor";
+  /** The edge of the display the island hangs from. */
+  dock: Dock;
   autostart: boolean;
   hooksInstalled: boolean;
   /**
@@ -565,6 +583,23 @@ export interface Settings {
   gotoShortcutEnabled: boolean;
   panelShortcut: string;
   panelShortcutEnabled: boolean;
+  hideShortcut: string;
+  hideShortcutEnabled: boolean;
+  /** The agents list's: shows it or hides it. Only registered while showAgentsList is on. */
+  agentsShortcut: string;
+  agentsShortcutEnabled: boolean;
+  /** Settings → General → Agents list: the small always-on-top window with a row per project. Off until asked for. */
+  showAgentsList: boolean;
+  /** Where the list was left, in physical pixels: Rust's to write, never the page's. */
+  agentsListX: number | null;
+  agentsListY: number | null;
+  /** How wide the list was made, in logical pixels; null until it was. Rust's, as the edge is dragged. */
+  agentsListW: number | null;
+  /** The most the list may be tall, in logical pixels; null until the bottom edge was dragged (then 520). Rust's too. */
+  agentsListH: number | null;
+  /** The list fades to `agentsListFadeOpacity` percent while the pointer is away and nothing needs the user. */
+  agentsListFade: boolean;
+  agentsListFadeOpacity: number;
   /**
    * What the folded island shows beside its session dots: at most three of
    * `COMPACT_METRICS`, in the order they are drawn. Picked in the settings window.
@@ -767,6 +802,11 @@ export function readUsage(value: unknown): Usage | null {
 export const DEFAULT_EXPAND_SHORTCUT = "Ctrl+Alt+Space";
 export const DEFAULT_GOTO_SHORTCUT = "Ctrl+Alt+Enter";
 export const DEFAULT_PANEL_SHORTCUT = "Ctrl+Shift+Space";
+/** The idle opacity of the agents list, in percent: the least and most the setting can be (settings.rs holds the same). */
+export const FADE_MIN = 20;
+export const FADE_MAX = 90;
+export const DEFAULT_HIDE_SHORTCUT = "Ctrl+Alt+N";
+export const DEFAULT_AGENTS_SHORTCUT = "Ctrl+Shift+L";
 
 export const DEFAULT_SETTINGS: Settings = {
   soundEnabled: true,
@@ -774,6 +814,7 @@ export const DEFAULT_SETTINGS: Settings = {
   autoCloseInterval: 15,
   absenceInterval: 180,
   screen: "primary",
+  dock: "top",
   autostart: false,
   hooksInstalled: false,
   expandShortcut: DEFAULT_EXPAND_SHORTCUT,
@@ -782,6 +823,17 @@ export const DEFAULT_SETTINGS: Settings = {
   gotoShortcutEnabled: true,
   panelShortcut: DEFAULT_PANEL_SHORTCUT,
   panelShortcutEnabled: true,
+  hideShortcut: DEFAULT_HIDE_SHORTCUT,
+  hideShortcutEnabled: true,
+  agentsShortcut: DEFAULT_AGENTS_SHORTCUT,
+  agentsShortcutEnabled: true,
+  showAgentsList: false,
+  agentsListX: null,
+  agentsListY: null,
+  agentsListW: null,
+  agentsListH: null,
+  agentsListFade: true,
+  agentsListFadeOpacity: 50,
   compactMetrics: ["cpu", "ram", "usage5h"],
   theme: "system",
   reduceMotion: "system",
@@ -911,6 +963,7 @@ class AppState {
     if (from.id && from.id !== id && (from.approval || from.question)) from.news = "approval";
     this.frontId = id;
     this.session.news = null;
+    this.session.attention = false;
     this.present();
   }
 

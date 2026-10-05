@@ -474,6 +474,44 @@ fn last_message_of(tail: &str) -> Option<String> {
     tail.lines().rev().find_map(said_in)
 }
 
+/// How full the session's context is, in tokens: what the last answer of the
+/// main conversation was given to read. Taken from the same tail as the title,
+/// so it costs no second read. The window it fills is the app's to know.
+fn context_of(tail: &str) -> Option<u64> {
+    tail.lines().rev().find_map(context_in)
+}
+
+/// The tokens an assistant's line of the transcript was given to read, if it
+/// is a real answer of the main conversation. Not counted: a line cut by the
+/// tail's start (it does not parse), a subagent's (`isSidechain`), an error
+/// or a synthetic message, one with no usage or an empty one. Always the last
+/// such line, never the largest: `/compact` makes the number fall.
+///
+/// Like Claude Code's own figure, it is the input — new, written to the cache
+/// and read from it — and not the answer's output, which only joins the
+/// context with the next request.
+fn context_in(line: &str) -> Option<u64> {
+    if !line.contains("\"usage\"") {
+        return None;
+    }
+    let entry = serde_json::from_str::<serde_json::Value>(line).ok()?;
+    if entry.get("type")?.as_str()? != "assistant"
+        || entry.get("isSidechain").and_then(|v| v.as_bool()) == Some(true)
+        || entry.get("isApiErrorMessage").and_then(|v| v.as_bool()) == Some(true)
+    {
+        return None;
+    }
+    if entry.pointer("/message/model").and_then(|v| v.as_str()).is_some_and(|model| model.starts_with('<')) {
+        return None;
+    }
+    let usage = entry.pointer("/message/usage")?;
+    let count = |key: &str| usage.get(key).and_then(|v| v.as_u64()).unwrap_or(0);
+    let total = count("input_tokens")
+        .saturating_add(count("cache_creation_input_tokens"))
+        .saturating_add(count("cache_read_input_tokens"));
+    (total > 0).then_some(total)
+}
+
 /// The text of an assistant's line of the transcript, if it says anything.
 fn said_in(line: &str) -> Option<String> {
     if !line.contains("\"assistant\"") {
@@ -620,6 +658,7 @@ fn event_of(mut payload: serde_json::Value, agent: String, arg_event: String) ->
         .then(|| map.get("transcript_path").and_then(|v| v.as_str()).and_then(tail_of))
         .flatten();
     let title = tail.as_deref().and_then(title_of);
+    let context_tokens = tail.as_deref().and_then(context_of);
     // A turn ends: what Claude said to end it. Claude Code hands it over when
     // it can; the transcript has it otherwise.
     // A subagent ends the same way, with less to say — and only on Claude
@@ -697,6 +736,9 @@ fn event_of(mut payload: serde_json::Value, agent: String, arg_event: String) ->
     }
     if let Some(title) = title {
         payload["session_title"] = serde_json::Value::String(title);
+    }
+    if let Some(tokens) = context_tokens {
+        payload["context_tokens"] = serde_json::Value::from(tokens);
     }
     if let Some(text) = last_message {
         payload["last_message"] = serde_json::Value::String(text);
@@ -1005,6 +1047,77 @@ mod tests {
         assert!(last_message_of(r#"{"type":"user","message":{"content":"hello"}}"#).is_none());
         assert_eq!(clip("héllo", 3), "hél…");
         assert_eq!(clip("hey", 3), "hey");
+    }
+
+    /// An assistant's line of a transcript, with the usage it carries.
+    fn answer(model: &str, input: u64, created: u64, read: u64, extra: &str) -> String {
+        format!(
+            r#"{{"type":"assistant",{extra}"message":{{"model":"{model}","content":[{{"type":"text","text":"hi"}}],"usage":{{"input_tokens":{input},"cache_creation_input_tokens":{created},"cache_read_input_tokens":{read},"output_tokens":999}}}}}}"#
+        )
+    }
+
+    #[test]
+    fn the_context_is_what_the_last_real_answer_was_given_to_read() {
+        // Input of every kind added up; the output is not part of it.
+        assert_eq!(context_of(&answer("claude-opus-5", 10, 2_000, 40_000, "")), Some(42_010));
+        // The last answer wins, never the largest: /compact made the number fall.
+        let compacted = [answer("m", 1, 0, 150_000, ""), answer("m", 1, 0, 9_000, "")].join("\n");
+        assert_eq!(context_of(&compacted), Some(9_001));
+        // Lines that are not answers of the main conversation are passed over.
+        let tail = [
+            answer("m", 5, 0, 70_000, ""),
+            answer("m", 5, 0, 190_000, r#""isSidechain":true,"#),
+            answer("<synthetic>", 5, 0, 190_000, ""),
+            answer("m", 5, 0, 190_000, r#""isApiErrorMessage":true,"#),
+            answer("m", 0, 0, 0, ""),
+            r#"{"type":"assistant","message":{"model":"m","usage":null,"content":[]}}"#.to_string(),
+            r#"{"type":"assistant","message":{"model":"m","content":[]}}"#.to_string(),
+            r#"{"type":"user","message":{"content":"a \"usage\" of words"}}"#.to_string(),
+            r#"{"type":"custom-title","customTitle":"A title"}"#.to_string(),
+        ]
+        .join("\n");
+        assert_eq!(context_of(&tail), Some(70_005));
+        // Fields missing or null count for nothing; one is enough.
+        let partial = r#"{"type":"assistant","message":{"model":"m","usage":{"input_tokens":null,"cache_read_input_tokens":123}}}"#;
+        assert_eq!(context_of(partial), Some(123));
+        // Above 200k is passed on as it is: the window is the app's to infer.
+        assert_eq!(context_of(&answer("m", 1, 0, 450_000, "")), Some(450_001));
+        // No answer yet, or nothing at all: no number, not zero.
+        assert_eq!(context_of(r#"{"type":"user","message":{"content":"hello"}}"#), None);
+        assert_eq!(context_of(""), None);
+    }
+
+    #[test]
+    fn a_tail_cut_in_the_middle_of_a_line_still_gives_the_context() {
+        let line = answer("m", 3, 0, 80_000, "");
+        let cut = &line[line.len() / 2..];
+        // The cut line does not parse and is skipped; the whole one before it is read.
+        assert_eq!(context_of(&format!("{line}\n{cut}\n")), Some(80_003));
+        assert_eq!(context_of(cut), None);
+
+        let path = std::env::temp_dir().join(format!("nook-hook-context-{}.jsonl", std::process::id()));
+        let filler = format!("{{\"type\":\"user\",\"message\":{{\"content\":\"{}\"}}}}\n", "x".repeat(1_000));
+        let mut text = answer("m", 1, 0, 11_111, "") + "\n";
+        text.push_str(&filler.repeat(300));
+        text.push_str(&answer("m", 1, 0, 22_222, ""));
+        text.push('\n');
+        std::fs::write(&path, text).unwrap();
+        let file = path.to_string_lossy().to_string();
+
+        // Only the end of the file is read, so the first line is gone, and the last one counts.
+        let event = |name: &str| {
+            forwarded(serde_json::json!({ "hook_event_name": name, "session_id": "s", "transcript_path": file }))
+        };
+        assert_eq!(event("Stop")["context_tokens"], 22_223);
+        // An event that reads no transcript says nothing: what is known stays.
+        assert!(event("PostToolUse").get("context_tokens").is_none());
+        assert!(event("Stop").get("transcript_path").is_none());
+
+        std::fs::write(&path, "").unwrap();
+        assert!(event("Stop").get("context_tokens").is_none());
+        std::fs::remove_file(&path).unwrap();
+        // A transcript that is not there: the event still goes, without a number.
+        assert!(event("Stop").get("context_tokens").is_none());
     }
 
     #[test]

@@ -60,6 +60,8 @@ pub struct Model {
 pub struct SessionModel {
     pub session_id: String,
     pub model: Model,
+    /// The size of its context window in tokens, when the status line said it.
+    pub context_window: Option<u64>,
 }
 
 /// The latest usage Claude Code reported, kept for as long as Nook runs.
@@ -109,7 +111,9 @@ pub fn model_of(payload: &Value) -> Option<SessionModel> {
         (None, Some(display_name)) => Model { id: display_name.clone(), display_name },
         (None, None) => return None,
     };
-    Some(SessionModel { session_id, model })
+    // Believed as the relay checks it: a number, in a range a window can be in.
+    let context_window = payload.get("context_window_size").and_then(Value::as_u64).filter(|n| (10_000..=100_000_000).contains(n));
+    Some(SessionModel { session_id, model, context_window })
 }
 
 /// A `StatusLine` event from the relay: the limits are kept and shown, the
@@ -223,8 +227,11 @@ mod tests {
         let both = said(json!("s1"), json!({ "id": "claude-opus-5-5", "display_name": "Opus" })).unwrap();
         assert_eq!(
             serde_json::to_value(&both).unwrap(),
-            json!({ "sessionId": "s1", "model": { "id": "claude-opus-5-5", "displayName": "Opus" } })
+            json!({ "sessionId": "s1", "model": { "id": "claude-opus-5-5", "displayName": "Opus" }, "contextWindow": null })
         );
+        let sized = model_of(&json!({ "session_id": "s1", "model": { "id": "m" }, "context_window_size": 1_000_000 })).unwrap();
+        assert_eq!(sized.context_window, Some(1_000_000));
+        assert_eq!(model_of(&json!({ "session_id": "s1", "model": { "id": "m" }, "context_window_size": 7 })).unwrap().context_window, None);
         // One name stands for the other.
         assert_eq!(said(json!("s1"), json!({ "id": "claude-opus-5-5" })).unwrap().model.display_name, "claude-opus-5-5");
         assert_eq!(said(json!("s1"), json!({ "display_name": "Opus" })).unwrap().model.id, "Opus");

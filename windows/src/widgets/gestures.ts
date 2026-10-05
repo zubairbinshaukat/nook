@@ -6,12 +6,13 @@
 //   tap         released within TAP_SLOP px of where it went down. The browser's
 //               own `click` goes on: to the control under it, or, on a card's
 //               header or empty area, to the card (which expands).
-//   drag        travelled more than TAP_SLOP px, mostly sideways: the row
-//               scrolls with the pointer. The `click` that follows is swallowed,
-//               whatever was under the pointer, so a swipe never presses a
-//               control and never expands a card.
-//   stray       travelled more than TAP_SLOP px, mostly up or down (or inside a
-//               text field, where a drag selects text): nothing, and no click.
+//   drag        travelled more than TAP_SLOP px, mostly along the row
+//               (sideways; up or down when the row is a column, on a side
+//               dock): the row scrolls with the pointer. The `click` that
+//               follows is swallowed, whatever was under the pointer, so a
+//               swipe never presses a control and never expands a card.
+//   stray       travelled more than TAP_SLOP px, mostly across the row (or
+//               inside a text field, where a drag selects text): nothing, and no click.
 //   long press  held within TAP_SLOP px for `longPressMs`, on a card's header or
 //               empty area (never on a control): the card lifts and is carried
 //               to a new place. No click.
@@ -21,6 +22,8 @@
 
 export interface GestureOptions {
   row: HTMLElement;
+  /** The row runs up and down (a column), not sideways: asked as each press begins. */
+  upright?(): boolean;
   /** What a card is, and what inside it is a control. */
   card: string;
   control: string;
@@ -48,12 +51,27 @@ export function enableGestures(opts: GestureOptions) {
   let onControl = false;
   let inField = false;
   let pointerId = -1;
-  let startX = 0;
-  let startY = 0;
-  let lastX = 0;
+  /** The row is a column for this press: what follows is measured up and down. */
+  let upright = false;
+  /** Where the press began and is now, along the row; and where it began across it. */
+  let startAlong = 0;
+  let startAcross = 0;
+  let lastAlong = 0;
   let pressTimer = 0;
   let swallowClick = false;
   let startScroll = 0;
+
+  // The row's axis: sideways, or up and down in a column.
+  const along = (e: PointerEvent) => (upright ? e.clientY : e.clientX);
+  const across = (e: PointerEvent) => (upright ? e.clientX : e.clientY);
+  const getScroll = () => (upright ? row.scrollTop : row.scrollLeft);
+  const setScroll = (at: number) => {
+    if (upright) row.scrollTop = at;
+    else row.scrollLeft = at;
+  };
+  const offset = (el: HTMLElement) => (upright ? el.offsetTop : el.offsetLeft);
+  const shiftBy = (px: number) => `translate${upright ? "Y" : "X"}(${px}px)`;
+  const startOf = (rect: DOMRect) => (upright ? rect.top : rect.left);
 
   // While carrying a card
   let cards: HTMLElement[] = [];
@@ -77,8 +95,8 @@ export function enableGestures(opts: GestureOptions) {
     swallowClick = true;
     cards = [...row.querySelectorAll<HTMLElement>(opts.card)];
     from = to = cards.indexOf(card);
-    pitch = cards.length > 1 ? cards[1].offsetLeft - cards[0].offsetLeft : card.offsetWidth;
-    startScroll = row.scrollLeft;
+    pitch = cards.length > 1 ? offset(cards[1]) - offset(cards[0]) : upright ? card.offsetHeight : card.offsetWidth;
+    startScroll = getScroll();
     row.classList.add("reordering");
     card.classList.add("lifted");
     try {
@@ -92,15 +110,15 @@ export function enableGestures(opts: GestureOptions) {
   /** Where the lifted card is, and the gap the others leave for it. */
   function place() {
     if (!card) return;
-    const travel = lastX - startX + (row.scrollLeft - startScroll);
-    card.style.transform = `translateX(${travel}px)`;
+    const travel = lastAlong - startAlong + (getScroll() - startScroll);
+    card.style.transform = shiftBy(travel);
     to = Math.max(0, Math.min(cards.length - 1, Math.round((from * pitch + travel) / pitch)));
     cards.forEach((other, k) => {
       if (other === card) return;
       let shift = 0;
       if (from < to && k > from && k <= to) shift = -pitch;
       else if (to < from && k >= to && k < from) shift = pitch;
-      other.style.transform = shift ? `translateX(${shift}px)` : "";
+      other.style.transform = shift ? shiftBy(shift) : "";
     });
   }
 
@@ -108,8 +126,9 @@ export function enableGestures(opts: GestureOptions) {
   function edgeScroll() {
     if (phase !== "carry") return;
     const box = row.getBoundingClientRect();
-    if (lastX < box.left + EDGE) row.scrollLeft -= EDGE_SPEED;
-    else if (lastX > box.right - EDGE) row.scrollLeft += EDGE_SPEED;
+    const [first, last] = upright ? [box.top, box.bottom] : [box.left, box.right];
+    if (lastAlong < first + EDGE) setScroll(getScroll() - EDGE_SPEED);
+    else if (lastAlong > last - EDGE) setScroll(getScroll() + EDGE_SPEED);
     place();
     edgeLoop = requestAnimationFrame(edgeScroll);
   }
@@ -118,8 +137,8 @@ export function enableGestures(opts: GestureOptions) {
     cancelAnimationFrame(edgeLoop);
     const moved = card;
     if (!moved) return;
-    const before = moved.getBoundingClientRect().left;
-    const scroll = row.scrollLeft;
+    const before = startOf(moved.getBoundingClientRect());
+    const scroll = getScroll();
 
     // The others already stand where they will: their shifts come off at once,
     // with the page reordered under them in the same breath.
@@ -129,11 +148,11 @@ export function enableGestures(opts: GestureOptions) {
     if (changed) {
       const rest = cards.filter((t) => t !== moved);
       row.insertBefore(moved, rest[to] ?? null);
-      row.scrollLeft = scroll;
+      setScroll(scroll);
     }
     // The lifted one glides from where it was let go to its place.
-    const after = moved.getBoundingClientRect().left;
-    moved.style.transform = `translateX(${before - after}px)`;
+    const after = startOf(moved.getBoundingClientRect());
+    moved.style.transform = shiftBy(before - after);
     void moved.offsetWidth;
     row.classList.remove("no-shift");
     moved.classList.remove("lifted");
@@ -160,9 +179,10 @@ export function enableGestures(opts: GestureOptions) {
     inField = closest(e.target, "input, textarea, select") != null;
     phase = "press";
     pointerId = e.pointerId;
-    startX = lastX = e.clientX;
-    startY = e.clientY;
-    startScroll = row.scrollLeft;
+    upright = opts.upright?.() ?? false;
+    startAlong = lastAlong = along(e);
+    startAcross = across(e);
+    startScroll = getScroll();
     swallowClick = false;
     clearPress();
     // A reorder starts from a card's header or empty area only: a control held down is a control held down.
@@ -171,18 +191,19 @@ export function enableGestures(opts: GestureOptions) {
 
   row.addEventListener("pointermove", (e) => {
     if (e.pointerId !== pointerId) return;
-    lastX = e.clientX;
+    lastAlong = along(e);
     if (phase === "carry") {
       place();
       return;
     }
     if (phase === "scroll") {
-      row.scrollLeft = startScroll - (e.clientX - startX);
+      setScroll(startScroll - (lastAlong - startAlong));
       return;
     }
     if (phase !== "press") return;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
+    // Along the row, and across it.
+    const dx = lastAlong - startAlong;
+    const dy = across(e) - startAcross;
     if (Math.hypot(dx, dy) <= TAP_SLOP) return;
 
     // It moved: whatever it becomes, it is no longer a tap.
@@ -197,7 +218,7 @@ export function enableGestures(opts: GestureOptions) {
       } catch {
         /* the pointer is already gone */
       }
-      row.scrollLeft = startScroll - dx;
+      setScroll(startScroll - dx);
     } else {
       phase = "stray";
     }

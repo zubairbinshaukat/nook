@@ -1,6 +1,8 @@
 // The home view (plans/design-plan.md §1, plans/subagents-plan.md §7): three
 // columns — the bot, speaking for the session that most needs attention; a
-// mini bot per session, in lanes; the machine and Claude's usage limits.
+// mini bot per session, in lanes; the machine and Claude's usage limits. On a
+// side dock the three stand one above the other (style.css, layout.ts
+// SIDE_LAYOUTS): the same elements, laid out by the stylesheet.
 //
 // The island's own bot is not drawn here: island.ts places it over the stage
 // the left card keeps for it (layout.ts VIEW_LAYOUTS.overview). Nothing here
@@ -10,7 +12,7 @@
 
 import { createStateBot, releaseMiniBot, restMiniBot } from "../bot/minibots";
 import { hexToRGB, type BotEngine } from "../bot/engine";
-import { MAX_VISIBLE, washRGBA, type BotStateName, type Wash } from "../core/layout";
+import { HOME_SIDE_BOT_H, HOME_SIDE_SESSIONS_H, HOME_STAGE, MAX_VISIBLE, washRGBA, type BotStateName, type Wash } from "../core/layout";
 import { DECISION_WORDS, State, USAGE_OLD_MS, USAGE_SOURCE_WORDS, ramPercent, ramWords, usageLevel, usageShown } from "../core/state";
 import { clear, h, svg } from "./dom";
 import { ICONS } from "./icons";
@@ -135,7 +137,16 @@ export function buildHome(actions: ViewActions): ViewHost {
     usageAge,
   );
 
-  const el = h("div", { class: "view" }, h("div", { class: "home" }, botCard, sessionsCard, resCard));
+  // The lanes and the resources: two more columns at the top and bottom (the
+  // wrapper has no box of its own there); on a side, what scrolls under the
+  // bot's card when the window is too short for all three (style.css `.home-rest`).
+  const rest = h("div", { class: "home-rest" }, sessionsCard, resCard);
+  const el = h("div", { class: "view" }, h("div", { class: "home" }, botCard, rest));
+  // Home upright on a side: its cards' heights and the stage's width, said once (layout.ts), read by the stylesheet.
+  el.style.setProperty("--home-side-bot", `${HOME_SIDE_BOT_H}px`);
+  el.style.setProperty("--home-side-sessions", `${HOME_SIDE_SESSIONS_H}px`);
+  el.style.setProperty("--hb-side-stage", `${HOME_STAGE.column.w}px`);
+  el.style.setProperty("--hb-stage-h", `${HOME_STAGE.column.h}px`);
 
   // ── What is on show ─────────────────────────────────────────────────────────
   const cells = new Map<string, Cell>();

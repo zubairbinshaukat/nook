@@ -82,6 +82,8 @@ export function fakeBackend(): Backend {
     expand: { accelerator: settings.expandShortcut, enabled: true, registered: true, error: null },
     goto: { accelerator: settings.gotoShortcut, enabled: shortcutCase !== "off", registered: shortcutCase !== "off", error: null },
     panel: { accelerator: settings.panelShortcut, enabled: true, registered: true, error: null },
+    hide: { accelerator: settings.hideShortcut, enabled: true, registered: true, error: null },
+    agents: { accelerator: settings.agentsShortcut, enabled: true, registered: false, error: null },
   };
   if (shortcutCase === "launch") Object.assign(shortcuts.expand, { registered: false, error: TAKEN });
 
@@ -148,7 +150,11 @@ export function fakeBackend(): Backend {
         expandShortcut: shortcuts.expand.accelerator, expandShortcutEnabled: shortcuts.expand.enabled,
         gotoShortcut: shortcuts.goto.accelerator, gotoShortcutEnabled: shortcuts.goto.enabled,
         panelShortcut: shortcuts.panel.accelerator, panelShortcutEnabled: shortcuts.panel.enabled,
+        hideShortcut: shortcuts.hide.accelerator, hideShortcutEnabled: shortcuts.hide.enabled,
+        agentsShortcut: shortcuts.agents.accelerator, agentsShortcutEnabled: shortcuts.agents.enabled,
       });
+      // The agents shortcut is taken with the list, and given back with it.
+      shortcuts.agents.registered = shortcuts.agents.enabled && settings.showAgentsList;
       await wait(20);
       told?.({ ...settings });
     },
@@ -237,7 +243,7 @@ export function fakeBackend(): Backend {
     },
 
     async shortcutStatus() {
-      return { expand: { ...shortcuts.expand }, goto: { ...shortcuts.goto }, panel: { ...shortcuts.panel } };
+      return { expand: { ...shortcuts.expand }, goto: { ...shortcuts.goto }, panel: { ...shortcuts.panel }, hide: { ...shortcuts.hide }, agents: { ...shortcuts.agents } };
     },
     async setShortcut(which, accelerator, enabled) {
       await wait(60);
@@ -246,7 +252,7 @@ export function fakeBackend(): Backend {
       const others = (Object.keys(shortcuts) as ShortcutName[]).filter((name) => name !== which);
       if (others.some((name) => shortcuts[name].accelerator === accelerator)) throw new Error(TWICE);
       if (enabled && HELD_ELSEWHERE.has(accelerator)) throw new Error(TAKEN);
-      shortcuts[which] = { accelerator, enabled, registered: enabled, error: null };
+      shortcuts[which] = { accelerator, enabled, registered: enabled && (which !== "agents" || settings.showAgentsList), error: null };
       return { ...shortcuts[which] };
     },
 

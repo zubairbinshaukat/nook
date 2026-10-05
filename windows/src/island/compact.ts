@@ -2,15 +2,17 @@
 // the bot, which speaks for the most urgent session; a dot per session, most
 // urgent first; up to three metric cells picked in Settings. Each slot has its
 // own width, an empty one goes with its gap, and what does not fit under the
-// cap folds away: the last metric first, then dots into "+N".
+// cap folds away: the last metric first, then dots into "+N". On a side the
+// same slots stand top to bottom in a column (style.css, layout.ts
+// `compactLayout`); nothing here differs.
 //
 // The bot is not drawn here: island.ts places its canvas over the first slot.
 // A cell's number is written when a sample comes (State.onGauges) and at no
 // other time: nothing here runs a frame.
 
 import {
-  COMPACT_BOT_SLOT, COMPACT_DOT, COMPACT_DOT_GAP, COMPACT_METRIC_GAP, COMPACT_MORE_W, COMPACT_PAD, COMPACT_SLOT_GAP,
-  compactLayout, type CompactLayout,
+  COMPACT_BOT_SLOT, COMPACT_CELL_H, COMPACT_COLUMN_W, COMPACT_DOT, COMPACT_DOT_GAP, COMPACT_METRIC_GAP, COMPACT_MORE_W,
+  COMPACT_PAD, COMPACT_SLOT_GAP, compactLayout, type CompactLayout,
 } from "../core/layout";
 import {
   State, USAGE_SOURCE_WORDS, compactMetrics, ramPercent, ramWords, usageLevel, usageShown,
@@ -172,11 +174,17 @@ export interface CompactStrip {
 export function buildCompact(): CompactStrip {
   const dots = h("div", { class: "ci-dots", style: `gap:${COMPACT_DOT_GAP}px` });
   const metrics = h("div", { class: "ci-metrics", style: `gap:${COMPACT_METRIC_GAP}px` });
+  // The slots' sizes, from layout.ts: style.css lays them out in a row, or in a
+  // column on a side, from the same numbers — the dock can change under them.
   const el = h(
     "div",
-    { id: "compact", style: `padding:0 ${COMPACT_PAD}px;gap:${COMPACT_SLOT_GAP}px` },
+    {
+      id: "compact",
+      style: `--pad:${COMPACT_PAD}px;--slot-gap:${COMPACT_SLOT_GAP}px;--bot-slot:${COMPACT_BOT_SLOT}px;` +
+        `--column-w:${COMPACT_COLUMN_W}px;--cell-h:${COMPACT_CELL_H}px`,
+    },
     // The bot's slot: empty, the island's own canvas sits over it.
-    h("div", { class: "ci-bot", style: `width:${COMPACT_BOT_SLOT}px` }),
+    h("div", { class: "ci-bot" }),
     dots,
     metrics,
   );
@@ -243,7 +251,7 @@ export function buildCompact(): CompactStrip {
           const value = h("b");
           values.set(kind, value);
           metrics.append(h(
-            "span", { class: "ci-metric", style: `width:${def.width}px`, title: def.name },
+            "span", { class: "ci-metric", style: `--w:${def.width}px`, title: def.name },
             lucide(def.icon, COMPACT_ICON),
             value,
           ));

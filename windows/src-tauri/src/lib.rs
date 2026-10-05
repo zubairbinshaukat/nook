@@ -1,8 +1,10 @@
 // Nook for Windows — app wiring and the commands the island calls.
 
 mod about;
+mod agents;
 #[cfg_attr(not(windows), allow(dead_code))]
 mod cursor_hooks;
+mod dock;
 mod fullscreen;
 mod hooks;
 mod island;
@@ -21,6 +23,7 @@ mod statusline;
 mod target;
 mod tray;
 mod usage;
+mod visibility;
 
 use std::process::Command;
 use std::sync::atomic::Ordering;
@@ -81,7 +84,7 @@ fn boot(app: AppHandle, window: tauri::Window, shared: State<Shared>) -> BootInf
 
 #[tauri::command]
 fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
-    let (screen_changed, autostart_changed, theme_changed, settings) = {
+    let (screen_changed, autostart_changed, theme_changed, agents_changed, settings) = {
         let mut current = shared.settings.lock().unwrap();
         let screen_changed = current.screen != settings.screen;
         let autostart_changed = current.autostart != settings.autostart;
@@ -97,12 +100,24 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
             goto_shortcut_enabled: current.goto_shortcut_enabled,
             panel_shortcut: current.panel_shortcut.clone(),
             panel_shortcut_enabled: current.panel_shortcut_enabled,
+            hide_shortcut: current.hide_shortcut.clone(),
+            hide_shortcut_enabled: current.hide_shortcut_enabled,
+            agents_shortcut: current.agents_shortcut.clone(),
+            agents_shortcut_enabled: current.agents_shortcut_enabled,
+            // Where the list was left is Rust's to write, as it is dragged.
+            agents_list_x: current.agents_list_x,
+            agents_list_y: current.agents_list_y,
+            agents_list_w: current.agents_list_w,
+            agents_list_h: current.agents_list_h,
             ..settings
         }
         .validated();
+        // The island is placed again when the display or the edge it hangs from changes.
+        let screen_changed = screen_changed || current.dock != settings.dock;
         let theme_changed = current.theme != settings.theme;
+        let agents_changed = current.show_agents_list != settings.show_agents_list;
         *current = settings.clone();
-        (screen_changed, autostart_changed, theme_changed, settings)
+        (screen_changed, autostart_changed, theme_changed, agents_changed, settings)
     };
     if let Err(err) = settings::save(&settings) {
         eprintln!("[nook] could not save settings: {err}");
@@ -119,19 +134,31 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
     }
     if screen_changed {
         let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
-        island::apply_geometry(&app, &settings.screen, collapsed);
+        island::apply_geometry(&app, &settings.screen, settings.dock(), collapsed);
     }
     // Keep the other window in step (island ⇄ settings window).
-    let _ = app.emit("settings-changed", settings);
+    let _ = app.emit("settings-changed", settings.clone());
+    // The agents list is turned on or off: its window and its shortcut follow at
+    // once. After the emit: the island's page answers a show with the rows only
+    // once it knows the setting is on.
+    if agents_changed {
+        agents::set_enabled(&app, settings.show_agents_list);
+    }
+}
+
+/// The display the island lives on and the edge it hangs from, as saved.
+fn placement(shared: &Shared) -> (String, dock::Dock) {
+    let settings = shared.settings.lock().unwrap();
+    (settings.screen.clone(), settings.dock())
 }
 
 /// Hidden island → shrink the window to the invisible wake strip and park the
 /// cursor poll; anything else → full panel and 60 Hz polling.
 #[tauri::command]
 fn set_collapsed(app: AppHandle, shared: State<Shared>, collapsed: bool) {
-    let pref = shared.settings.lock().unwrap().screen.clone();
+    let (pref, dock) = placement(&shared);
     shared.gate.collapsed.store(collapsed, Ordering::Relaxed);
-    island::apply_geometry(&app, &pref, collapsed);
+    island::apply_geometry(&app, &pref, dock, collapsed);
     // The wake strip must always take the mouse, and a resize invalidates the flag.
     island::refresh_click_through(&app, &shared.gate);
     shared.gate.set_active(!collapsed);
@@ -170,9 +197,9 @@ fn fullscreen_now(app: AppHandle) -> bool {
 
 #[tauri::command]
 fn reposition(app: AppHandle, shared: State<Shared>) {
-    let pref = shared.settings.lock().unwrap().screen.clone();
+    let (pref, dock) = placement(&shared);
     let collapsed = shared.gate.collapsed.load(Ordering::Relaxed);
-    island::apply_geometry(&app, &pref, collapsed);
+    island::apply_geometry(&app, &pref, dock, collapsed);
 }
 
 /// The address the Claude desktop app answers to, through the scheme it registers.
@@ -553,7 +580,7 @@ fn shortcut_status(app: AppHandle) -> shortcut::Statuses {
     shortcut::statuses(&app)
 }
 
-/// The settings window picks another combination for one of the three shortcuts,
+/// The settings window picks another combination for one of the five shortcuts,
 /// or switches it on or off. It is saved only once it is registered: one that
 /// is not a combination, that is reserved, that is another Nook shortcut's, or
 /// that another program holds comes back as the reason why, and what was there
@@ -580,18 +607,18 @@ fn set_shortcut(app: AppHandle, shared: State<Shared>, which: shortcut::Which, a
 /// for the *same* arguments as the island (see `additionalBrowserArgs` in
 /// tauri.conf.json) — a mismatch makes the second window come up blank, with no
 /// error anywhere.
-const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required";
+pub(crate) const BROWSER_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required";
 
-/// In a dev build the pages are served by Vite, so the second window needs the
+/// In a dev build the pages are served by Vite, so another window needs the
 /// absolute dev URL; a bundled build resolves it inside the app bundle.
-fn settings_page_url(app: &AppHandle) -> WebviewUrl {
+pub(crate) fn page_url(app: &AppHandle, page: &str) -> WebviewUrl {
     #[cfg(dev)]
     if let Some(mut base) = app.config().build.dev_url.clone() {
-        base.set_path("/settings.html");
+        base.set_path(&format!("/{page}"));
         return WebviewUrl::External(base);
     }
     let _ = app;
-    WebviewUrl::App("settings.html".into())
+    WebviewUrl::App(page.into())
 }
 
 /// The settings window is created hidden at launch and only ever shown and
@@ -599,7 +626,7 @@ fn settings_page_url(app: &AppHandle) -> WebviewUrl {
 /// not — silently comes up blank in this app, so the window that works is the
 /// one that exists before the island's webview does.
 fn create_settings_window(app: &AppHandle) {
-    let url = settings_page_url(app);
+    let url = page_url(app, "settings.html");
     match WebviewWindowBuilder::new(app, "settings", url)
         .additional_browser_args(BROWSER_ARGS)
         .title("Settings — Nook")
@@ -694,11 +721,14 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            visibility::open(app);
             let _ = app.emit_to(island::WINDOW_LABEL, "tray", "open".to_string());
         }))
         .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
         .plugin(shortcut::plugin())
         .manage(shortcut::Hotkeys::default())
+        .manage(visibility::Visibility::default())
+        .manage(agents::Agents::default())
         .manage(Shared {
             settings: Mutex::new(loaded.clone()),
             gate: gate.clone(),
@@ -755,16 +785,27 @@ pub fn run() {
             projects_note,
             projects_open_code,
             projects_new_session,
+            agents::agents_snapshot,
+            agents::agents_last,
+            agents::agents_shown,
+            agents::agents_fit,
+            agents::agents_hide,
+            agents::agents_resize_begin,
+            agents::agents_resize_move,
+            agents::agents_resize_end,
+            agents::agents_resize_reset,
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
             tray::build(&handle)?;
             // Before the island: see create_settings_window.
             create_settings_window(&handle);
+            // And the agents list's, for the same reason (agents.rs create_window).
+            agents::create_window(&handle);
 
             if let Some(win) = island::window(&handle) {
                 platform::make_non_activating(&win);
-                island::apply_geometry(&handle, &loaded.screen, false);
+                island::apply_geometry(&handle, &loaded.screen, loaded.dock(), false);
                 let _ = win.show();
             }
             gate.collapsed.store(false, Ordering::Relaxed);
@@ -781,6 +822,7 @@ pub fn run() {
             hooks::ensure_hook_exe(&handle);
             pipe::start(handle.clone());
             shortcut::start(&handle, &loaded);
+            agents::start(&handle);
             Ok(())
         })
         .build(tauri::generate_context!())

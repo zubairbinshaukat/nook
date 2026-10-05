@@ -63,6 +63,28 @@ body {
   background: transparent;
 }
 
+/* Docked to the bottom edge (island.ts `setRoom` writes data-dock): the strip,
+   the island and its countdown stand on it. The top is the default, above. */
+:root[data-dock="bottom"] #wake-strip {
+  top: auto;
+  bottom: 0;
+}
+
+/* On a side the strip stands upright against it, 6 × 240 and centred along it:
+   the window collapsed to the strip is exactly that (dock.rs `strip_size`). */
+:root:is([data-dock="left"], [data-dock="right"]) #wake-strip {
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 240px;
+}
+
+:root[data-dock="right"] #wake-strip {
+  left: auto;
+  right: 0;
+}
+
 /* ── Island ─────────────────────────────────────────────────────────────── */
 
 /* The island has no ground of its own: its outline is one SVG path
@@ -75,6 +97,31 @@ body {
   border-radius: 0 0 16px 16px;
   overflow: visible;
   will-change: width, height, transform;
+}
+
+/* Standing on the bottom edge: it grows upwards, round on top. Its outline is
+   drawn flipped (notch.ts), and what is in it is not: the header stays on top. */
+:root[data-dock="bottom"] #island {
+  top: auto;
+  bottom: 0;
+  border-radius: 16px 16px 0 0;
+}
+
+/* Hanging from a side: flush with it, and centred along it — island.ts moves
+   it from `top: 50%` to a whole pixel, as it does from `left: 50%` on the top
+   and bottom — round on the side away from it. Its outline is drawn turned
+   (notch.ts); what is in it is not: the header stays on top, the text level. */
+:root[data-dock="left"] #island {
+  top: 50%;
+  left: 0;
+  border-radius: 0 16px 16px 0;
+}
+
+:root[data-dock="right"] #island {
+  top: 50%;
+  left: auto;
+  right: 0;
+  border-radius: 16px 0 0 16px;
 }
 
 #island-shape {
@@ -92,10 +139,16 @@ body {
   display: none !important;
 }
 
+/* `clip`, not `hidden`: a box with `overflow: hidden` can still be scrolled —
+   by a focus() or a scrollIntoView() reaching for something below the island's
+   edge while its size lags behind the page (a hidden window gets no frames).
+   It then kept that scroll, and everything in it was drawn that much higher
+   than the outline and the bot, which are outside it: the header cut off by
+   the top of the screen, an empty band at the bottom. A clip never scrolls. */
 #island-clip {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  overflow: clip;
   border-radius: inherit;
 }
 
@@ -130,6 +183,13 @@ body {
   width: 0;
 }
 
+/* The line runs along the edge that faces the screen, so the one away from it.
+   On a side it stays on the lower edge, which is free there too. */
+:root[data-dock="bottom"] #countdown {
+  top: 0;
+  bottom: auto;
+}
+
 /* ── The folded island (island/compact.ts) ───────────────────────────────────
    Fixed slots, left to right: the bot (drawn over the first one by the
    island), a dot per session, the metric cells. Each has its own width; the
@@ -140,6 +200,8 @@ body {
   left: 0;
   height: 38px;
   width: max-content;
+  padding: 0 var(--pad);
+  gap: var(--slot-gap);
   display: flex;
   align-items: center;
   opacity: 0;
@@ -161,6 +223,7 @@ body {
 
 .ci-bot {
   flex: 0 0 auto;
+  width: var(--bot-slot);
   height: 100%;
 }
 
@@ -254,6 +317,7 @@ body {
 
 .ci-metric {
   flex: 0 0 auto;
+  width: var(--w);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -293,6 +357,45 @@ body {
 /* A usage window that has reset, or a number hours old: there, and quiet. */
 .ci-metric b.dim {
   color: var(--dim-3);
+}
+
+/* Folded on a side: the same slots, top to bottom, in a column flush with the
+   side edge (layout.ts `compactLayout`). The bot's slot is at the top, as tall
+   as it is wide in the row; the dots and "+N" stand one under the other; a
+   cell is the column's width, its icon over its number. Nothing is turned. */
+:root:is([data-dock="left"], [data-dock="right"]) #compact {
+  width: var(--column-w);
+  height: max-content;
+  padding: var(--pad) 0;
+  flex-direction: column;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .ci-bot {
+  align-self: stretch;
+  width: auto;
+  height: var(--bot-slot);
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .ci-dots {
+  flex-direction: column;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .ci-metrics {
+  align-self: stretch;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .ci-metric {
+  width: auto;
+  height: var(--cell-h);
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .ci-metric b {
+  line-height: 16px;
 }
 
 @keyframes dot-pulse {
@@ -659,6 +762,42 @@ body {
 
 .shelf-row.dragging {
   cursor: grabbing;
+}
+
+/* On a side the row is a column (layout.ts SHELF_SIDE_H): the cards one above
+   the other, the column's width, --shelf-card-h tall; it scrolls up and down
+   and comes to rest on a card's upper edge (views/shelf.ts says which axis).
+   Its edges fade as the row's do: more-left is more above, more-right more below. */
+:root:is([data-dock="left"], [data-dock="right"]) .shelf-row {
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-x: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+
+/* Snapping, as the row's, but for the moments the script moves it by hand. */
+:root:is([data-dock="left"], [data-dock="right"]) .shelf-row:not(.swiping, .reordering) {
+  scroll-snap-type: y mandatory;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .shelf-row .wmini {
+  flex: 0 0 var(--shelf-card-h);
+  width: 100%;
+  height: var(--shelf-card-h);
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .shelf-row.more-right {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent);
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .shelf-row.more-left {
+  mask-image: linear-gradient(to bottom, transparent, #000 12px);
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .shelf-row.more-left.more-right {
+  mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 16px), transparent);
 }
 
 /* A small card: dark, like the expanded views. The widget's colour (--c) is on
@@ -1190,6 +1329,31 @@ html.vt-back::view-transition-group(*) {
   object-fit: none;
   object-position: 50% 0;
   mix-blend-mode: normal;
+}
+
+:root[data-dock="bottom"]::view-transition-group(island) {
+  border-radius: 22px 22px 0 0;
+}
+/* The snapshots stay top-aligned (object-position 50% 0, above) on the bottom
+   too: what is in the island hangs from its top whichever edge it stands on.
+   On a side they keep to its top as well, and to the edge it hangs from. */
+
+:root[data-dock="left"]::view-transition-group(island) {
+  border-radius: 0 22px 22px 0;
+}
+
+:root[data-dock="right"]::view-transition-group(island) {
+  border-radius: 22px 0 0 22px;
+}
+
+:root[data-dock="left"]::view-transition-old(island),
+:root[data-dock="left"]::view-transition-new(island) {
+  object-position: 0 0;
+}
+
+:root[data-dock="right"]::view-transition-old(island),
+:root[data-dock="right"]::view-transition-new(island) {
+  object-position: 100% 0;
 }
 
 ::view-transition-old(island) {
@@ -2145,6 +2309,119 @@ html.vt-back::view-transition-group(*) {
   color: var(--dim-2);
 }
 
+/* The lanes and the resources: at the top and bottom no box of their own, so
+   the three cards are the home view's columns, as they always were. */
+.home-rest {
+  display: contents;
+}
+
+/* ── Home on a side (layout.ts SIDE_LAYOUTS) ─────────────────────────────────
+   Upright: the three cards one above the other. The bot's card is a row: the
+   stage a column of its own on the left — the island's bot stands on it, from
+   layout.ts HOME_STAGE.column, so its box here is that one: the card's 1 px
+   border, then 8 px of padding on top and on the left, the stage 76 × 73 —
+   and the session's words beside it. Under it the lanes, then the machine and
+   usage side by side. The heights are layout.ts's (by way of views/home.ts);
+   when the window is too short for them, the lanes and resources scroll under
+   the bot's card, which stays. */
+:root:is([data-dock="left"], [data-dock="right"]) .home {
+  flex-direction: column;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .home-rest {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .home-bot {
+  flex: 0 0 var(--home-side-bot);
+  width: auto;
+  height: auto;
+  display: grid;
+  grid-template-columns: var(--hb-side-stage) minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
+  column-gap: 10px;
+  align-items: start;
+  justify-items: start;
+  padding: 8px 12px 8px 8px;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .hb-stage {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  width: var(--hb-side-stage);
+  height: var(--hb-stage-h);
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .hb-who {
+  grid-column: 2;
+  align-items: flex-start;
+  margin-top: 6px;
+}
+
+/* One line of what it is doing beside the stage: the tooltip has it whole. */
+:root:is([data-dock="left"], [data-dock="right"]) .hb-doing {
+  grid-column: 2;
+  text-align: left;
+  -webkit-line-clamp: 1;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .hb-actions {
+  grid-column: 2;
+  align-self: end;
+  margin-top: 4px;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .home-sessions {
+  flex: 0 0 var(--home-side-sessions);
+  height: auto;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .hs-foot {
+  flex-basis: 32px;
+}
+
+/* The machine on the left, Claude's usage on the right, how old it is under both. */
+:root:is([data-dock="left"], [data-dock="right"]) .home-res {
+  flex: 0 0 auto;
+  height: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  column-gap: 14px;
+  row-gap: 8px;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .home-res .res-machine {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .home-res .lane-h {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .home-res .res-usage {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .home-res .res-age {
+  grid-column: 1 / span 2;
+  grid-row: 3;
+  margin-top: 0;
+}
+
 .agent:focus {
   outline: none;
 }
@@ -2630,6 +2907,51 @@ input[type="range"]::-webkit-slider-thumb {
 .gh-list.more {
   -webkit-mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
+}
+
+/* The way back down, from further up a journal: in the corner of the panel,
+   small and see-through, over the journal's bottom edge. Only the button
+   takes the pointer; the rest of its corner is the journal's. */
+.sess-jump {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--gh-edge);
+  border-radius: 50%;
+  background: var(--card-flat);
+  color: var(--ink);
+  opacity: 0.78;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  cursor: default;
+  transition: opacity 0.15s ease-out;
+}
+
+.sess-jump[hidden] {
+  display: none;
+}
+
+.sess-jump:hover {
+  opacity: 1;
+}
+
+.sess-jump-dot {
+  display: none;
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+.sess-jump.fresh .sess-jump-dot {
+  display: block;
 }
 
 .gh-row {
@@ -4198,6 +4520,43 @@ input[type="range"]::-webkit-slider-thumb {
   color: var(--amber);
 }
 
+/* How full a session's context is: a short bar, green, amber from 60%, red
+   from 85%. The figure is its tooltip and, unseen, its text. */
+.sess-ctx {
+  flex: 0 0 auto;
+  position: relative;
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--gh-plate);
+  overflow: hidden;
+}
+
+.sess-ctx u {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 2px;
+  background: var(--green-2);
+}
+
+.sess-ctx.warn u {
+  background: var(--amber);
+}
+
+.sess-ctx.full u {
+  background: var(--red);
+}
+
+.sess-ctx-words {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* The way to where a session runs, on its own line of the sidebar. At the
    panel's normal size the line is narrow: it shows when the line is pointed
    at or has the focus, so the name keeps its room. In the large panel it is
@@ -4291,6 +4650,29 @@ input[type="range"]::-webkit-slider-thumb {
   height: 17px;
   font-size: 10.5px;
   line-height: 17px;
+}
+
+/* A turn of a session ended while the panel was being read: a small amber dot
+   on its line until it is opened (and a shake, once, when it happens). */
+.sess-new {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+/* Only a transform: the shaken thing keeps its place for the pointer and the keyboard. */
+.sess-wiggle {
+  animation: sess-wiggle 0.5s ease-in-out;
+}
+
+@keyframes sess-wiggle {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-3px); }
+  35% { transform: translateX(3px); }
+  55% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
 }
 
 /* A session waiting for an answer: its dot calls. */
@@ -4979,8 +5361,32 @@ input[type="range"]::-webkit-slider-thumb {
    OS's own preference only decides when Settings says "system". */
 :root[data-motion="reduce"] .sess-journal.sess-enter,
 :root[data-motion="reduce"] .sess-mark.needs,
-:root[data-motion="reduce"] .sess-node .dot.calls {
+:root[data-motion="reduce"] .sess-node .dot.calls,
+:root[data-motion="reduce"] .sess-wiggle {
   animation: none;
+}
+
+/* Without the shake, the amber stays: on the line, and round the button. */
+:root[data-motion="reduce"] .sess-node.attn {
+  background: color-mix(in srgb, var(--amber) 14%, transparent);
+}
+
+:root[data-motion="reduce"] .sess-jump.fresh {
+  box-shadow: 0 0 0 1.5px var(--amber);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .sess-wiggle {
+    animation: none;
+  }
+
+  :root:not([data-motion="full"]) .sess-node.attn {
+    background: color-mix(in srgb, var(--amber) 14%, transparent);
+  }
+
+  :root:not([data-motion="full"]) .sess-jump.fresh {
+    box-shadow: 0 0 0 1.5px var(--amber);
+  }
 }
 
 /* ── Shelf widget: Timer ────────────────────────────────────────────────── */

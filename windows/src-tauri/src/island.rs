@@ -2,8 +2,8 @@
 // (full panel / invisible wake strip), click-through and the cursor poll.
 //
 // There is no notch on a PC, so the island is a black shape drawn at the top
-// centre of the main display inside a borderless, transparent, always-on-top
-// window that never takes focus.
+// centre of the main display (or at another edge: dock.rs) inside a borderless,
+// transparent, always-on-top window that never takes focus.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
@@ -12,6 +12,7 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Monitor, PhysicalPosition, PhysicalSize, WebviewWindow};
 
+use crate::dock::{self, Dock, Rect};
 use crate::platform::{self, cursor_physical};
 
 /// Logical size of the full window: the largest shape the island takes, which is
@@ -28,8 +29,8 @@ pub const PANEL_MIN_W: f64 = 720.0;
 pub const PANEL_MIN_H: f64 = 320.0;
 /// What the large panel leaves free of the display: on both sides together,
 /// and under it, above the taskbar.
-const SCREEN_MARGIN_W: f64 = 32.0;
-const SCREEN_MARGIN_H: f64 = 24.0;
+pub(crate) const SCREEN_MARGIN_W: f64 = 32.0;
+pub(crate) const SCREEN_MARGIN_H: f64 = 24.0;
 /// Logical size of the invisible strip that wakes the island when it is hidden.
 pub const STRIP_W: f64 = 240.0;
 pub const STRIP_H: f64 = 6.0;
@@ -66,18 +67,51 @@ pub struct IslandRect {
     pub h: f64,
 }
 
-/// Logical size of the full window on the display it is on. The front end
-/// centres the island in it, and makes the large panel no larger.
+impl IslandRect {
+    /// Something has been drawn: the page has pushed a shape. Retracted, the
+    /// island is a line along the edge it is docked to — no height at the top
+    /// and bottom, no width on a side — and still takes the pointer there.
+    fn drawn(&self) -> bool {
+        self.w > 0.0 || self.h > 0.0
+    }
+
+    /// The point is on the island, or within the margin around it.
+    fn near(&self, x: f64, y: f64) -> bool {
+        self.drawn()
+            && x >= self.x - HIT_MARGIN
+            && x <= self.x + self.w + HIT_MARGIN
+            && y >= self.y - HIT_MARGIN
+            && y <= self.y + self.h + HIT_MARGIN
+    }
+}
+
+/// Logical size of the full window on the display it is on, and the edge the
+/// island is docked to. The front end places the island in it, and makes the
+/// large panel no larger.
 #[derive(Serialize, Clone, Copy, PartialEq)]
 pub struct PanelSize {
     pub width: f64,
     pub height: f64,
+    pub dock: Dock,
+}
+
+/// What the gate is told: the island wants to be polled, and the window is hidden.
+#[derive(Default)]
+struct Gate {
+    wanted: bool,
+    hidden: bool,
+}
+
+impl Gate {
+    fn open(&self) -> bool {
+        self.wanted && !self.hidden
+    }
 }
 
 /// Wakes / parks the cursor poll thread — and the metrics one (metrics.rs) — so
 /// a hidden island costs literally nothing.
 pub struct PollGate {
-    active: Mutex<bool>,
+    active: Mutex<Gate>,
     cv: Condvar,
     /// How many times the gate has opened: what was measured before a park is
     /// told from what is measured after it.
@@ -93,12 +127,12 @@ pub struct PollGate {
 impl PollGate {
     pub fn new() -> Self {
         Self {
-            active: Mutex::new(false),
+            active: Mutex::new(Gate::default()),
             cv: Condvar::new(),
             wakes: AtomicU64::new(0),
             collapsed: AtomicBool::new(true),
             rect: Mutex::new(IslandRect::default()),
-            panel: Mutex::new(PanelSize { width: PANEL_MIN_W, height: PANEL_MIN_H }),
+            panel: Mutex::new(PanelSize { width: PANEL_MIN_W, height: PANEL_MIN_H, dock: Dock::Top }),
             ignoring: AtomicBool::new(false),
         }
     }
@@ -112,18 +146,30 @@ impl PollGate {
         self.ignoring.store(false, Ordering::Relaxed);
     }
 
+    /// The island's own wish: on show (true) or folded away (false).
     pub fn set_active(&self, on: bool) {
+        self.update(|gate| gate.wanted = on);
+    }
+
+    /// The window is hidden (visibility.rs): the gate stays closed, whatever the
+    /// island wishes, until it is shown again.
+    pub fn set_hidden(&self, hidden: bool) {
+        self.update(|gate| gate.hidden = hidden);
+    }
+
+    fn update(&self, change: impl FnOnce(&mut Gate)) {
         let mut guard = self.active.lock().unwrap();
-        if on && !*guard {
+        let was = guard.open();
+        change(&mut guard);
+        if guard.open() && !was {
             self.wakes.fetch_add(1, Ordering::Relaxed);
         }
-        *guard = on;
         self.cv.notify_all();
     }
 
     pub(crate) fn wait_until_active(&self) {
         let mut guard = self.active.lock().unwrap();
-        while !*guard {
+        while !guard.open() {
             guard = self.cv.wait(guard).unwrap();
         }
     }
@@ -133,8 +179,8 @@ impl PollGate {
     /// tick later. True when the gate is still open.
     pub(crate) fn wait_while_active(&self, period: Duration) -> bool {
         let guard = self.active.lock().unwrap();
-        let (guard, _) = self.cv.wait_timeout_while(guard, period, |active| *active).unwrap();
-        *guard
+        let (guard, _) = self.cv.wait_timeout_while(guard, period, |gate| gate.open()).unwrap();
+        guard.open()
     }
 
     /// Changes every time the gate opens again after having been closed.
@@ -143,12 +189,48 @@ impl PollGate {
     }
 
     fn is_active(&self) -> bool {
-        *self.active.lock().unwrap()
+        self.active.lock().unwrap().open()
     }
 }
 
 pub fn window(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window(WINDOW_LABEL)
+}
+
+/// Hides the window altogether, or shows it again (visibility.rs). Hidden, it
+/// takes no mouse and the polls are parked; shown, it is placed again — a
+/// display may have changed — and takes the mouse as a fresh window does. The
+/// window never takes focus, here either.
+///
+/// Done on the main thread: window calls made from another one are only
+/// queued, and the show must have happened before the foreground is looked at
+/// again (platform `show_inactive`). Calls queued in order stay in order, so
+/// the last one asked is the one that stays.
+pub fn set_shown(app: &AppHandle, shown: bool) {
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || put_shown(&handle, shown));
+}
+
+fn put_shown(app: &AppHandle, shown: bool) {
+    let Some(win) = window(app) else { return };
+    let Some(shared) = app.try_state::<crate::Shared>() else { return };
+    if !shown {
+        shared.gate.set_hidden(true);
+        let _ = win.hide();
+        return;
+    }
+    let (pref, dock) = {
+        let settings = shared.settings.lock().unwrap();
+        (settings.screen.clone(), settings.dock())
+    };
+    // Placed again from the display as it is now: it may have changed while hidden.
+    apply_geometry(app, &pref, dock, shared.gate.collapsed.load(Ordering::Relaxed));
+    platform::show_inactive(&win);
+    refresh_click_through(app, &shared.gate);
+    shared.gate.set_hidden(false);
+    // Hidden, the page got no frames: the island's size may still be what it
+    // was when it went. The page puts it at its size at once (island.ts `onShown`).
+    let _ = app.emit_to(WINDOW_LABEL, "island-shown", true);
 }
 
 fn monitor_contains(m: &Monitor, x: f64, y: f64) -> bool {
@@ -194,33 +276,22 @@ pub fn screen_info(app: &AppHandle, pref: &str) -> ScreenInfo {
     }
 }
 
-/// The full window's logical size for a display this wide and with this much
-/// height free under its top edge: the large panel, or what of it fits.
-fn panel_size(screen_w: f64, free_h: f64) -> (f64, f64) {
-    (
-        (screen_w - SCREEN_MARGIN_W).clamp(PANEL_MIN_W, PANEL_MAX_W),
-        (free_h - SCREEN_MARGIN_H).clamp(PANEL_MIN_H, PANEL_MAX_H),
-    )
+fn rect_of(position: &PhysicalPosition<i32>, size: &PhysicalSize<u32>) -> Rect {
+    Rect { x: position.x, y: position.y, w: size.width, h: size.height }
 }
 
-/// Places and sizes the window. `collapsed` picks the wake strip instead of the panel.
-pub fn apply_geometry(app: &AppHandle, pref: &str, collapsed: bool) {
+/// Places and sizes the window. `collapsed` picks the wake strip instead of the
+/// panel. The arithmetic is dock.rs; this asks the display and applies the answer.
+pub fn apply_geometry(app: &AppHandle, pref: &str, dock: Dock, collapsed: bool) {
     let Some(win) = window(app) else { return };
     let Some(m) = target_monitor(app, pref) else { return };
 
     let scale = m.scale_factor();
-    let mp = *m.position();
-    let ms = *m.size();
-
-    // The window hangs from the display's top edge, so what counts is the
-    // height from there down to where the work area ends (the taskbar).
+    let monitor = rect_of(m.position(), m.size());
     let work = m.work_area();
-    let free_h = (work.position.y + work.size.height as i32 - mp.y).max(0) as f64 / scale;
-    let (full_w, full_h) = panel_size(ms.width as f64 / scale, free_h);
-    // In whole physical pixels, and told to the front end as it really is.
-    let full_pw = (full_w * scale).round().max(1.0);
-    let full_ph = (full_h * scale).round().max(1.0);
-    let panel = PanelSize { width: full_pw / scale, height: full_ph / scale };
+    let place = dock::place(dock, monitor, rect_of(&work.position, &work.size), scale, collapsed);
+
+    let panel = PanelSize { width: place.panel.0, height: place.panel.1, dock };
     if let Some(shared) = app.try_state::<crate::Shared>() {
         let mut known = shared.gate.panel.lock().unwrap();
         if *known != panel {
@@ -229,14 +300,11 @@ pub fn apply_geometry(app: &AppHandle, pref: &str, collapsed: bool) {
         }
     }
 
-    let (pw, ph) = if collapsed {
-        ((STRIP_W * scale).round().max(1.0) as u32, (STRIP_H * scale).round().max(1.0) as u32)
-    } else {
-        (full_pw as u32, full_ph as u32)
-    };
-    let x = mp.x + (ms.width as i32 - pw as i32) / 2;
-    let y = mp.y;
+    let (pw, ph) = place.size;
+    let (x, y) = place.pos;
 
+    // The compositor's own anchor, where there is one (Linux layer-shell).
+    platform::set_dock(&win, dock);
     // GTK never sizes a non-resizable window below its natural size (200 px
     // here), so on Linux the 6 px wake strip would stay a 200 px block. tao
     // re-applies the config's `resizable: false` after the first configure, so
@@ -244,24 +312,48 @@ pub fn apply_geometry(app: &AppHandle, pref: &str, collapsed: bool) {
     // still offers the user nothing to resize it by. (Found by @YossiYad, #44.)
     #[cfg(target_os = "linux")]
     let _ = win.set_resizable(true);
-    let _ = win.set_size(PhysicalSize::new(pw, ph));
-    let _ = win.set_position(PhysicalPosition::new(x, y));
+    // A window resized keeps its top-left corner. At the top that corner is
+    // where it stays, as it always did. Elsewhere it moves between the strip
+    // and the panel, and the window is kept on its display at every step: in
+    // first when it grows (put where the panel goes, then grown), shrunk first
+    // when it collapses (then put where the strip goes). Grown first at the
+    // bottom, it would hang below the display for a frame, onto one under it.
+    let size = PhysicalSize::new(pw, ph);
+    let at = PhysicalPosition::new(x, y);
+    if dock == Dock::Top || collapsed {
+        let _ = win.set_size(size);
+        let _ = win.set_position(at);
+    } else {
+        let _ = win.set_position(at);
+        let _ = win.set_size(size);
+    }
     // Moving across displays can rescale the window: re-assert the physical size.
-    let _ = win.set_size(PhysicalSize::new(pw, ph));
+    let _ = win.set_size(size);
     let _ = win.set_always_on_top(true);
 }
 
-/// Position, size and scale of the monitor the island lives on. Any change here
-/// means the island has to be placed again.
-fn current_screen_key(app: &AppHandle) -> Option<(i32, i32, u32, u32, u64)> {
+/// Position, size, work area and scale of the monitor the island lives on. Any
+/// change here means the island has to be placed again.
+#[derive(PartialEq)]
+struct ScreenKey {
+    monitor: Rect,
+    work: Rect,
+    scale: u64,
+}
+
+/// The monitor the island lives on as it is now, or None when there is none to ask.
+fn current_screen_key(app: &AppHandle) -> Option<ScreenKey> {
     let pref = app
         .try_state::<crate::Shared>()
         .map(|s| s.settings.lock().unwrap().screen.clone())
         .unwrap_or_else(|| "primary".into());
     let m = target_monitor(app, &pref)?;
-    let p = m.position();
-    let size = m.size();
-    Some((p.x, p.y, size.width, size.height, m.scale_factor().to_bits()))
+    let work = m.work_area();
+    Some(ScreenKey {
+        monitor: rect_of(m.position(), m.size()),
+        work: rect_of(&work.position, &work.size),
+        scale: m.scale_factor().to_bits(),
+    })
 }
 
 /// Emits `cursor` (window-logical coordinates) at ~40 Hz while the island is
@@ -270,7 +362,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
     std::thread::spawn(move || {
         // Remembered across wakes so a display change while hidden is noticed the
         // moment the island comes back.
-        let mut last_screen: Option<(i32, i32, u32, u32, u64)> = None;
+        let mut last_screen: Option<ScreenKey> = None;
         // Without a cursor to read (Linux) the loop only watches the display
         // layout, and twice a second is plenty for that: waking at 60 Hz just to
         // find no cursor costs CPU for nothing.
@@ -339,11 +431,7 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                 // Click-through: the window only takes the mouse over the island
                 // shape. A small entry margin means the flag is already off by the
                 // time a moving cursor reaches a button.
-                let on_island = r.w > 0.0
-                    && x >= r.x - HIT_MARGIN
-                    && x <= r.x + r.w + HIT_MARGIN
-                    && y >= r.y - HIT_MARGIN
-                    && y <= r.y + r.h + HIT_MARGIN;
+                let on_island = r.near(x, y);
 
                 if gate.ignoring.load(Ordering::Relaxed) == on_island {
                     gate.ignoring.store(!on_island, Ordering::Relaxed);
@@ -391,11 +479,13 @@ pub fn refresh_click_through(app: &AppHandle, gate: &PollGate) {
     let region = if gate.collapsed.load(Ordering::Relaxed) {
         // The wake strip itself, never "the whole window": if the window ever
         // fails to shrink to the strip, the rest of it must not swallow clicks
-        // meant for whatever sits under the top of the screen.
-        Some((0.0, 0.0, STRIP_W, STRIP_H))
+        // meant for whatever sits under the edge of the screen. The strip is
+        // the window, so it starts at its corner, whichever edge it is on.
+        let (w, h) = if gate.panel.lock().unwrap().dock.vertical() { (STRIP_H, STRIP_W) } else { (STRIP_W, STRIP_H) };
+        Some((0.0, 0.0, w, h))
     } else {
         let r = *gate.rect.lock().unwrap();
-        if r.w <= 0.0 {
+        if !r.drawn() {
             // Nothing drawn yet: nothing takes the mouse.
             Some((0.0, 0.0, 0.0, 0.0))
         } else {
@@ -419,16 +509,47 @@ pub fn set_ignore_cursor(app: &AppHandle, ignore: bool) {
 mod tests {
     use super::*;
 
+    /// A hidden window keeps the gate shut, whatever the island wishes, and
+    /// showing it opens the gate again if the island wanted it open.
     #[test]
-    fn the_window_is_the_large_panel_or_what_of_it_the_display_has_room_for() {
-        // A display with room to spare: the large panel, whole.
-        assert_eq!(panel_size(1920.0, 1040.0), (PANEL_MAX_W, PANEL_MAX_H));
-        assert_eq!(panel_size(3840.0, 2100.0), (PANEL_MAX_W, PANEL_MAX_H));
-        // A small laptop at 150 %: 1024 × 640 logical, 600 free above the taskbar.
-        assert_eq!(panel_size(1024.0, 600.0), (1024.0 - SCREEN_MARGIN_W, 600.0 - SCREEN_MARGIN_H));
-        // Smaller than the normal panel: the normal panel, as before.
-        assert_eq!(panel_size(700.0, 300.0), (PANEL_MIN_W, PANEL_MIN_H));
-        assert_eq!(panel_size(0.0, 0.0), (PANEL_MIN_W, PANEL_MIN_H));
+    fn a_hidden_window_keeps_the_gate_closed() {
+        let gate = PollGate::new();
+        gate.set_active(true);
+        assert!(gate.is_active());
+        let wakes = gate.wakes();
+        gate.set_hidden(true);
+        assert!(!gate.is_active());
+        // The page asks for polling while the window is hidden: still parked.
+        gate.set_active(false);
+        gate.set_active(true);
+        assert!(!gate.is_active());
+        assert_eq!(gate.wakes(), wakes);
+        gate.set_hidden(false);
+        assert!(gate.is_active());
+        assert_eq!(gate.wakes(), wakes + 1);
+        // Folded away while hidden: shown again, the gate stays shut.
+        gate.set_hidden(true);
+        gate.set_active(false);
+        gate.set_hidden(false);
+        assert!(!gate.is_active());
+    }
+
+    /// Retracted, the island is a line along its edge, and the pointer at that
+    /// edge still finds it: with no height at the top, with no width on a side.
+    /// Nothing pushed yet, nothing takes the pointer.
+    #[test]
+    fn a_retracted_island_is_still_found_at_its_edge() {
+        let top = IslandRect { x: 476.0, y: 0.0, w: 184.0, h: 0.0 };
+        assert!(top.near(568.0, 3.0));
+        assert!(!top.near(568.0, 40.0));
+        let left = IslandRect { x: 0.0, y: 308.0, w: 0.0, h: 38.0 };
+        assert!(left.drawn());
+        assert!(left.near(2.0, 327.0));
+        assert!(!left.near(40.0, 327.0));
+        assert!(!left.near(2.0, 200.0));
+        let right = IslandRect { x: 1136.0, y: 308.0, w: 0.0, h: 38.0 };
+        assert!(right.near(1134.0, 320.0));
+        assert!(!IslandRect::default().near(0.0, 0.0));
     }
 
     /// The island coming back from hidden is the gate opening again: what

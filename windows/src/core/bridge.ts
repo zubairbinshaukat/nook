@@ -4,6 +4,8 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import type { AgentsSnapshot } from "../agents/model";
+import type { Dock } from "./layout";
 import type { Settings } from "./state";
 
 export const IS_TAURI =
@@ -35,6 +37,8 @@ export interface BootInfo {
 export interface PanelSize {
   width: number;
   height: number;
+  /** The edge of the display the island hangs from. */
+  dock: Dock;
 }
 
 export const Bridge = {
@@ -120,6 +124,26 @@ export const Bridge = {
   shelfSave: (widget: string, value: unknown) => callOrThrow<void>("shelf_save", { widget, value }),
 
   openSettingsWindow: () => call<void>("open_settings_window"),
+
+  // ── The agents list (src-tauri/src/agents.rs) ─────────────────────────────
+  /** The island hands the list its rows: Rust keeps them and tells the list. Only the island's page is heard. */
+  agentsSnapshot: (snapshot: AgentsSnapshot) => call<void>("agents_snapshot", { snapshot }),
+  /** The latest rows, for a list that loaded after they were sent; null when none was. */
+  agentsLast: () => call<unknown>("agents_last"),
+  /** Whether the list is on show: for a page that loaded after it was shown. */
+  agentsShown: () => call<boolean>("agents_shown"),
+  /** What the list's rows need in height, in logical pixels, however tall the window is: Rust sizes the window within its limits and the user's cap. */
+  agentsFit: (height: number) => call<void>("agents_fit", { height }),
+  /** An edge or bottom corner of the list was grabbed: its width, or the most its height may be, is Rust's from here to `agentsResizeEnd`. */
+  agentsResizeBegin: (side: "left" | "right" | "bottom" | "bottom-left" | "bottom-right") => call<void>("agents_resize_begin", { side }),
+  /** The pointer moved with an edge held: Rust sets the size from where the cursor is. */
+  agentsResizeMove: () => call<void>("agents_resize_move"),
+  /** The edge was let go: the size is kept. */
+  agentsResizeEnd: () => call<void>("agents_resize_end"),
+  /** The header was double-clicked: back to the default width and height. */
+  agentsResizeReset: () => call<void>("agents_resize_reset"),
+  /** The list's ×. */
+  agentsHide: () => call<void>("agents_hide"),
 
   // ── The global shortcuts ──────────────────────────────────────────────────
   /** Where each of the two stands: saved, on or off, and whether the OS has it. */
@@ -271,6 +295,8 @@ export interface UsagePayload {
 export interface SessionModelPayload {
   sessionId: string;
   model: { id: string; displayName: string };
+  /** The size of its context window in tokens, when the status line said it. */
+  contextWindow: number | null;
 }
 
 /** Where the status line stands in ~/.claude/settings.json. */
@@ -291,8 +317,8 @@ export type SystemEvent =
   | { name: "session_model"; payload: SessionModelPayload };
 // ── end of the step 2 block ───────────────────────────────────────────────────
 
-/** The two global shortcuts: the panel's size, and the way to the session that needs the user. */
-export type ShortcutName = "expand" | "goto" | "panel";
+/** The global shortcuts: the panel's size, the way to the session that needs the user, hiding the island, and the agents list. */
+export type ShortcutName = "expand" | "goto" | "panel" | "hide" | "agents";
 
 /** One of them, as Rust has it (src-tauri/src/shortcut.rs). */
 export interface ShortcutStatus {

@@ -43,6 +43,9 @@ const MAX_SESSION_ID: usize = 128;
 /// longest either may be: an id like `claude-opus-5-5`, a name like `Opus`.
 const MODEL_FIELDS: &[&str] = &["id", "display_name"];
 const MAX_MODEL_NAME: usize = 64;
+/// A context window is believed between these many tokens: far below or above, it is not one.
+const MIN_CONTEXT_WINDOW: u64 = 10_000;
+const MAX_CONTEXT_WINDOW: u64 = 100_000_000;
 
 /// The whole of the mode. Never returns.
 pub fn run(args: &[String]) -> ! {
@@ -116,10 +119,18 @@ fn model_of(status: &Value) -> Option<Value> {
     (!names.is_empty()).then_some(Value::Object(names))
 }
 
+/// The size of the session's context window, in tokens, as Claude Code says it
+/// (200000, or 1000000 for the 1M variants): the one exact source of it, which
+/// a transcript does not give. A number in a believable range, or nothing.
+fn context_window_of(status: &Value) -> Option<u64> {
+    let size = status.pointer("/context_window/context_window_size")?.as_u64()?;
+    (MIN_CONTEXT_WINDOW..=MAX_CONTEXT_WINDOW).contains(&size).then_some(size)
+}
+
 /// The one line Nook gets from a status line call: the event's name, the
-/// session it came from, the limits and the model. Built field by field —
-/// nothing of the status JSON is copied that is not named here. None when
-/// there is neither a limit nor a model to tell.
+/// session it came from, the limits, the model and its context window. Built
+/// field by field — nothing of the status JSON is copied that is not named
+/// here. None when there is neither a limit nor a model to tell.
 fn usage_line(raw: &[u8]) -> Option<String> {
     let raw = raw.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(raw);
     let status = serde_json::from_slice::<Value>(raw).ok()?;
@@ -138,6 +149,9 @@ fn usage_line(raw: &[u8]) -> Option<String> {
     }
     if let Some(model) = model {
         event["model"] = model;
+    }
+    if let Some(size) = context_window_of(&status) {
+        event["context_window_size"] = json!(size);
     }
     let mut line = event.to_string();
     line.push('\n');
@@ -412,6 +426,20 @@ mod tests {
         assert!(usage_line(b"").is_none());
         assert!(usage_line(b"{ not json").is_none());
         assert!(usage_line(b"[1,2]").is_none());
+    }
+
+    #[test]
+    fn the_context_window_goes_out_as_a_size_and_only_a_believable_one() {
+        let with = |size: Value| {
+            let raw = json!({ "session_id": "s", "model": { "id": "m" }, "context_window": { "context_window_size": size, "used_percentage": 40 } });
+            sent(raw.to_string().as_bytes())
+        };
+        assert_eq!(with(json!(1_000_000))["context_window_size"], 1_000_000);
+        // Only the size: the rest of that object stays behind.
+        assert!(with(json!(1_000_000)).get("context_window").is_none());
+        for wrong in [json!(0), json!(5), json!(-1), json!("200000"), json!(null), json!(1e12)] {
+            assert!(with(wrong).get("context_window_size").is_none());
+        }
     }
 
     #[test]

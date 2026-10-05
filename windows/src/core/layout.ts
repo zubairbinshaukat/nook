@@ -44,8 +44,9 @@ export interface ViewLayout {
 }
 
 // The island at its normal size is 720×320 at most, like the macOS panel: the
-// session panel is, and no card is taller. It is drawn glued to the top edge of
-// its window and horizontally centred in it.
+// session panel is, and no card is taller. It is drawn glued to the edge of its
+// window it is docked to (the top unless Settings say otherwise), and centred
+// along it.
 export const PANEL_W = 720;
 export const PANEL_H = 320;
 
@@ -57,9 +58,46 @@ export const LARGE_H = 640;
  * The window's own size. It is given once the size of the largest shape the
  * island takes — the large panel — and never follows the island as it grows
  * and shrinks (src-tauri/src/island.rs sizes it, and says here what it came
- * to on this display). The island is centred in it; the large panel fills it.
+ * to on this display). The island hangs in it from the edge it is docked to;
+ * the large panel fills it. The window stays landscape on every dock.
  */
-export const Room = { w: PANEL_W, h: PANEL_H };
+export const Room = { w: PANEL_W, h: PANEL_H, dock: "top" as Dock };
+
+/** The edge of the display the island hangs from (Rust: src-tauri/src/dock.rs). */
+export type Dock = "top" | "bottom" | "left" | "right";
+
+/** Docked to a side of the display, left or right, not to the top or bottom (Rust: `Dock::vertical`). */
+export function sideDock(dock: Dock): boolean {
+  return dock === "left" || dock === "right";
+}
+
+/**
+ * Where the island's top-left corner is in its window — the one mapping the
+ * drawing and the rectangle told to Rust both come from, so what takes the
+ * mouse is what is drawn. `start` is where it begins along the edge it is
+ * docked to, as it is drawn (centred, on a whole pixel): its left edge at the
+ * top and bottom, its upper edge on a side. `w` × `h` is its size.
+ *
+ * At the top it hangs from the window's upper edge; at the bottom it stands on
+ * the lower one and grows upwards; on the left it hangs from the window's left
+ * edge, on the right from its right one. In each the window's slack for the
+ * spring's overshoot is on the side away from the screen's edge. An edge that
+ * is not the window's own is put on a whole pixel of the screen, as the others are.
+ */
+export function islandOrigin(
+  dock: Dock, windowW: number, windowH: number, start: number, w: number, h: number, dpr: number,
+): { x: number; y: number } {
+  switch (dock) {
+    case "top":
+      return { x: start, y: 0 };
+    case "bottom":
+      return { x: start, y: Math.round((windowH - h) * dpr) / dpr };
+    case "left":
+      return { x: 0, y: start };
+    case "right":
+      return { x: Math.round((windowW - w) * dpr) / dpr, y: start };
+  }
+}
 
 /**
  * What the large panel leaves of the window, in all: the spring it opens on
@@ -109,6 +147,24 @@ export const COMPACT_MAX_W = 420;
 export const COMPACT_SCREEN_SHARE = 0.4;
 
 /**
+ * Folded on a side, the same slots stand in a column, top to bottom, flush
+ * with the side edge: the bot, a dot per session, the metric cells. The column
+ * is as wide as a cell's widest number, "100%", with room either side, and as
+ * the bot's slot (style.css `#compact` on a side). A cell stands its icon over
+ * its number: 14 px, 2 px, a 16 px line. "+N" is as tall as it is in the row.
+ * The text is never turned: only the slots are.
+ */
+export const COMPACT_COLUMN_W = 46;
+export const COMPACT_CELL_H = 32;
+export const COMPACT_MORE_H = 16;
+/**
+ * The column is never taller than COMPACT_MAX_W, ears included, nor than this
+ * share of the display's logical height: half, where the row has 40 % of the
+ * width — a display is landscape, and the column is a sliver of it.
+ */
+export const COMPACT_COLUMN_SHARE = 0.5;
+
+/**
  * The ears: the concave quarter-circles the island flares into the top edge
  * with, on each side. Their radius, folded and open; it follows the island's
  * size on the same spring.
@@ -118,48 +174,76 @@ export const EAR_EXPANDED = 16;
 
 /**
  * The display the island hangs from: its logical width, which caps the folded
- * island. `zoom` is 1 in the app; a dev page that scales its stage to stand
- * for display scaling says by how much, so that edges are snapped to the
- * pixels really drawn.
+ * island, and its height, which caps it folded on a side. `zoom` is 1 in the
+ * app; a dev page that scales its stage to stand for display scaling says by
+ * how much, so that edges are snapped to the pixels really drawn.
  */
-export const Display = { w: 1920, zoom: 1 };
+export const Display = { w: 1920, h: 1080, zoom: 1 };
 
-/** The widest the folded island may be on this display, ears included. */
-export const compactCap = () => Math.min(COMPACT_MAX_W, Math.floor(Display.w * COMPACT_SCREEN_SHARE));
+/**
+ * The longest the folded island may be along its edge on this display, ears
+ * included: its width at the top and bottom; its height on a side, where the
+ * window, less the spring's overshoot, holds it too.
+ */
+export const compactCap = (dock: Dock = Room.dock) =>
+  sideDock(dock)
+    ? Math.min(COMPACT_MAX_W, Math.floor(Display.h * COMPACT_COLUMN_SHARE), Math.max(0, Room.h - OVERSHOOT_H))
+    : Math.min(COMPACT_MAX_W, Math.floor(Display.w * COMPACT_SCREEN_SHARE));
 
 export interface CompactLayout {
   /** Dots on show; the other sessions are behind "+N". */
   dots: number;
   /** Metric cells on show: the first this many of those picked. */
   metrics: number;
-  /** The island's body: what it is wide for, ears not counted. */
+  /** The island's body, ears not counted: what it is wide for at the top and bottom; the column's width on a side. */
   width: number;
+  /** Its height: the pill's at the top and bottom; on a side, what the column is tall for. */
+  height: number;
 }
 
 /**
  * What of the folded island fits under `cap`, for this many sessions and metric
  * cells of these widths. Short of room, the last metric goes first, then dots
- * fold into "+N": the bot and a way to the sessions always stay.
+ * fold into "+N": the bot and a way to the sessions always stay. On a side the
+ * same slots are stacked, and it is the column's length that is capped: a cell
+ * is COMPACT_CELL_H tall whatever its width in the row, "+N" COMPACT_MORE_H.
  */
-export function compactLayout(sessions: number, metricWidths: readonly number[], cap = compactCap()): CompactLayout {
-  const dotsWidth = (dots: number) => {
+export function compactLayout(
+  sessions: number, metricWidths: readonly number[], dock: Dock = Room.dock, cap = compactCap(dock),
+): CompactLayout {
+  const side = sideDock(dock);
+  const dotsLength = (dots: number) => {
     if (sessions === 0) return 0;
-    const more = sessions > dots ? COMPACT_MORE_W : 0;
+    const more = sessions > dots ? (side ? COMPACT_MORE_H : COMPACT_MORE_W) : 0;
     const cells = dots + (more ? 1 : 0);
     return dots * COMPACT_DOT + more + Math.max(0, cells - 1) * COMPACT_DOT_GAP;
   };
-  const metricsWidth = (count: number) =>
-    metricWidths.slice(0, count).reduce((w, m) => w + m, 0) + Math.max(0, count - 1) * COMPACT_METRIC_GAP;
+  const metricsLength = (count: number) =>
+    metricWidths.slice(0, count).reduce((w, m) => w + (side ? COMPACT_CELL_H : m), 0) +
+    Math.max(0, count - 1) * COMPACT_METRIC_GAP;
   const body = (dots: number, count: number) => {
-    const d = dotsWidth(dots);
-    const m = metricsWidth(count);
+    const d = dotsLength(dots);
+    const m = metricsLength(count);
     return COMPACT_PAD + COMPACT_BOT_SLOT + (d ? COMPACT_SLOT_GAP + d : 0) + (m ? COMPACT_SLOT_GAP + m : 0) + COMPACT_PAD;
   };
   let dots = Math.min(MAX_VISIBLE, sessions);
   let metrics = metricWidths.length;
   while (metrics > 0 && body(dots, metrics) + 2 * EAR_COMPACT > cap) metrics--;
   while (dots > 0 && body(dots, metrics) + 2 * EAR_COMPACT > cap) dots--;
-  return { dots, metrics, width: body(dots, metrics) };
+  const length = body(dots, metrics);
+  return side ? { dots, metrics, width: COMPACT_COLUMN_W, height: length } : { dots, metrics, width: length, height: NOTCH_H };
+}
+
+/**
+ * The middle of the bot's slot, from the island's top-left corner: the first
+ * slot of the row, or the top one of the column. The one place the folded
+ * bot is placed from (`botPosition`): its canvas and the slot style.css keeps
+ * for it (`.ci-bot`) cannot part.
+ */
+export function compactBotSeat(dock: Dock = Room.dock): { cx: number; cy: number } {
+  return sideDock(dock)
+    ? { cx: COMPACT_COLUMN_W / 2, cy: COMPACT_PAD + COMPACT_BOT_SLOT / 2 }
+    : { cx: COMPACT_PAD + COMPACT_BOT_SLOT / 2, cy: NOTCH_H / 2 };
 }
 
 export const ROUNDED_CORNER = 16; // hidden / compact
@@ -186,6 +270,51 @@ export const SESSION_BOT = {
  */
 export const HOME_H = 248;
 
+/** Where the views start in the island: under #content's 8 px of padding and the 34 px bar, 10 px in (style.css `#content`, `#header`). */
+const VIEW_TOP = 8 + 34;
+const VIEW_LEFT = 10;
+/** A card's border (style.css `.card`). */
+const CARD_EDGE = 1;
+
+/**
+ * The stage the home view's bot card keeps for the island's own bot (style.css
+ * `.home-bot`, `.hb-stage`), in the island's coordinates: its box, and its
+ * floor — its bottom padding, which the bot's feet stand on. The card is the
+ * first thing in the view; it has 8 px of padding on top.
+ */
+export interface StageBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  floor: number;
+}
+
+export const HOME_STAGE: Record<"row" | "column", StageBox> = {
+  // Top and bottom: the card is a column 164 px wide with 12 px of padding on
+  // each side, and the stage is across all of it, 73 px tall.
+  row: { x: VIEW_LEFT + CARD_EDGE + 12, y: VIEW_TOP + CARD_EDGE + 8, w: 164 - 2 * CARD_EDGE - 2 * 12, h: 73, floor: 6 },
+  // Left and right: the card is a row the width of the view, and the stage a
+  // column of its own at its left, 8 px in, as tall as it is in the row.
+  column: { x: VIEW_LEFT + CARD_EDGE + 8, y: VIEW_TOP + CARD_EDGE + 8, w: 76, h: 73, floor: 6 },
+};
+
+/** The island's bot on the home view, and what it is on its stage. */
+const HOME_BOT = 58;
+
+/**
+ * Where a bot this wide stands on a stage: its middle over the stage's, its
+ * feet on the stage's floor. The one place the home view's bot is placed
+ * from (VIEW_LAYOUTS, SIDE_LAYOUTS): the canvas and the stage it stands on
+ * cannot part.
+ */
+export function botOnStage(stage: StageBox, diameter: number): { x: number; y: number } {
+  return { x: stage.x + stage.w / 2, y: stage.y + stage.h - stage.floor - diameter / 2 };
+}
+
+/** 92, 89: the bot's place on the top and bottom docks' home view. */
+const HOME_SEAT = botOnStage(HOME_STAGE.row, HOME_BOT);
+
 /**
  * The Shelf, the island's second tab (plans/tabs-plan.md §2): a row of small
  * cards, each this wide and this far from the next, that scrolls sideways.
@@ -204,7 +333,7 @@ const ISLAND_SIDE_PAD = 10;
 export const SHELF_W =
   SHELF_VISIBLE_CARDS * (SHELF_CARD_W + SHELF_CARD_GAP) + SHELF_PEEK + 2 * ISLAND_SIDE_PAD;
 
-/** The Shelf's width on this display: as wide as the window has room for, never narrower than Home. */
+/** The Shelf's width on this display, at the top or bottom: as wide as the window has room for, never narrower than Home. */
 export function shelfWidth(): number {
   return Math.max(EXPANDED_W, Math.min(SHELF_W, Room.w - OVERSHOOT_W));
 }
@@ -214,8 +343,8 @@ export const TAB_SLIDE = 28;
 
 export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   // The home view: the bot stands in the stage its card keeps for it, on the
-  // left (style.css `.hb-stage`: its feet 6 px above the stage's bottom edge).
-  overview: { height: HOME_H, botX: 92, botY: 89, botDiameter: 58, agentMode: "none" },
+  // left (HOME_STAGE, `botOnStage`: its feet 6 px above the stage's bottom edge).
+  overview: { height: HOME_H, botX: HOME_SEAT.x, botY: HOME_SEAT.y, botDiameter: HOME_BOT, agentMode: "none" },
   empty: { height: 160, botX: 70, botY: null, botDiameter: 62, agentMode: "none" },
   approval: { height: 160, botX: 62, botY: null, botDiameter: 56, agentMode: "column" },
   // 196 as docs/SPEC.md has it: a question, its options, and a line for what
@@ -237,7 +366,7 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   },
   // The Shelf has no bot: the row of cards is all of it. The bot waits where
   // the home view left it, a slide to the left, and is not drawn (`botPosition`).
-  shelf: { height: SHELF_H, botX: 92 - TAB_SLIDE, botY: 89, botDiameter: 58, agentMode: "none" },
+  shelf: { height: SHELF_H, botX: HOME_SEAT.x - TAB_SLIDE, botY: HOME_SEAT.y, botDiameter: HOME_BOT, agentMode: "none" },
 };
 
 /**
@@ -269,25 +398,108 @@ export function fittedHeight(content: number, air = CARD_AIR): number {
   return Math.min(PANEL_H, Math.max(VIEW_MIN, Math.ceil(content) + ISLAND_CHROME + 2 * air));
 }
 
+// ── Docked to a side ──────────────────────────────────────────────────────────
+// On the left or right edge the two tabs stand upright: Home's three cards one
+// above the other, the Shelf's cards in a column that scrolls up and down.
+// Every other view keeps its landscape size and hangs from the side edge.
+
+/**
+ * How wide Home and the Shelf are on a side: a bot card with its stage and
+ * three short lines beside it, the lanes of six mini bots and their "+N"
+ * (about 250 px), and the machine and usage in two columns of 130 each.
+ */
+export const SIDE_W = 320;
+
+/**
+ * Home's cards on a side (style.css `.home` on a side, by way of views/home.ts),
+ * and the 8 px between them. The bot card: the 73 px stage and its 8 px padding
+ * on each side with room to spare, beside the session's name, its tool and
+ * model, its state, what it is doing and the button to its request (about
+ * 100 px). The lanes: a lane's name and a 52 px mini bot, over the 32 px line
+ * that says what the bot under the pointer is. The resources stand as tall as
+ * they are (about 110): three lines of the machine beside the two of usage.
+ */
+export const HOME_SIDE_BOT_H = 124;
+export const HOME_SIDE_SESSIONS_H = 120;
+const HOME_SIDE_RES_H = 110;
+const HOME_SIDE_GAP = 8;
+/**
+ * The island for Home on a side: 422, the cards and the island's bar and
+ * margins. It fits a 1366 × 768 laptop at 150 % (about 426 to grow in, the
+ * spring's overshoot kept); where it does not, the lanes and the resources
+ * scroll under the bot's card, which stays.
+ */
+export const HOME_SIDE_H =
+  ISLAND_CHROME + HOME_SIDE_BOT_H + HOME_SIDE_GAP + HOME_SIDE_SESSIONS_H + HOME_SIDE_GAP + HOME_SIDE_RES_H;
+
+/**
+ * The Shelf's cards stacked on a side: each as tall as a card of the row is
+ * (the row's height in a SHELF_H island), as wide as the column, as far apart
+ * as in the row. Two whole ones and a peek of the third: 416.
+ */
+export const SHELF_CARD_H = SHELF_H - ISLAND_CHROME;
+const SHELF_SIDE_VISIBLE = 2;
+const SHELF_SIDE_PEEK = 24;
+export const SHELF_SIDE_H = ISLAND_CHROME + SHELF_SIDE_VISIBLE * (SHELF_CARD_H + SHELF_CARD_GAP) + SHELF_SIDE_PEEK;
+
+/** 57, 89: the bot on the stage of Home's upright bot card. */
+const SIDE_SEAT = botOnStage(HOME_STAGE.column, HOME_BOT);
+
+/** The views that are laid out otherwise on a side. */
+const SIDE_LAYOUTS: Partial<Record<IslandViewName, ViewLayout>> = {
+  overview: { height: HOME_SIDE_H, botX: SIDE_SEAT.x, botY: SIDE_SEAT.y, botDiameter: HOME_BOT, agentMode: "none" },
+  // Nothing slides between the tabs on a side (they cross-fade): the bot fades where it stands.
+  shelf: { height: SHELF_SIDE_H, botX: SIDE_SEAT.x, botY: SIDE_SEAT.y, botDiameter: HOME_BOT, agentMode: "none" },
+};
+
+/** A view's layout on this dock: VIEW_LAYOUTS, but for Home and the Shelf upright on a side. */
+export function viewLayout(view: IslandViewName, dock: Dock = Room.dock): ViewLayout {
+  return (sideDock(dock) ? SIDE_LAYOUTS[view] : undefined) ?? VIEW_LAYOUTS[view];
+}
+
+/** What a side's upright view has to grow in: the window less the spring's overshoot, as the large panel. */
+const sideRoom = () => ({ w: Math.max(0, Room.w - OVERSHOOT_W), h: Math.max(0, Room.h - OVERSHOOT_H) });
+
+/** Home's size on this dock: three columns at the top and bottom; upright on a side, no larger than the window allows. */
+export function homeSize(dock: Dock = Room.dock): { w: number; h: number } {
+  if (!sideDock(dock)) return { w: EXPANDED_W, h: HOME_H };
+  const room = sideRoom();
+  return { w: Math.min(SIDE_W, room.w), h: Math.min(HOME_SIDE_H, room.h) };
+}
+
+/** The Shelf's size on this dock: its row at the top and bottom; its column on a side, as Home's. */
+export function shelfSize(dock: Dock = Room.dock): { w: number; h: number } {
+  if (!sideDock(dock)) return { w: shelfWidth(), h: SHELF_H };
+  const room = sideRoom();
+  return { w: Math.min(SIDE_W, room.w), h: Math.min(SHELF_SIDE_H, room.h) };
+}
+
 export function islandSize(
   mode: IslandMode,
   view: IslandViewName,
   proposal = false,
   fitted: number | null = null,
   large = false,
-  compactW = COMPACT_W,
+  compact: { w: number; h: number } = { w: COMPACT_W, h: NOTCH_H },
   fittedW: number | null = null,
 ): { w: number; h: number } {
   switch (mode) {
     case "hidden":
       // No notch to hide inside on a PC: the island retracts to zero height and
       // slides into the top edge of the screen instead of sitting there as a bar.
-      return { w: NOTCH_W, h: 0 };
+      // On a side it retracts into that edge: to no width, at its folded length.
+      return sideDock(Room.dock) ? { w: 0, h: compact.h } : { w: NOTCH_W, h: 0 };
     case "compact":
-      return { w: compactW, h: NOTCH_H };
+      // Folded, as `compactLayout` has it: a level pill at the top and bottom, a column flush with a side.
+      return { w: compact.w, h: compact.h };
     case "expanded": {
       if (view === "session") return sessionSize(large);
-      const h = fitted ?? VIEW_LAYOUTS[view].height;
+      // The two tabs at rest — no widget of the Shelf expanded — have the dock's own size.
+      if (fitted == null && fittedW == null) {
+        if (view === "overview") return homeSize();
+        if (view === "shelf") return shelfSize();
+      }
+      const h = fitted ?? viewLayout(view).height;
       const room = proposal && view === "approval" ? PROPOSAL_ROOM : 0;
       // An expanded widget of the Shelf is as wide as it says: no wider than the window's normal panel.
       return { w: fittedW != null ? Math.min(fittedW, PANEL_W) : view === "shelf" ? shelfWidth() : EXPANDED_W, h: h + room };
@@ -311,16 +523,19 @@ export function botPosition(
 ): BotPlacement {
   switch (mode) {
     case "hidden":
-      return { cx: 46, cy: NOTCH_H / 2, diameter: 6, opacity: 0 };
+      // On a side, gone where it will come back: its slot at the top of the column.
+      return sideDock(Room.dock)
+        ? { ...compactBotSeat(), diameter: 6, opacity: 0 }
+        : { cx: 46, cy: NOTCH_H / 2, diameter: 6, opacity: 0 };
     case "compact":
       // In the middle of its slot, the first one.
-      return { cx: COMPACT_PAD + COMPACT_BOT_SLOT / 2, cy: NOTCH_H / 2, diameter: COMPACT_BOT, opacity: 1 };
+      return { ...compactBotSeat(), diameter: COMPACT_BOT, opacity: 1 };
     case "expanded": {
       if (view === "session") {
         const at = SESSION_BOT[large ? "large" : "normal"];
         return { cx: at.x, cy: at.y, diameter: at.diameter, opacity: 1 };
       }
-      const layout = VIEW_LAYOUTS[view];
+      const layout = viewLayout(view);
       if (layout.botY != null) {
         return { cx: layout.botX, cy: layout.botY, diameter: layout.botDiameter, opacity: view === "shelf" ? 0 : 1 };
       }

@@ -15,6 +15,9 @@ pub struct Settings {
     pub absence_interval: f64,
     /// "primary" = the main display, "cursor" = whichever display the mouse is on.
     pub screen: String,
+    /// The edge of the display the island hangs from: one of dock.rs `DOCKS`.
+    #[serde(default = "default_dock")]
+    pub dock: String,
     pub autostart: bool,
     pub hooks_installed: bool,
     /// The global shortcut that opens the session panel large, or shrinks it
@@ -27,6 +30,34 @@ pub struct Settings {
     /// The one that opens the session panel at its normal size ("Ctrl+Shift+Space").
     pub panel_shortcut: String,
     pub panel_shortcut_enabled: bool,
+    /// The one that hides the island altogether, or shows it again ("Ctrl+Alt+N").
+    pub hide_shortcut: String,
+    pub hide_shortcut_enabled: bool,
+    /// The one that shows the agents list, or hides it ("Ctrl+Shift+L"). Only
+    /// registered while the list itself is on (`show_agents_list`).
+    pub agents_shortcut: String,
+    pub agents_shortcut_enabled: bool,
+    /// Settings → General → Agents list: the small always-on-top window with
+    /// one row per project (agents.rs). Off until the user asks for it.
+    pub show_agents_list: bool,
+    /// Where the list was left, in physical screen pixels: both or neither.
+    /// Written by Rust as the window is dragged, never by a page.
+    pub agents_list_x: Option<i32>,
+    pub agents_list_y: Option<i32>,
+    /// How wide the user made it, in logical pixels, between the least and most
+    /// the list allows (agents.rs); none until they do, and then it is the default.
+    /// Written by Rust as the edge is dragged, never by a page.
+    #[serde(default)]
+    pub agents_list_w: Option<u32>,
+    /// The most it may be tall, in logical pixels: it is as tall as its rows, and
+    /// no taller than this (none is the default most). Written by Rust as the
+    /// bottom edge is dragged, never by a page.
+    #[serde(default)]
+    pub agents_list_h: Option<u32>,
+    /// The list dims while the pointer is away and nothing waits for the user,
+    /// to `agents_list_fade_opacity` percent (FADE_OPACITY holds the range).
+    pub agents_list_fade: bool,
+    pub agents_list_fade_opacity: u32,
     /// What the compact island shows next to the bot, in order: at most
     /// MAX_COMPACT_METRICS of COMPACT_METRICS. See `compact_metrics`.
     #[serde(default = "default_compact_metrics")]
@@ -69,9 +100,36 @@ pub struct Settings {
 /// The choices of "Auto-hide the folded island after", in seconds; 0 is never.
 pub const FOLDED_AUTO_HIDE: &[f64] = &[5.0, 10.0, 30.0, 60.0, 0.0];
 
+/// The least and most the idle opacity of the agents list can be, in percent
+/// (src/core/state.ts holds the same), and what it is out of the box.
+pub const FADE_OPACITY: std::ops::RangeInclusive<u32> = 20..=90;
+const DEFAULT_FADE_OPACITY: u32 = 50;
+
 /// A minute: what the delay was before it could be chosen.
 fn default_folded_auto_hide() -> f64 {
     60.0
+}
+
+/// What the hide shortcut is out of the box.
+fn default_hide_shortcut() -> String {
+    "Ctrl+Alt+N".into()
+}
+
+/// The hide shortcut as it is kept: a combination that can be taken, or the default for
+/// anything else (the file was edited by hand). The settings window only ever
+/// writes one that was registered.
+fn hide_shortcut(said: &str) -> String {
+    if crate::shortcut::check(said).is_ok() { said.trim().to_string() } else { default_hide_shortcut() }
+}
+
+/// What the agents shortcut is out of the box: no Ctrl+Alt with a letter (AltGr).
+fn default_agents_shortcut() -> String {
+    "Ctrl+Shift+L".into()
+}
+
+/// The agents shortcut as it is kept, as `hide_shortcut` keeps its own.
+fn agents_shortcut(said: &str) -> String {
+    if crate::shortcut::check(said).is_ok() { said.trim().to_string() } else { default_agents_shortcut() }
 }
 
 fn default_true() -> bool {
@@ -117,6 +175,10 @@ fn default_follow_system() -> String {
     "system".into()
 }
 
+fn default_dock() -> String {
+    crate::dock::DOCKS[0].into()
+}
+
 fn default_bot_theme() -> String {
     BOT_THEMES[0].into()
 }
@@ -159,16 +221,32 @@ pub fn shelf_hidden(said: &[String]) -> Vec<String> {
 }
 
 impl Settings {
+    /// The edge the island hangs from.
+    pub fn dock(&self) -> crate::dock::Dock {
+        crate::dock::Dock::parse(&self.dock)
+    }
+
     /// Holds what a page, or a file edited by hand, said to what Nook knows.
     /// Nothing that fails here is an error: the nearest valid choice is kept.
     pub fn validated(mut self) -> Self {
         self.compact_metrics = compact_metrics(&self.compact_metrics);
+        self.dock = one_of(crate::dock::DOCKS, &self.dock);
         self.theme = one_of(THEMES, &self.theme);
         self.reduce_motion = one_of(REDUCE_MOTION, &self.reduce_motion);
         self.bot_theme = one_of(BOT_THEMES, &self.bot_theme);
         self.shelf_order = shelf_order(&self.shelf_order);
         self.shelf_hidden = shelf_hidden(&self.shelf_hidden);
         self.folded_auto_hide = folded_auto_hide(self.folded_auto_hide);
+        self.hide_shortcut = hide_shortcut(&self.hide_shortcut);
+        self.agents_shortcut = agents_shortcut(&self.agents_shortcut);
+        // A position is two numbers or none: one alone says nothing.
+        if self.agents_list_x.is_none() || self.agents_list_y.is_none() {
+            self.agents_list_x = None;
+            self.agents_list_y = None;
+        }
+        self.agents_list_w = self.agents_list_w.filter(|w| (crate::agents::MIN_WIDTH as u32..=crate::agents::MAX_WIDTH as u32).contains(w));
+        self.agents_list_h = self.agents_list_h.filter(|h| (crate::agents::MIN_HEIGHT as u32..=crate::agents::MAX_CAP as u32).contains(h));
+        self.agents_list_fade_opacity = self.agents_list_fade_opacity.clamp(*FADE_OPACITY.start(), *FADE_OPACITY.end());
         self
     }
 }
@@ -181,6 +259,7 @@ impl Default for Settings {
             auto_close_interval: 15.0,
             absence_interval: 180.0,
             screen: "primary".into(),
+            dock: default_dock(),
             autostart: false,
             hooks_installed: false,
             expand_shortcut: "Ctrl+Alt+Space".into(),
@@ -189,6 +268,17 @@ impl Default for Settings {
             goto_shortcut_enabled: true,
             panel_shortcut: "Ctrl+Shift+Space".into(),
             panel_shortcut_enabled: true,
+            hide_shortcut: default_hide_shortcut(),
+            hide_shortcut_enabled: true,
+            agents_shortcut: default_agents_shortcut(),
+            agents_shortcut_enabled: true,
+            show_agents_list: false,
+            agents_list_x: None,
+            agents_list_y: None,
+            agents_list_w: None,
+            agents_list_h: None,
+            agents_list_fade: true,
+            agents_list_fade_opacity: DEFAULT_FADE_OPACITY,
             compact_metrics: default_compact_metrics(),
             theme: default_follow_system(),
             reduce_motion: default_follow_system(),
@@ -247,6 +337,8 @@ mod tests {
         assert!(settings.goto_shortcut_enabled);
         assert_eq!(settings.panel_shortcut, "Ctrl+Shift+Space");
         assert!(settings.panel_shortcut_enabled);
+        assert_eq!(settings.hide_shortcut, "Ctrl+Alt+N");
+        assert!(settings.hide_shortcut_enabled);
         // One written when there was a single shortcut loads too, with what it said.
         let one = r#"{"soundEnabled":true,"expandShortcut":"Ctrl+Shift+F9","expandShortcutEnabled":false}"#;
         let settings: Settings = serde_json::from_str(one).expect("a file with one shortcut loads");
@@ -254,6 +346,103 @@ mod tests {
         assert!(!settings.expand_shortcut_enabled);
         assert_eq!(settings.goto_shortcut, "Ctrl+Alt+Enter");
         assert_eq!(settings.panel_shortcut, "Ctrl+Shift+Space");
+    }
+
+    #[test]
+    fn the_hide_shortcut_is_kept_when_it_can_be_taken_and_is_the_default_when_it_cannot() {
+        let said = r#"{"hideShortcut":" Ctrl+Shift+F9 ","hideShortcutEnabled":false}"#;
+        let settings = serde_json::from_str::<Settings>(said).unwrap().validated();
+        assert_eq!(settings.hide_shortcut, "Ctrl+Shift+F9");
+        assert!(!settings.hide_shortcut_enabled);
+        for bad in ["", "N", "Ctrl+Alt+Delete", "Ctrl+C", "nonsense"] {
+            let settings = Settings { hide_shortcut: bad.into(), ..Settings::default() }.validated();
+            assert_eq!(settings.hide_shortcut, "Ctrl+Alt+N", "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn the_agents_list_is_off_by_default_and_an_older_file_loads_without_it() {
+        let old: Settings = serde_json::from_str(r#"{"soundEnabled":false,"hideShortcut":"Ctrl+Shift+F9"}"#).unwrap();
+        assert!(!old.show_agents_list);
+        assert_eq!((old.agents_list_x, old.agents_list_y), (None, None));
+        assert_eq!(old.agents_list_w, None);
+        assert_eq!(old.agents_shortcut, "Ctrl+Shift+L");
+        assert!(old.agents_shortcut_enabled);
+        assert!(!Settings::default().show_agents_list);
+        // Written in camelCase, and read back as written.
+        let on = Settings { show_agents_list: true, agents_list_x: Some(-1200), agents_list_y: Some(40), ..Settings::default() }.validated();
+        let json = serde_json::to_string(&on).unwrap();
+        for key in [r#""showAgentsList":true"#, r#""agentsListX":-1200"#, r#""agentsListY":40"#, r#""agentsShortcut":"Ctrl+Shift+L""#] {
+            assert!(json.contains(key), "{key} in {json}");
+        }
+        let back = serde_json::from_str::<Settings>(&json).unwrap().validated();
+        assert_eq!((back.show_agents_list, back.agents_list_x, back.agents_list_y), (true, Some(-1200), Some(40)));
+    }
+
+    #[test]
+    fn the_agents_shortcut_and_position_are_held_to_what_can_be_kept() {
+        let said = r#"{"agentsShortcut":" Ctrl+Shift+F9 ","agentsShortcutEnabled":false}"#;
+        let settings = serde_json::from_str::<Settings>(said).unwrap().validated();
+        assert_eq!(settings.agents_shortcut, "Ctrl+Shift+F9");
+        assert!(!settings.agents_shortcut_enabled);
+        for bad in ["", "L", "Ctrl+Alt+Delete", "Ctrl+C", "nonsense"] {
+            let settings = Settings { agents_shortcut: bad.into(), ..Settings::default() }.validated();
+            assert_eq!(settings.agents_shortcut, "Ctrl+Shift+L", "{bad:?}");
+        }
+        // Half a position is no position.
+        let half = Settings { agents_list_x: Some(10), agents_list_y: None, ..Settings::default() }.validated();
+        assert_eq!((half.agents_list_x, half.agents_list_y), (None, None));
+    }
+
+    #[test]
+    fn the_agents_list_width_is_kept_between_its_limits_or_dropped() {
+        let width = |w: Option<u32>| Settings { agents_list_w: w, ..Settings::default() }.validated().agents_list_w;
+        assert_eq!(width(Some(280)), Some(280));
+        assert_eq!(width(Some(400)), Some(400));
+        assert_eq!(width(Some(640)), Some(640));
+        for bad in [0, 279, 641, 100_000] {
+            assert_eq!(width(Some(bad)), None, "{bad}");
+        }
+        assert_eq!(width(None), None);
+        // Written in camelCase, and read back as written.
+        let json = serde_json::to_string(&Settings { agents_list_w: Some(412), ..Settings::default() }.validated()).unwrap();
+        assert!(json.contains(r#""agentsListW":412"#), "{json}");
+        assert_eq!(serde_json::from_str::<Settings>(&json).unwrap().agents_list_w, Some(412));
+    }
+
+    #[test]
+    fn the_agents_list_height_cap_is_kept_between_its_limits_or_dropped() {
+        let cap = |h: Option<u32>| Settings { agents_list_h: h, ..Settings::default() }.validated().agents_list_h;
+        for good in [72, 300, 520, 2000] {
+            assert_eq!(cap(Some(good)), Some(good));
+        }
+        for bad in [0, 71, 2001, u32::MAX] {
+            assert_eq!(cap(Some(bad)), None, "{bad}");
+        }
+        assert_eq!(cap(None), None);
+        // A file from before it loads with the default; written in camelCase, read back as written.
+        assert_eq!(serde_json::from_str::<Settings>(r#"{"agentsListW":400}"#).unwrap().agents_list_h, None);
+        let json = serde_json::to_string(&Settings { agents_list_h: Some(333), ..Settings::default() }.validated()).unwrap();
+        assert!(json.contains(r#""agentsListH":333"#), "{json}");
+        assert_eq!(serde_json::from_str::<Settings>(&json).unwrap().agents_list_h, Some(333));
+    }
+
+    #[test]
+    fn the_agents_list_fades_by_default_and_its_opacity_is_held_to_its_range() {
+        let old: Settings = serde_json::from_str(r#"{"soundEnabled":false,"agentsListW":400}"#).unwrap();
+        assert!(old.agents_list_fade);
+        assert_eq!(old.agents_list_fade_opacity, 50);
+        let defaults = Settings::default().validated();
+        assert_eq!((defaults.agents_list_fade, defaults.agents_list_fade_opacity), (true, 50));
+        let opacity = |said: u32| Settings { agents_list_fade_opacity: said, ..Settings::default() }.validated().agents_list_fade_opacity;
+        assert_eq!((opacity(0), opacity(19), opacity(20), opacity(55), opacity(90), opacity(91), opacity(5000)), (20, 20, 20, 55, 90, 90, 90));
+        let off = Settings { agents_list_fade: false, agents_list_fade_opacity: 35, ..Settings::default() }.validated();
+        let json = serde_json::to_string(&off).unwrap();
+        for key in [r#""agentsListFade":false"#, r#""agentsListFadeOpacity":35"#] {
+            assert!(json.contains(key), "{key} in {json}");
+        }
+        let back = serde_json::from_str::<Settings>(&json).unwrap().validated();
+        assert_eq!((back.agents_list_fade, back.agents_list_fade_opacity), (false, 35));
     }
 
     #[test]
@@ -389,6 +578,27 @@ mod tests {
         let json = serde_json::to_string(&off).unwrap();
         assert!(json.contains(r#""playfulReactions":false"#), "{json}");
         assert!(!serde_json::from_str::<Settings>(&json).unwrap().validated().playful_reactions);
+    }
+
+    #[test]
+    fn the_dock_is_the_top_by_default_and_held_to_its_choices() {
+        // A file from before docks: the top, as the island always was.
+        let old: Settings = serde_json::from_str(r#"{"soundEnabled":false,"screen":"cursor"}"#).unwrap();
+        assert_eq!(old.dock, "top");
+        assert_eq!(old.dock(), crate::dock::Dock::Top);
+        assert_eq!(Settings::default().dock, "top");
+        for dock in crate::dock::DOCKS {
+            let kept = Settings { dock: (*dock).into(), ..Settings::default() }.validated();
+            assert_eq!(kept.dock, *dock);
+        }
+        for bad in ["", "Bottom", "middle", "bottom "] {
+            assert_eq!(Settings { dock: bad.into(), ..Settings::default() }.validated().dock, "top", "{bad:?}");
+        }
+        // Written in camelCase, and read back as written.
+        let json = serde_json::to_string(&Settings { dock: "bottom".into(), ..Settings::default() }.validated()).unwrap();
+        assert!(json.contains(r#""dock":"bottom""#), "{json}");
+        let back = serde_json::from_str::<Settings>(&json).unwrap().validated();
+        assert_eq!(back.dock(), crate::dock::Dock::Bottom);
     }
 
     #[test]

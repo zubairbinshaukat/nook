@@ -1,9 +1,13 @@
-// The three global shortcuts, pressed from anywhere:
+// The five global shortcuts, pressed from anywhere:
 //   - expand: opens the session panel large, or shrinks it back (Ctrl+Alt+Space);
 //   - goto:   goes to the window of the session that most needs the user, and
 //             folds the island (Ctrl+Alt+Enter);
 //   - panel:  opens the session panel at its normal size, with the keyboard
-//             taken, so Space expands it (Ctrl+Shift+Space).
+//             taken, so Space expands it (Ctrl+Shift+Space);
+//   - hide:   hides the island altogether, or shows it again (Ctrl+Alt+N) —
+//             done here, in Rust, by visibility.rs: the page is not asked;
+//   - agents: shows the agents list, or hides it (Ctrl+Shift+L) — also done in
+//             Rust (agents.rs), and only registered while the list is on.
 // Each can be changed, or switched off, in the settings window.
 //
 // The defaults keep clear of Ctrl+Alt+<letter>: on many keyboard layouts
@@ -14,7 +18,7 @@
 // Registered here, in Rust, through Tauri's own plugin — a thin layer over the
 // OS (RegisterHotKey on Windows). The pages are given no permission of the
 // plugin's: they can neither register a shortcut nor listen to one. They ask
-// for one of these three to be changed through `set_shortcut`, which checks it
+// for one of these five to be changed through `set_shortcut`, which checks it
 // first, and the island is told which was pressed.
 //
 // Windows refuses a combination another program already holds. A change that
@@ -43,16 +47,18 @@ const REPEAT: Duration = Duration::from_millis(250);
 const TAKEN: &str = "Already used by another app — pick another";
 const TWICE: &str = "Already another Nook shortcut — pick another";
 
-/// Which of the three.
+/// Which of the five.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Which {
     Expand,
     Goto,
     Panel,
+    Hide,
+    Agents,
 }
 
-const ALL: [Which; 3] = [Which::Expand, Which::Goto, Which::Panel];
+const ALL: [Which; 5] = [Which::Expand, Which::Goto, Which::Panel, Which::Hide, Which::Agents];
 
 impl Which {
     fn name(self) -> &'static str {
@@ -60,6 +66,8 @@ impl Which {
             Which::Expand => "expand",
             Which::Goto => "goto",
             Which::Panel => "panel",
+            Which::Hide => "hide",
+            Which::Agents => "agents",
         }
     }
 
@@ -69,6 +77,8 @@ impl Which {
             Which::Expand => (&settings.expand_shortcut, settings.expand_shortcut_enabled),
             Which::Goto => (&settings.goto_shortcut, settings.goto_shortcut_enabled),
             Which::Panel => (&settings.panel_shortcut, settings.panel_shortcut_enabled),
+            Which::Hide => (&settings.hide_shortcut, settings.hide_shortcut_enabled),
+            Which::Agents => (&settings.agents_shortcut, settings.agents_shortcut_enabled),
         }
     }
 
@@ -78,6 +88,8 @@ impl Which {
             Which::Expand => (&mut settings.expand_shortcut, &mut settings.expand_shortcut_enabled),
             Which::Goto => (&mut settings.goto_shortcut, &mut settings.goto_shortcut_enabled),
             Which::Panel => (&mut settings.panel_shortcut, &mut settings.panel_shortcut_enabled),
+            Which::Hide => (&mut settings.hide_shortcut, &mut settings.hide_shortcut_enabled),
+            Which::Agents => (&mut settings.agents_shortcut, &mut settings.agents_shortcut_enabled),
         };
         *accelerator = status.accelerator.clone();
         *enabled = status.enabled;
@@ -97,12 +109,14 @@ pub struct Status {
     pub error: Option<String>,
 }
 
-/// All three, by name.
+/// All five, by name.
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Statuses {
     pub expand: Status,
     pub goto: Status,
     pub panel: Status,
+    pub hide: Status,
+    pub agents: Status,
 }
 
 #[derive(Default)]
@@ -116,6 +130,10 @@ struct Held {
     expand: Slot,
     goto: Slot,
     panel: Slot,
+    hide: Slot,
+    agents: Slot,
+    /// The agents list is on (Settings): until it is, that shortcut is saved but not registered.
+    agents_allowed: bool,
     pressed: Option<Instant>,
 }
 
@@ -125,6 +143,8 @@ impl Held {
             Which::Expand => &mut self.expand,
             Which::Goto => &mut self.goto,
             Which::Panel => &mut self.panel,
+            Which::Hide => &mut self.hide,
+            Which::Agents => &mut self.agents,
         }
     }
 
@@ -157,8 +177,15 @@ pub fn plugin() -> TauriPlugin<Wry> {
                 held.pressed = Some(now);
                 ALL.into_iter().find(|which| held.slot(*which).registered.as_ref() == Some(shortcut))
             };
-            if let Some(which) = which {
-                let _ = app.emit_to(WINDOW_LABEL, EVENT, which.name());
+            match which {
+                // The island's own to hide, whatever the page is doing, paused or not.
+                Some(Which::Hide) => crate::visibility::toggle(app),
+                // The list's own to show or hide, the island hidden or not.
+                Some(Which::Agents) => crate::agents::toggle(app),
+                Some(which) => {
+                    let _ = app.emit_to(WINDOW_LABEL, EVENT, which.name());
+                }
+                None => {}
             }
         })
         .build()
@@ -228,11 +255,13 @@ fn take(app: &AppHandle, which: Which, accelerator: &str, shortcut: Shortcut) ->
 pub fn start(app: &AppHandle, settings: &Settings) {
     let hotkeys = app.state::<Hotkeys>();
     let mut held = hotkeys.0.lock().unwrap();
+    held.agents_allowed = settings.show_agents_list;
     for which in ALL {
         let (accelerator, enabled) = which.saved(settings);
         let mut status = Status { accelerator: accelerator.to_string(), enabled, registered: false, error: None };
         let mut registered = None;
-        if enabled {
+        // The agents shortcut is for a list that is on: off, it is kept and not taken.
+        if enabled && (which != Which::Agents || held.agents_allowed) {
             let outcome = check(accelerator).and_then(|shortcut| {
                 if held.taken_by_another(which, shortcut) {
                     return Err(TWICE.to_string());
@@ -256,7 +285,7 @@ pub fn start(app: &AppHandle, settings: &Settings) {
 
 /// The settings window changes a shortcut, or switches it on or off. The new
 /// one is taken before the old one is let go, so a combination Windows refuses
-/// leaves the one that worked in place — and nothing is saved. The three are
+/// leaves the one that worked in place — and nothing is saved. The five are
 /// never the same combination.
 pub fn change(app: &AppHandle, which: Which, accelerator: &str, enabled: bool) -> Result<Status, String> {
     let accelerator = accelerator.trim();
@@ -268,7 +297,9 @@ pub fn change(app: &AppHandle, which: Which, accelerator: &str, enabled: bool) -
     }
     let had = held.slot(which).registered;
     let mut now = had;
-    if enabled {
+    // Saved as asked; taken from the OS only if it can be used now.
+    let live = enabled && (which != Which::Agents || held.agents_allowed);
+    if live {
         if had != Some(wanted) {
             take(app, which, accelerator, wanted)?;
             if let Some(old) = had {
@@ -289,7 +320,47 @@ pub fn change(app: &AppHandle, which: Which, accelerator: &str, enabled: bool) -
 pub fn statuses(app: &AppHandle) -> Statuses {
     let hotkeys = app.state::<Hotkeys>();
     let held = hotkeys.0.lock().unwrap();
-    Statuses { expand: held.expand.status.clone(), goto: held.goto.status.clone(), panel: held.panel.status.clone() }
+    Statuses {
+        expand: held.expand.status.clone(),
+        goto: held.goto.status.clone(),
+        panel: held.panel.status.clone(),
+        hide: held.hide.status.clone(),
+        agents: held.agents.status.clone(),
+    }
+}
+
+/// The agents list is switched on or off in Settings: its shortcut is taken
+/// from the OS, or given back, with it. Saved as it was either way; one that
+/// cannot be taken says why, as at launch.
+pub fn allow_agents(app: &AppHandle, allowed: bool) {
+    let hotkeys = app.state::<Hotkeys>();
+    let mut held = hotkeys.0.lock().unwrap();
+    held.agents_allowed = allowed;
+    let (accelerator, enabled, had) = (held.agents.status.accelerator.clone(), held.agents.status.enabled, held.agents.registered);
+    if allowed && enabled && had.is_none() {
+        let outcome = check(&accelerator).and_then(|shortcut| {
+            if held.taken_by_another(Which::Agents, shortcut) {
+                return Err(TWICE.to_string());
+            }
+            take(app, Which::Agents, &accelerator, shortcut).map(|_| shortcut)
+        });
+        match outcome {
+            Ok(shortcut) => {
+                held.agents.registered = Some(shortcut);
+                held.agents.status.registered = true;
+                held.agents.status.error = None;
+            }
+            Err(why) => held.agents.status.error = Some(why),
+        }
+    } else if !allowed {
+        if let Some(old) = had {
+            let _ = app.global_shortcut().unregister(old);
+            log::line("global shortcut agents: off with the list");
+        }
+        held.agents.registered = None;
+        held.agents.status.registered = false;
+        held.agents.status.error = None;
+    }
 }
 
 /// Nook quits: the OS is given the shortcuts back.
@@ -373,7 +444,7 @@ mod tests {
     }
 
     #[test]
-    fn the_third_shortcut_has_its_own_place_and_name() {
+    fn the_third_and_fourth_shortcuts_have_their_own_place_and_name() {
         let mut settings = Settings::default();
         let status = Status { accelerator: "Ctrl+Shift+F8".into(), enabled: false, registered: false, error: None };
         Which::Panel.save(&mut settings, &status);
@@ -382,11 +453,31 @@ mod tests {
         assert_eq!(Which::Expand.saved(&settings), ("Ctrl+Alt+Space", true));
         assert_eq!(serde_json::to_string(&Which::Panel).unwrap(), "\"panel\"");
         let names: Vec<_> = ALL.iter().map(|which| which.name()).collect();
-        assert_eq!(names, ["expand", "goto", "panel"]);
+        assert_eq!(names, ["expand", "goto", "panel", "hide", "agents"]);
+
+        let status = Status { accelerator: "Ctrl+Shift+F7".into(), enabled: false, registered: false, error: None };
+        Which::Hide.save(&mut settings, &status);
+        assert_eq!(Which::Hide.saved(&settings), ("Ctrl+Shift+F7", false));
+        assert_eq!(Which::Panel.saved(&settings), ("Ctrl+Shift+F8", false));
+        assert_eq!(serde_json::to_string(&Which::Hide).unwrap(), "\"hide\"");
     }
 
     #[test]
-    fn no_two_of_the_three_can_be_the_same_combination() {
+    fn the_hide_shortcut_is_valid_by_default_and_is_not_another_ones() {
+        let settings = Settings::default();
+        assert_eq!(settings.hide_shortcut, "Ctrl+Alt+N");
+        assert!(settings.hide_shortcut_enabled);
+        let hide = check(&settings.hide_shortcut).expect("the default shortcut is valid");
+        for other in [&settings.expand_shortcut, &settings.goto_shortcut, &settings.panel_shortcut] {
+            assert_ne!(hide, check(other).unwrap());
+        }
+        let mut held = Held::default();
+        held.slot(Which::Panel).status.accelerator = "ctrl+alt+n".into();
+        assert!(held.taken_by_another(Which::Hide, hide));
+    }
+
+    #[test]
+    fn no_two_of_the_four_can_be_the_same_combination() {
         let mut held = Held::default();
         let wanted = check("Ctrl+Shift+Space").unwrap();
         // Another one's saved combination counts, registered or not.
@@ -399,5 +490,29 @@ mod tests {
         held.slot(Which::Goto).registered = Some(wanted);
         assert!(held.taken_by_another(Which::Panel, wanted));
         assert!(!held.taken_by_another(Which::Goto, wanted));
+    }
+
+    #[test]
+    fn the_agents_shortcut_is_valid_by_default_and_is_not_another_ones() {
+        let settings = Settings::default();
+        assert_eq!(settings.agents_shortcut, "Ctrl+Shift+L");
+        assert!(settings.agents_shortcut_enabled);
+        let agents = check(&settings.agents_shortcut).expect("the default shortcut is valid");
+        // Not Ctrl+Alt with a letter: that is AltGr typing a character.
+        assert_eq!(agents.mods, Modifiers::CONTROL | Modifiers::SHIFT);
+        for other in [&settings.expand_shortcut, &settings.goto_shortcut, &settings.panel_shortcut, &settings.hide_shortcut] {
+            assert_ne!(agents, check(other).unwrap());
+        }
+        let mut held = Held::default();
+        held.slot(Which::Hide).status.accelerator = "shift+ctrl+l".into();
+        assert!(held.taken_by_another(Which::Agents, agents));
+        // Its own place, its own name; the others are as they were.
+        let mut settings = Settings::default();
+        let status = Status { accelerator: "Ctrl+Shift+F6".into(), enabled: false, registered: false, error: None };
+        Which::Agents.save(&mut settings, &status);
+        assert_eq!(Which::Agents.saved(&settings), ("Ctrl+Shift+F6", false));
+        assert_eq!(Which::Hide.saved(&settings), ("Ctrl+Alt+N", true));
+        assert_eq!(serde_json::to_string(&Which::Agents).unwrap(), "\"agents\"");
+        assert!(!held.agents_allowed);
     }
 }

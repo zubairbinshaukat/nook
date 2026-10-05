@@ -8,7 +8,7 @@
 
 import "./settings.css";
 import type { AboutLink, CursorStatus, DataPaths, HookPreview, HookStatus, ReplyFormatAction, ReplyFormatStatus, ShortcutName, ShortcutStatus, UsageStatus } from "../core/bridge";
-import { COMPACT_METRICS, DEFAULT_SETTINGS, FOLDED_AUTO_HIDE, MAX_COMPACT_METRICS, compactMetrics, foldedAutoHide, type CompactMetric, type Settings } from "../core/state";
+import { COMPACT_METRICS, DEFAULT_SETTINGS, FADE_MAX, FADE_MIN, FOLDED_AUTO_HIDE, MAX_COMPACT_METRICS, compactMetrics, foldedAutoHide, type CompactMetric, type Settings } from "../core/state";
 import { BOT_THEMES } from "../bot/engine";
 import { clear, h } from "../views/dom";
 import { BRANDS, LUCIDE, brand } from "../views/iconset";
@@ -680,11 +680,13 @@ function heldModifiers(e: KeyboardEvent): string[] {
   return [e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Shift", e.metaKey && "Super"].filter((m): m is string => !!m);
 }
 
-/** The three global shortcuts: what each is called, and what it does. */
+/** The five global shortcuts: what each is called, and what it does. */
 const SHORTCUTS: readonly { which: ShortcutName; label: string; does: string }[] = [
   { which: "expand", label: "Expand / shrink the panel", does: "Opens the session panel large, or shrinks it back." },
   { which: "goto", label: "Go to the session that needs you", does: "Brings forward the window of the session that is asking, or stopped on an error, and folds the island." },
   { which: "panel", label: "Open the session panel", does: "Opens the session panel at its normal size. Space expands it." },
+  { which: "hide", label: "Hide / show the island", does: "Hides the island completely, or brings it back. It shows itself for a request, and hides again once all are answered." },
+  { which: "agents", label: "Show / hide the agents list", does: "Shows the agents list, or hides it. Only while the list is turned on above." },
 ];
 
 /** A shortcut as the settings have it. */
@@ -693,7 +695,11 @@ const savedShortcut = (which: ShortcutName): ShortcutStatus =>
     ? { accelerator: settings.expandShortcut, enabled: settings.expandShortcutEnabled, registered: false, error: null }
     : which === "goto"
       ? { accelerator: settings.gotoShortcut, enabled: settings.gotoShortcutEnabled, registered: false, error: null }
-      : { accelerator: settings.panelShortcut, enabled: settings.panelShortcutEnabled, registered: false, error: null };
+      : which === "panel"
+        ? { accelerator: settings.panelShortcut, enabled: settings.panelShortcutEnabled, registered: false, error: null }
+        : which === "hide"
+          ? { accelerator: settings.hideShortcut, enabled: settings.hideShortcutEnabled, registered: false, error: null }
+          : { accelerator: settings.agentsShortcut, enabled: settings.agentsShortcutEnabled, registered: false, error: null };
 
 /**
  * A global shortcut: a field that records the combination pressed in it, a
@@ -720,8 +726,10 @@ function shortcutRow({ which, label, does }: (typeof SHORTCUTS)[number]): HTMLEl
   let power: Toggle;
 
   const paint = () => {
-    const problem = refused?.why ?? (status.enabled ? status.error : null);
-    const state = recording ? "recording" : problem ? "error" : !status.enabled ? "off" : known && status.registered ? "ok" : "unknown";
+    // The agents shortcut is kept but not taken while the list is off.
+    const dormant = which === "agents" && !settings.showAgentsList;
+    const problem = refused?.why ?? (status.enabled && !dormant ? status.error : null);
+    const state = recording ? "recording" : problem ? "error" : !status.enabled || dormant ? "off" : known && status.registered ? "ok" : "unknown";
     el.dataset.state = state;
     clear(field);
     const shown = recording ? partial.map(keyWord) : refused ? refused.keys : shortcutKeys(status.accelerator);
@@ -736,7 +744,7 @@ function shortcutRow({ which, label, does }: (typeof SHORTCUTS)[number]): HTMLEl
       state === "recording" ? "Recording. Esc cancels."
       : refused ? (status.enabled && status.registered ? `${refused.why}. Still using ${using}.` : `${refused.why}.`)
       : state === "error" ? `${problem}.`
-      : state === "off" ? "Off. No shortcut is registered."
+      : state === "off" ? (dormant && status.enabled ? "Waiting for the agents list to be turned on." : "Off. No shortcut is registered.")
       : state === "ok" ? "Works from any app"
       : known ? "Not registered" : "" }));
   };
@@ -752,7 +760,11 @@ function shortcutRow({ which, label, does }: (typeof SHORTCUTS)[number]): HTMLEl
         ? { ...settings, expandShortcut: status.accelerator, expandShortcutEnabled: status.enabled }
         : which === "goto"
           ? { ...settings, gotoShortcut: status.accelerator, gotoShortcutEnabled: status.enabled }
-          : { ...settings, panelShortcut: status.accelerator, panelShortcutEnabled: status.enabled };
+          : which === "panel"
+            ? { ...settings, panelShortcut: status.accelerator, panelShortcutEnabled: status.enabled }
+            : which === "hide"
+              ? { ...settings, hideShortcut: status.accelerator, hideShortcutEnabled: status.enabled }
+              : { ...settings, agentsShortcut: status.accelerator, agentsShortcutEnabled: status.enabled };
     } catch (err) {
       refused = { why: reason(err).replace(/\.$/, ""), keys };
     }
@@ -805,6 +817,19 @@ function shortcutRow({ which, label, does }: (typeof SHORTCUTS)[number]): HTMLEl
       power.el),
     field, line);
   paint();
+  // The list turned on or off takes this shortcut from the OS, or gives it back: Rust has saved by the time it echoes, and says where it stands.
+  if (which === "agents") {
+    followers.push(() => {
+      paint();
+      void nook.shortcutStatus().then((fresh) => {
+        if (!fresh) return;
+        shortcutsNow = fresh;
+        if (recording || refused) return;
+        status = fresh[which];
+        paint();
+      });
+    });
+  }
 
   // What Rust has: a saved shortcut that could not be registered at launch says so here.
   void nook.shortcutStatus().then((fresh) => {
@@ -861,7 +886,24 @@ function generalSection(): Kid[] {
   });
 
   const screen = segmented<Settings["screen"]>("Display", [["primary", "Main display"], ["cursor", "Display under the cursor"]], settings.screen, (v) => change({ screen: v }));
+  const dock = segmented<Settings["dock"]>("Dock", [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]], settings.dock, (v) => change({ dock: v }));
   const autostart = toggle(settings.autostart, "Launch at startup", (on) => change({ autostart: on }));
+  const agentsFade = toggle(settings.agentsListFade, "Fade the agents list when idle", (on) => {
+    change({ agentsListFade: on });
+    agentsFadeTo.setDisabled(!on || !settings.showAgentsList);
+  });
+  const fadePercent = () => Math.max(FADE_MIN, Math.min(FADE_MAX, Math.round(settings.agentsListFadeOpacity) || 50));
+  const agentsFadeTo = slider("Idle opacity", fadePercent(), (v) => `${v}%`, (v) => change({ agentsListFadeOpacity: v }, true), FADE_MIN, FADE_MAX);
+  const agentsList = toggle(settings.showAgentsList, "Show the agents list", (on) => {
+    change({ showAgentsList: on });
+    paintAgentsFade();
+  });
+  // Both fade rows are for a list that is on; the opacity is for a fade that is on.
+  const paintAgentsFade = () => {
+    agentsFade.el.disabled = !settings.showAgentsList;
+    agentsFadeTo.setDisabled(!settings.agentsListFade || !settings.showAgentsList);
+  };
+  paintAgentsFade();
 
   // The island's own quick settings change the sound and the auto-close too.
   let seconds = settings.autoCloseInterval;
@@ -877,7 +919,12 @@ function generalSection(): Kid[] {
     autoClose.set(picked());
     customFold.classList.toggle("open", picked() === "custom");
     screen.set(settings.screen);
+    dock.set(settings.dock);
     autostart.set(settings.autostart);
+    agentsList.set(settings.showAgentsList);
+    agentsFade.set(settings.agentsListFade);
+    agentsFadeTo.set(fadePercent());
+    paintAgentsFade();
   });
 
   return [
@@ -894,7 +941,16 @@ function generalSection(): Kid[] {
       h("div", { class: "sp-row stack" },
         h("div", { class: "sp-row-text" }, h("div", { class: "sp-row-label", text: "Show the island on" })),
         screen.el),
+      h("div", { class: "sp-row stack" },
+        h("div", { class: "sp-row-text" },
+          h("div", { class: "sp-row-label", text: "Dock the island to" }),
+          h("p", { class: "sp-help", text: "An edge of the display. The bottom and the sides keep clear of the taskbar; on the left or right, Home and the Shelf stand upright. With a taskbar that hides itself, the island sits at the display's own edge." })),
+        dock.el),
       row("Launch at startup", "Start Nook when you sign in.", autostart.el)),
+    group("Agents list",
+      row("Show the agents list", "A small window that stays on top of everything, on every virtual desktop, with a row per project: its state, how full its context is, and what it said last. Click a row to go to its window. It never takes the keyboard. Drag its sides to set the width and its bottom edge to set the most it grows tall; double-click its header to put both back.", agentsList.el),
+      row("Fade the agents list when idle", "It dims a few seconds after the pointer leaves it, but never while something waits for you.", agentsFade.el),
+      row("Idle opacity", null, agentsFadeTo.el)),
     group("Shortcuts", ...SHORTCUTS.map(shortcutRow)),
   ];
 }
@@ -934,7 +990,7 @@ const metricPicker = (() => {
       }
     }, !animate || still());
     count.textContent = `${on.length} of ${MAX_COMPACT_METRICS} chosen`;
-    folded.update(chosen(), animate && !still());
+    folded.update(chosen(), animate && !still(), settings.dock);
   };
 
   const refuse = (id: MetricRow | null) => {

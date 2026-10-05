@@ -5,6 +5,8 @@
 //   npm run fake-session -- permission just the permission request
 //   npm run fake-session -- --subagents a session that launches two subagents
 //   npm run fake-session -- --mixed     two Claude Code and two Cursor sessions
+//   npm run fake-session -- --reading   two sessions finishing while you read the panel
+//   npm run fake-session -- --agents    several projects in every state, for the agents list
 //
 // `--subagents` plays what Claude Code 2.1.288 sends when a session launches
 // two subagents in the background (plans/subagents-plan.md, section 3): the
@@ -139,9 +141,71 @@ const MIXED = [
   k2({ hook_event_name: "afterFileEdit", file_path: join(cwd, "docs", "install.md"), edits: [{ old_string: "", new_string: "# Install\n\nRun the setup." }] }),
   k1({ hook_event_name: "afterAgentResponse", text: "Renamed loadConfig to readConfig in 3 files." }),
   k1({ hook_event_name: "stop", status: "completed" }),
-  c2({ hook_event_name: "Stop", last_assistant_message: "The site builds again." }),
+  // `context_tokens` is what the real relay reads from a transcript; sent here as it is, so the sidebar's meter shows.
+  c2({ hook_event_name: "Stop", last_assistant_message: "The site builds again.", context_tokens: 130_000 }),
   k2({ hook_event_name: "stop", status: "error" }),
-  c1({ hook_event_name: "Stop", last_assistant_message: "The endpoint is in." }),
+  c1({ hook_event_name: "Stop", last_assistant_message: "The endpoint is in.", context_tokens: 182_000 }),
+];
+
+// `--reading`: two sessions, to try what happens when a turn ends while the
+// panel is being read. Open the panel on "web", scroll up its journal, and
+// wait: "api" finishes (its line shakes and gets a dot), then "web" itself does
+// (the jump button shakes) — and neither takes the panel from under you.
+const web = claudeOf("web", "web"), api = claudeOf("api2", "api");
+const READING = [
+  web({ hook_event_name: "SessionStart", source: "startup" }),
+  api({ hook_event_name: "SessionStart", source: "startup" }),
+  web({ hook_event_name: "UserPromptSubmit", prompt: "Read every file in the folder" }),
+  api({ hook_event_name: "UserPromptSubmit", prompt: "Add a health endpoint" }),
+  ...Array.from({ length: 14 }, (_, i) => web({ hook_event_name: "PostToolUse", tool_name: "Read", tool_input: { file_path: join(cwd, `file-${i}.ts`) } })),
+  { pause: 15_000, say: "open the panel on web and scroll up, then wait" },
+  api({ hook_event_name: "Stop", last_assistant_message: "The endpoint is in." }),
+  { pause: 4_000 },
+  web({ hook_event_name: "Stop", last_assistant_message: "All 14 files read." }),
+  { pause: 4_000 },
+  web({ hook_event_name: "UserPromptSubmit", prompt: "And once more" }),
+  web({ hook_event_name: "Stop", last_assistant_message: "Done again." }),
+];
+
+// `--agents`: what the agents list shows. Seven projects, `shop` with two
+// sessions: one at work, one finished. `api` waits on a question (a
+// notification, so the script does not block), `docs` has finished, `site`
+// rests, and one name is long enough to be cut. Turn the list on in Settings
+// (or press Ctrl+Shift+L once it is on). The sessions stay until Nook is restarted.
+const shop1 = claudeOf("shop1", "shop"), shop2 = claudeOf("shop2", "shop");
+const apiq = claudeOf("apiq", "api"), docs = claudeOf("docs", "docs");
+const site = claudeOf("site", "site"), long = claudeOf("long", "a-very-long-project-folder-name-that-needs-an-ellipsis");
+const mixc = claudeOf("mixc", "tools"), mixk = cursorOf("mixk", "tools"), notes = cursorOf("notes", "notes");
+const AGENTS = [
+  shop1({ hook_event_name: "SessionStart", source: "startup" }),
+  shop2({ hook_event_name: "SessionStart", source: "startup" }),
+  apiq({ hook_event_name: "SessionStart", source: "startup" }),
+  docs({ hook_event_name: "SessionStart", source: "startup" }),
+  site({ hook_event_name: "SessionStart", source: "startup" }),
+  long({ hook_event_name: "SessionStart", source: "startup" }),
+  shop1({ hook_event_name: "UserPromptSubmit", prompt: "Add the checkout page" }),
+  shop1({ hook_event_name: "PreToolUse", tool_name: "Read", tool_input: { file_path: join(cwd, "shop", "cart.ts") } }),
+  shop2({ hook_event_name: "UserPromptSubmit", prompt: "Fix the totals" }),
+  shop2({ hook_event_name: "Stop", last_assistant_message: "Totals now include shipping.", context_tokens: 95_000 }),
+  apiq({ hook_event_name: "UserPromptSubmit", prompt: "Add a health endpoint" }),
+  apiq({ hook_event_name: "Notification", message: "Which database should the endpoint check?" }),
+  docs({ hook_event_name: "UserPromptSubmit", prompt: "Write the install page" }),
+  docs({ hook_event_name: "Stop", last_assistant_message: "The install page is written.", context_tokens: 182_000 }),
+  long({ hook_event_name: "UserPromptSubmit", prompt: "Summarise the repository, in as many words as it takes to need an ellipsis" }),
+  long({ hook_event_name: "PreToolUse", tool_name: "Grep", tool_input: { pattern: "TODO" } }),
+  long({ hook_event_name: "Stop", last_assistant_message: "This is a very long last message that goes on and on, so that the list has to cut it with an ellipsis instead of wrapping it onto a second line.", context_tokens: 1_150_000 }),
+  long({ hook_event_name: "UserPromptSubmit", prompt: "Go on" }),
+  // `tools` is open in both Claude Code and Cursor (two marks); `notes` in Cursor alone, which sends no token count (a blank figure).
+  mixc({ hook_event_name: "SessionStart", source: "startup" }),
+  mixk({ hook_event_name: "sessionStart" }),
+  notes({ hook_event_name: "sessionStart" }),
+  mixc({ hook_event_name: "UserPromptSubmit", prompt: "Wire up the settings page" }),
+  mixk({ hook_event_name: "beforeSubmitPrompt", prompt: "Tidy the stylesheet" }),
+  mixk({ hook_event_name: "afterAgentResponse", text: "The stylesheet is tidied." }),
+  mixk({ hook_event_name: "stop", status: "completed" }),
+  notes({ hook_event_name: "beforeSubmitPrompt", prompt: "Draft the release notes" }),
+  notes({ hook_event_name: "afterAgentResponse", text: "The release notes are drafted." }),
+  notes({ hook_event_name: "stop", status: "completed" }),
 ];
 
 /** One hook run: JSON on stdin, whatever the relay prints on stdout. */
@@ -159,10 +223,15 @@ function send(event) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const events = process.argv[2] === "permission" ? [PERMISSION] : process.argv.includes("--subagents") ? SUBAGENTS : process.argv.includes("--mixed") ? MIXED : SESSION;
+const events = process.argv[2] === "permission" ? [PERMISSION] : process.argv.includes("--subagents") ? SUBAGENTS : process.argv.includes("--mixed") ? MIXED : process.argv.includes("--reading") ? READING : process.argv.includes("--agents") ? AGENTS : SESSION;
 console.log(`relay: ${hook}\nsession: ${session}\n`);
 
 for (const event of events) {
+  if (event.pause) {
+    if (event.say) console.log(`… ${event.say} (${event.pause / 1000}s)`);
+    await sleep(event.pause);
+    continue;
+  }
   const name = event.hook_event_name;
   if (name === "PermissionRequest") {
     console.log(`${name}: waiting for Allow / Deny on the island…`);

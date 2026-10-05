@@ -115,12 +115,12 @@ export interface Slider {
   setDisabled(disabled: boolean): void;
 }
 
-/** 0…100, with the value written beside it. */
-export function slider(label: string, value: number, format: (v: number) => string, onInput: (v: number) => void): Slider {
-  const input = h("input", { type: "range", min: "0", max: "100", step: "1", value: String(value), "aria-label": label });
+/** 0…100 (or `min`…`max`), with the value written beside it. */
+export function slider(label: string, value: number, format: (v: number) => string, onInput: (v: number) => void, min = 0, max = 100): Slider {
+  const input = h("input", { type: "range", min: String(min), max: String(max), step: "1", value: String(value), "aria-label": label });
   const out = h("output", { class: "sp-slider-value" });
   const paint = () => {
-    input.style.setProperty("--p", `${input.value}%`);
+    input.style.setProperty("--p", `${((Number(input.value) - min) / (max - min)) * 100}%`);
     out.textContent = format(Number(input.value));
     input.setAttribute("aria-valuetext", out.textContent);
   };

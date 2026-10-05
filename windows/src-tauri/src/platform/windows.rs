@@ -3,7 +3,7 @@
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::atomic::{AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 use std::time::{Duration, Instant};
 
 use tauri::WebviewWindow;
@@ -24,13 +24,14 @@ use ::windows::Win32::System::Threading::{
     AttachThreadInput, GetCurrentProcess, GetCurrentProcessId, GetCurrentThreadId, GetSystemTimes, OpenProcess, OpenProcessToken, QueryFullProcessImageNameW,
     PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
 };
+use ::windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL, COINIT_APARTMENTTHREADED};
 use ::windows::Win32::UI::Shell::{
-    SHQueryUserNotificationState, QUNS_BUSY, QUNS_PRESENTATION_MODE, QUNS_RUNNING_D3D_FULL_SCREEN,
+    IVirtualDesktopManager, SHQueryUserNotificationState, VirtualDesktopManager, QUNS_BUSY, QUNS_PRESENTATION_MODE, QUNS_RUNNING_D3D_FULL_SCREEN,
 };
 use ::windows::Win32::UI::WindowsAndMessaging::{
-    BringWindowToTop, EnumWindows, GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindow, GetWindowLongPtrW, GetWindowRect,
+    BringWindowToTop, EnumWindows, GetAncestor, GetClassNameW, GetCursorPos, GetForegroundWindow, GetWindow, GetWindowLongPtrW, GetWindowRect,
     GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindow, IsWindowVisible, IsZoomed, SetForegroundWindow, SetWindowLongPtrW,
-    ShowWindow, GWL_EXSTYLE, GWL_STYLE, GW_OWNER, SW_RESTORE, WS_CAPTION, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    ShowWindow, WindowFromPoint, GA_ROOT, GWL_EXSTYLE, GWL_STYLE, GW_OWNER, SW_RESTORE, WS_CAPTION, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
 };
 
 use super::LocalTime;
@@ -311,6 +312,11 @@ pub fn make_non_activating(win: &WebviewWindow) {
     }
 }
 
+/// The agents list takes no focus and stays out of Alt-Tab, as the island does.
+pub fn prepare_list_window(win: &WebviewWindow) {
+    make_non_activating(win);
+}
+
 /// The window that had the keyboard when the island took it, to hand it back to.
 static KEYBOARD_FROM: AtomicIsize = AtomicIsize::new(0);
 
@@ -347,6 +353,121 @@ pub fn set_activating(win: &WebviewWindow, activating: bool) {
     }
 }
 
+/// Shows the island again after it was hidden, without taking the keyboard
+/// from whoever has it. tao drops the "created unfocused" mark once the window
+/// exists, so every later show is a plain SW_SHOW, which activates: with the
+/// permission a hotkey or a tray click gives, the island would come to the
+/// foreground and the webview take the focus. The window in front before is
+/// put back in front. On the main thread only: from another one the show is
+/// queued, and this would look before it happened.
+pub fn show_inactive(win: &WebviewWindow) {
+    let before = unsafe { GetForegroundWindow() };
+    let _ = win.show();
+    let Some(hwnd) = hwnd_of(win) else { return };
+    unsafe {
+        if before != hwnd && !before.is_invalid() && GetForegroundWindow() == hwnd && IsWindow(Some(before)).as_bool() {
+            let _ = SetForegroundWindow(before);
+        }
+    }
+}
+
+/// There is no compositor to anchor to: the window is placed by position alone (dock.rs).
+pub fn set_dock(_win: &WebviewWindow, _dock: crate::dock::Dock) {}
+
+// ── On every virtual desktop ──────────────────────────────────────────────────
+//
+// tao's `set_visible_on_all_workspaces` does nothing on Windows, and Windows
+// has no documented "pin this window" call for a program's own window: a window
+// stays on the desktop it was made on. What is documented is IVirtualDesktopManager,
+// which may move a window *of the calling process* to a desktop. So the agents
+// list is moved to whichever desktop is in front, half a second after it changed.
+
+/// The window the follower looks after, as a raw handle; 0 when none is to be.
+static DESKTOP_WATCH: AtomicIsize = AtomicIsize::new(0);
+/// A follower thread is running. There is never more than one: asked again, it
+/// is pointed at the new window (or told to stop) and carries on.
+static DESKTOP_RUNNING: AtomicBool = AtomicBool::new(false);
+/// How often the list's desktop is looked at while it is on show.
+const DESKTOP_LOOK: Duration = Duration::from_millis(500);
+
+/// Keeps a window on the desktop in front, while `on`; stops when not. One
+/// look every half second, on one thread that ends by itself once the list is
+/// hidden. Called again for the window it already follows, it starts nothing.
+/// The island is not one of its users.
+pub fn follow_desktops(win: &WebviewWindow, on: bool) {
+    let hwnd = hwnd_of(win).filter(|_| on).map_or(0, |hwnd| hwnd.0 as isize);
+    DESKTOP_WATCH.store(hwnd, Ordering::SeqCst);
+    if hwnd == 0 || DESKTOP_RUNNING.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    std::thread::spawn(|| loop {
+        watch_desktops();
+        DESKTOP_RUNNING.store(false, Ordering::SeqCst);
+        // Asked again between the last look and the flag going down: this thread carries on.
+        if DESKTOP_WATCH.load(Ordering::SeqCst) == 0 || DESKTOP_RUNNING.swap(true, Ordering::SeqCst) {
+            break;
+        }
+    });
+}
+
+/// The follower's thread: looks until there is no window to follow.
+fn watch_desktops() {
+    // The manager is made on this thread and used only here. A thread that
+    // was already in another apartment is fine too: the call is just not undone.
+    let initialised = unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) }.is_ok();
+    let manager = unsafe { CoCreateInstance::<_, IVirtualDesktopManager>(&VirtualDesktopManager, None, CLSCTX_ALL) }.ok();
+    if let Some(manager) = manager {
+        loop {
+            let raw = DESKTOP_WATCH.load(Ordering::SeqCst);
+            if raw == 0 {
+                break;
+            }
+            move_to_current_desktop(&manager, HWND(raw as *mut _));
+            std::thread::sleep(DESKTOP_LOOK);
+        }
+    }
+    if initialised {
+        unsafe { CoUninitialize() };
+    }
+}
+
+/// The top-level window under the cursor, if there is one.
+fn window_under_cursor() -> Option<HWND> {
+    unsafe {
+        let mut at = POINT::default();
+        GetCursorPos(&mut at).ok()?;
+        let under = WindowFromPoint(at);
+        if under.is_invalid() {
+            return None;
+        }
+        Some(GetAncestor(under, GA_ROOT)).filter(|root| !root.is_invalid())
+    }
+}
+
+/// One look: when the window is not on the desktop in front, it is moved to the
+/// desktop of a window that is: the one with the keyboard or, when that is not
+/// on this desktop or will not say (an empty desktop has only the shell, the
+/// taskbar), the one under the cursor. Neither, and it waits for the next look.
+/// Any call that fails leaves things as they are. Nothing here takes the focus.
+fn move_to_current_desktop(manager: &IVirtualDesktopManager, hwnd: HWND) {
+    // What the manager says of a window; `default` when it cannot say.
+    let here = |window: HWND, default: bool| unsafe { manager.IsWindowOnCurrentVirtualDesktop(window) }.map_or(default, |on| on.as_bool());
+    unsafe {
+        if !IsWindow(Some(hwnd)).as_bool() || here(hwnd, true) {
+            return;
+        }
+        for reference in [Some(GetForegroundWindow()), window_under_cursor()].into_iter().flatten() {
+            if reference.is_invalid() || reference == hwnd || !here(reference, false) {
+                continue;
+            }
+            if let Ok(desktop) = manager.GetWindowDesktopId(reference) {
+                if manager.MoveWindowToDesktop(hwnd, &desktop).is_ok() {
+                    return;
+                }
+            }
+        }
+    }
+}
 // ── Full-screen apps ──────────────────────────────────────────────────────────
 
 fn rect_of(r: RECT) -> fullscreen::Rect {
