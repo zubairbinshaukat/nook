@@ -8,6 +8,11 @@
   was Nook's).
 - The install guide shows the release page with the installer and
   `SHA256SUMS.txt`.
+- The open island no longer hides on its own when you click outside it.
+  Opened with a shortcut, it now folds to the compact island, which then
+  follows "Hide the compact island after". "Hide during full-screen apps" no
+  longer mistakes the Start menu, Search, the notification centre, Alt+Tab,
+  the lock screen or the moment of switching windows for a full-screen app.
 
 ## 0.2.0
 

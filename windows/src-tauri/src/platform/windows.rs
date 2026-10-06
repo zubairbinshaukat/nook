@@ -498,6 +498,7 @@ fn foreground(island: Option<HWND>) -> Option<Foreground> {
             rect: rect_of(rect),
             monitor: rect_of(info.rcMonitor),
             class: String::from_utf16_lossy(&class[..len.min(class.len())]),
+            process: image_name(pid).unwrap_or_default(),
             own: pid == GetCurrentProcessId(),
             // With no island window to compare with, its display is taken to be this one.
             on_island_display: island.is_none_or(|island| MonitorFromWindow(island, MONITOR_DEFAULTTONEAREST) == monitor),
@@ -509,6 +510,12 @@ fn foreground(island: Option<HWND>) -> Option<Foreground> {
 /// True when a full-screen app is in front on the island's display: a few
 /// calls into the system, no window is enumerated. The rule is fullscreen.rs's.
 pub fn fullscreen_in_front(island: Option<&WebviewWindow>) -> bool {
+    fullscreen_verdict(island).0
+}
+
+/// The same, with what it was decided on, for the log: the window in front
+/// (its class and its program's name, nothing else) and the shell's word.
+pub fn fullscreen_verdict(island: Option<&WebviewWindow>) -> (bool, String) {
     let notification = match unsafe { SHQueryUserNotificationState() } {
         Ok(state) if state == QUNS_BUSY => Notification::Busy,
         Ok(state) if state == QUNS_RUNNING_D3D_FULL_SCREEN => Notification::D3dFullScreen,
@@ -516,7 +523,17 @@ pub fn fullscreen_in_front(island: Option<&WebviewWindow>) -> bool {
         Ok(_) => Notification::Normal,
         Err(_) => Notification::Unknown,
     };
-    fullscreen::is_fullscreen(foreground(island.and_then(hwnd_of)).as_ref(), notification)
+    let front = foreground(island.and_then(hwnd_of));
+    let full = fullscreen::is_fullscreen(front.as_ref(), notification);
+    let said = match &front {
+        Some(f) => format!(
+            "front class={} process={} rect={},{},{},{} display={},{},{},{} framed_maximised={} shell={notification:?}",
+            f.class, f.process, f.rect.left, f.rect.top, f.rect.right, f.rect.bottom,
+            f.monitor.left, f.monitor.top, f.monitor.right, f.monitor.bottom, f.framed_maximised
+        ),
+        None => format!("no window in front, shell={notification:?}"),
+    };
+    (full, said)
 }
 
 /// Click-through here is the poll's WS_EX_TRANSPARENT toggle, not a region.

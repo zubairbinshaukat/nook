@@ -391,6 +391,8 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
             let mut ticks: u32 = 0;
             // Said again after every wake: what was in front may have changed while nothing looked.
             let mut last_full: Option<bool> = None;
+            // One look between two windows (a click elsewhere) must not hide the island.
+            let mut steady = crate::fullscreen::Steady::default();
             while gate.is_active() {
                 std::thread::sleep(Duration::from_millis(period));
 
@@ -418,13 +420,19 @@ pub fn spawn_cursor_poll(app: AppHandle, gate: Arc<PollGate>) {
                         .try_state::<crate::Shared>()
                         .is_some_and(|shared| shared.settings.lock().unwrap().hide_in_fullscreen);
                     if wanted {
-                        let full = platform::fullscreen_in_front(window(&app).as_ref());
+                        let (looked, said) = platform::fullscreen_verdict(window(&app).as_ref());
+                        let full = steady.look(looked);
                         if last_full != Some(full) {
+                            // Logged when it changes only: why the island got out of the way, or came back.
+                            if full || last_full.is_some() {
+                                crate::log::line(format!("full-screen {}: {said}", if full { "in front, island hides" } else { "gone" }));
+                            }
                             last_full = Some(full);
                             let _ = app.emit_to(WINDOW_LABEL, "fullscreen", full);
                         }
                     } else {
                         last_full = None;
+                        steady = crate::fullscreen::Steady::default();
                     }
                 }
 

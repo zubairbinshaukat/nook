@@ -331,6 +331,8 @@ export class Island {
    * asked at the moment of a wake. Never polled for while the island is hidden.
    */
   private fullscreen = false;
+  /** Why the island is about to be hidden, for the log line its hiding writes; null is its own timer. */
+  hideWhy: string | null = null;
   /** Something on the island is at work or asking, as last drawn: what holds the folded island when Settings say so. */
   private active = false;
 
@@ -532,9 +534,15 @@ export class Island {
     this.fsm.holds = () => State.settings.hideOnlyWhenIdle && this.active;
     this.fsm.onTransition = (from, to) => {
       switch (to) {
-        case "hidden":
+        case "hidden": {
+          // Why, in the log (Settings → About → Open log folder): the next time
+          // the island goes away unasked, the line says what took it.
+          const why = this.hideWhy ?? (from === "petit" ? `the compact island was left alone for ${this.fsm.petitToHiddenDelay} s` : `from ${from}`);
+          this.hideWhy = null;
+          void Bridge.log(`island hidden: ${why}`);
           this.setMode("hidden");
           break;
+        }
         case "petit":
           if (from === "greeting") this.greeting.interrupt();
           else if (from === "hidden") Sound.play("peek");
@@ -1273,17 +1281,18 @@ export class Island {
   /**
    * The user went elsewhere while the panel the shortcut opened was up — the
    * island's window lost the keyboard, or a click landed outside the island:
-   * the island retracts, as one left alone does in the end. Never with a
+   * the island folds, as `stepAside` does. Folded, it is left to Settings, as
+   * any folded island is: it hides after "Hide the compact island after", not
+   * while a session is busy when asked so, and never when that is "Never". It
+   * is never hidden outright here: that went past those settings. Never with a
    * request waiting on it: that keeps the island open, as it always does.
    */
   private dismissSummoned() {
     if (!this.summoned) return;
     const waits = State.pendingApproval != null || State.pendingQuestion != null;
     this.releaseSummon();
-    if (waits || State.mode === "hidden") return;
-    State.isPinned = false;
-    this.fsm.pinned = false;
-    this.fsm.forceHidden();
+    if (waits || State.mode !== "expanded") return;
+    this.collapse();
     if (reducedMotion()) this.jumpGeometry();
   }
 
@@ -1575,6 +1584,7 @@ export class Island {
     State.isPinned = false;
     this.fsm.pinned = false;
     this.releaseSummon();
+    this.hideWhy = "full-screen app in front (see the full-screen line before)";
     this.fsm.forceHidden();
     if (reducedMotion()) this.jumpGeometry();
   }

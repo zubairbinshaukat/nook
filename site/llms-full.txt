@@ -859,6 +859,7 @@ What shipped in each release, and what is planned next. Planned items are intent
 
 - **The uninstaller and the installer pages** now use the Nook icon and artwork: the uninstall window, its header logo and the welcome and finish pages no longer show the default installer art. In 0.2.0 only the installer file’s own icon was Nook’s.
 - **The install guide** shows the release page with the installer and `SHA256SUMS.txt`.
+- **The open island** no longer hides on its own when you click outside it. Opened with a shortcut, it now folds to the compact island, which then follows “Hide the compact island after”. “Hide during full-screen apps” no longer mistakes the Start menu, Search, the notification centre, Alt+Tab, the lock screen or the moment of switching windows for a full-screen app.
 
 ## 0.2.0 — Cursor, docking and the agents list
 

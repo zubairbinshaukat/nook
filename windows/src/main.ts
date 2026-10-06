@@ -96,7 +96,10 @@ async function main() {
         break;
       case "pause":
         setPaused(!State.paused);
-        if (State.paused) island.fsm.forceHidden();
+        if (State.paused) {
+          island.hideWhy = "paused";
+          island.fsm.forceHidden();
+        }
         else island.reveal();
         break;
     }

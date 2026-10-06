@@ -56,6 +56,8 @@ pub struct Foreground {
     /// The whole of the display it is on, taskbar included.
     pub monitor: Rect,
     pub class: String,
+    /// The image its process runs (`msedge.exe`), empty when it will not say.
+    pub process: String,
     /// One of Nook's own windows: the island with the keyboard, the settings window.
     pub own: bool,
     /// It is on the display the island is on.
@@ -68,24 +70,69 @@ pub struct Foreground {
 /// The desktop and the taskbar: they fill the display, and are no app.
 const SHELL_CLASSES: &[&str] = &["Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd"];
 
+/// The programs of the Windows shell. What they bring in front — the Start
+/// menu, Search, the notification centre and quick settings, the touch
+/// keyboard, emoji and clipboard panels, Alt+Tab and Task View, the lock
+/// screen — is drawn in a window as large as the display, with no title bar,
+/// and is no full-screen app: a click on one of them must not hide the island.
+const SHELL_PROCESSES: &[&str] = &[
+    "explorer.exe",
+    "StartMenuExperienceHost.exe",
+    "SearchHost.exe",
+    "SearchApp.exe",
+    "SearchUI.exe",
+    "ShellExperienceHost.exe",
+    "ShellHost.exe",
+    "TextInputHost.exe",
+    "LockApp.exe",
+];
+
+/// True when the window belongs to the shell rather than to an app.
+fn is_shell(front: &Foreground) -> bool {
+    SHELL_CLASSES.contains(&front.class.as_str()) || SHELL_PROCESSES.iter().any(|p| p.eq_ignore_ascii_case(&front.process))
+}
+
 /// True when the island should stay out of the way.
 ///
-/// - Nook's own window in front, or the desktop: never.
+/// - Nook's own window in front, or the shell's (the desktop, the taskbar, the
+///   Start menu and the other flyouts, Alt+Tab): never.
 /// - A window on another display than the island's: never — it hides nothing
 ///   the island is drawn over.
 /// - A window that covers the whole of the island's display — and is not just
 ///   a maximised window with its title bar — is full-screen. So is whatever is
 ///   in front there while the shell reports an exclusive Direct3D app or
 ///   presentation mode.
-/// - With no window in front to look at, the shell's word is taken: busy,
-///   Direct3D full-screen or presentation mode.
+/// - With no window in front to look at, only an exclusive Direct3D app or
+///   presentation mode counts. Windows has no window in front for a moment
+///   while the keyboard goes from one window to another — a click elsewhere —
+///   and "busy" says only that a full-screen app runs somewhere, maybe on
+///   another display: taken alone, it hid the island at a plain click.
 pub fn is_fullscreen(front: Option<&Foreground>, notification: Notification) -> bool {
     let shell_says = matches!(notification, Notification::D3dFullScreen | Notification::Presentation);
     match front {
-        None => shell_says || notification == Notification::Busy,
-        Some(front) if front.own || SHELL_CLASSES.contains(&front.class.as_str()) => false,
+        None => shell_says,
+        Some(front) if front.own || is_shell(front) => false,
         Some(front) if !front.on_island_display => false,
         Some(front) => shell_says || (front.rect.covers(&front.monitor) && !front.framed_maximised),
+    }
+}
+
+/// How many looks in a row (one each half second, on the cursor poll's slow
+/// tick) must say "full-screen" before the island is told. One look can land
+/// on a moment between two windows; a full-screen app stays.
+pub const CONFIRM_LOOKS: u8 = 2;
+
+/// The poll's verdicts, steadied: "full-screen" only once `CONFIRM_LOOKS` looks
+/// in a row said it, "not" at the first look that says so.
+#[derive(Debug, Default)]
+pub struct Steady {
+    run: u8,
+}
+
+impl Steady {
+    pub fn look(&mut self, full: bool) -> bool {
+        self.run = if full { self.run.saturating_add(1) } else { 0 };
+        self.run >= CONFIRM_LOOKS
     }
 }
 
@@ -96,7 +143,7 @@ mod tests {
     const DISPLAY: Rect = Rect { left: 0, top: 0, right: 1920, bottom: 1080 };
 
     fn window(rect: Rect, class: &str) -> Foreground {
-        Foreground { rect, monitor: DISPLAY, class: class.into(), own: false, on_island_display: true, framed_maximised: false }
+        Foreground { rect, monitor: DISPLAY, class: class.into(), process: "app.exe".into(), own: false, on_island_display: true, framed_maximised: false }
     }
 
     #[test]
@@ -158,10 +205,51 @@ mod tests {
         // "Busy" alone says a full-screen app runs somewhere: the rectangle decides.
         assert!(!is_fullscreen(Some(&small), Notification::Busy));
         // No window in front to look at (an exclusive mode can hide it): the shell's word.
-        assert!(is_fullscreen(None, Notification::Busy));
         assert!(is_fullscreen(None, Notification::D3dFullScreen));
         assert!(is_fullscreen(None, Notification::Presentation));
         assert!(!is_fullscreen(None, Notification::Normal));
         assert!(!is_fullscreen(None, Notification::Unknown));
+        // No window in front is also the moment between two windows, at a
+        // click elsewhere; "busy" alone may be a video on another display.
+        assert!(!is_fullscreen(None, Notification::Busy));
+    }
+
+    #[test]
+    fn the_shells_flyouts_are_no_full_screen_apps() {
+        // The touch keyboard and emoji panel, the Start menu, Search, the
+        // notification centre, Alt+Tab: as large as the display, no title bar.
+        for (class, process) in [
+            ("Windows.UI.Core.CoreWindow", "TextInputHost.exe"),
+            ("Windows.UI.Core.CoreWindow", "StartMenuExperienceHost.exe"),
+            ("Windows.UI.Core.CoreWindow", "SearchHost.exe"),
+            ("Windows.UI.Core.CoreWindow", "ShellExperienceHost.exe"),
+            ("Windows.UI.Core.CoreWindow", "ShellHost.exe"),
+            ("Windows.UI.Core.CoreWindow", "LockApp.exe"),
+            ("XamlExplorerHostIslandWindow", "explorer.exe"),
+            ("XamlExplorerHostIslandWindow_WASDK", "EXPLORER.EXE"),
+        ] {
+            let flyout = Foreground { process: process.into(), ..window(DISPLAY, class) };
+            assert!(!is_fullscreen(Some(&flyout), Notification::Normal), "{class} {process}");
+            assert!(!is_fullscreen(Some(&flyout), Notification::Busy), "{class} {process}");
+        }
+        // The same window from an app is full-screen; a name that only starts the same is an app.
+        assert!(is_fullscreen(Some(&window(DISPLAY, "Windows.UI.Core.CoreWindow")), Notification::Normal));
+        let lookalike = Foreground { process: "explorer.exe.game.exe".into(), ..window(DISPLAY, "Game") };
+        assert!(is_fullscreen(Some(&lookalike), Notification::Normal));
+    }
+
+    #[test]
+    fn one_look_is_not_enough_to_hide_the_island() {
+        let mut steady = Steady::default();
+        // A moment between two windows: one look says full-screen, the next does not.
+        assert!(!steady.look(true));
+        assert!(!steady.look(false));
+        assert!(!steady.look(true));
+        // A full-screen app stays: the second look in a row tells the island.
+        assert!(steady.look(true));
+        assert!(steady.look(true));
+        // Gone at the first look that says so.
+        assert!(!steady.look(false));
+        assert!(!steady.look(true));
     }
 }

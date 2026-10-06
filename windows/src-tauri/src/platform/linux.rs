@@ -221,6 +221,11 @@ pub fn fullscreen_in_front(_island: Option<&WebviewWindow>) -> bool {
     false
 }
 
+/// The same, with what it was decided on: nothing is asked here.
+pub fn fullscreen_verdict(_island: Option<&WebviewWindow>) -> (bool, String) {
+    (false, String::new())
+}
+
 pub fn cursor_physical() -> Option<(f64, f64)> {
     None
 }
