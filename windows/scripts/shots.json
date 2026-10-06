@@ -357,13 +357,13 @@
       "id": "install-release-page",
       "kind": "manual",
       "page": "web",
-      "size": "1280x720",
+      "size": "1229x617",
       "variants": [],
       "used-in": [
         "guides/install"
       ],
       "out": "install-release-page",
-      "alt": "The latest release page on GitHub with Nook-Windows-0.2.0-setup.exe and SHA256SUMS.txt in the assets list.",
+      "alt": "The latest release page on GitHub, with the Windows installer and SHA256SUMS.txt in the assets list.",
       "notes": "Browser at github.com/zubairbinshaukat/nook/releases/latest, assets list expanded, the installer and SHA256SUMS.txt rows highlighted (a red or accent box). Crop to the page, no other tabs or bookmarks."
     },
     {

@@ -12,6 +12,7 @@
     "shots": "node scripts/shots.mjs",
     "shots:stage": "node scripts/shot.mjs --set",
     "shots:check": "node scripts/shots.mjs --check",
+    "shots:import": "node scripts/import-shot.mjs",
     "shots:list": "node scripts/shots.mjs --list",
     "tauri": "tauri",
     "predev": "cargo build --release -p nook-hook",

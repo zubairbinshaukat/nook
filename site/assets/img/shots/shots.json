@@ -90,6 +90,15 @@
     "alt": "Nook open at the top of a Windows desktop: one session needs permission, two are working, one is done, with CPU, GPU, RAM and Claude usage beside them."
   },
   {
+    "id": "install-release-page",
+    "variant": null,
+    "file": "install-release-page.webp",
+    "width": 1229,
+    "height": 617,
+    "bytes": 49178,
+    "alt": "The latest release page on GitHub, with the Windows installer and SHA256SUMS.txt in the assets list."
+  },
+  {
     "id": "island-home",
     "variant": "dark",
     "file": "island-home-dark.webp",

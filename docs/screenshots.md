@@ -66,24 +66,38 @@ Each `figure.shot` holds a dark and a light `<img>` (`.shot-dark` / `.shot-light
 that matches the site's own theme (`data-theme` from the toggle, else `prefers-color-scheme`). The README uses
 `<picture>` with the GitHub theme. A manual shot that is still missing is an HTML comment
 `<!-- TODO screenshot: <id> (see docs/screenshots.md) -->` (or the old "Screenshot coming" box) at the spot.
-When you have the file, save it as `site/assets/img/shots/<file>`, replace the comment or box with
+When you have the file, run `shots:import` (below), replace the comment or box with
 `<figure class="shot"><img class="shot-img" src="/assets/img/shots/<file>" width=".." height=".." alt=".." loading="lazy" decoding="async"><figcaption>..</figcaption></figure>`
-and run `npm run shots:check`. Keep each manual file under 150 KB (WebP; `cwebp -q 85` or any converter).
+and run `npm run shots:check`. `npm run shots:import` does the conversion and prints that markup (a single image, no dark/light pair, uses just `class="shot-img"`).
 
 ## Manual shots
 
 Take them on Windows 11 at 100 % scaling, light or dark as noted, with no private paths, names or other windows in view.
+Then import each one with a single command (from `windows/`):
 
-| id | file | size | what to capture | used in |
-|---|---|---|---|---|
-| `install-release-page` | `install-release-page.webp` | 1280x720 | Browser at github.com/zubairbinshaukat/nook/releases/latest, assets list expanded, the installer and SHA256SUMS.txt rows highlighted (a red or accent box). Crop to the page, no other tabs or bookmarks. | guides/install |
-| `install-smartscreen` | `install-smartscreen.webp` | 960x640 | Run the installer on Windows 11: in the blue SmartScreen dialog click More info so the Run anyway button shows. Capture the dialog (Win+Shift+S, window snip). Needs the real Windows UI. | guides/install, guides/troubleshooting#smartscreen |
-| `install-wizard` | `install-wizard.webp` | 700x520 | Run Nook-Windows-0.2.0-setup.exe past SmartScreen and capture the first page of the installer window (not the last). Window snip, 100 % scale. | guides/install#run-installer |
-| `tray-menu` | `tray-menu.webp` | 420x480 | Windows 11, dark taskbar, 100 % scale. Open the hidden-icons chevron, right-click the Nook icon so its menu is open, then snip the menu plus the icon row (Win+Shift+S rectangle). Needs the real tray. | guides/install#run-installer, guides/troubleshooting#island-missing |
-| `log-folder` | `log-folder.webp` | 900x520 | File Explorer at %LOCALAPPDATA%\Nook (type it in the address bar), details view so file names and sizes show. Hide your user name in the address bar if it is visible (blur or crop). | guides/install#where-files, guides/troubleshooting#collect-logs |
-| `hooks-in-claude-code` | `hooks-in-claude-code.webp` | 1000x560 | Install the hooks, start `claude` in a terminal, type /hooks and capture the list that shows the nook-hook.exe entries. Use a dark terminal at a readable font size; crop to the list. Hide any private path. | guides/claude-code-hooks#diagnose |
-| `cursor-hooks-panel` | `cursor-hooks-panel.webp` | 1000x560 | After Settings -> Cursor -> Install hooks and a restart of Cursor, open Cursor's Hooks view (Cursor Settings) and capture the list with Nook's entries. Crop to the panel. | guides/cursor#setup |
-| `camera-privacy` | `camera-privacy.webp` | 900x560 | Windows 11 Settings -> Privacy & security -> Camera, scrolled so the 'Let desktop apps access your camera' switch is visible and on. Light or dark, 100 % scale. | guides/troubleshooting#camera |
-| `agents-list-real` | `agents-list-real.webp` | 560x640 | In the real app turn on Settings -> Agents list with 3-4 real or fake-session sessions (npm run fake-session) so the small agents window shows rows. Snip the window with a bit of desktop around it; use the Nook wallpaper or a plain one. Not capturable in a plain browser. | README.md |
-| `real-approval-terminal` | `real-approval-terminal.webp` | 1600x700 | Real Windows 11 desktop, a Claude Code permission prompt waiting in Windows Terminal and the real island open on the same request above it (use a throwaway project; no private paths, no other windows). Crop to the top of the screen and the terminal. | guides/first-run#approvals, README.md |
-| `cursor-session-list` | `cursor-session-list.webp` | 900x520 | Real Nook with one Claude Code session and one Cursor agent session running (Cursor hooks installed). Open the island on Home / the session list so both rows show; snip the island with 30 px around it over the Nook wallpaper or a plain desktop. | guides/cursor |
+```powershell
+npm run shots:import -- C:\path\to\shot.png --id install-smartscreen
+npm run shots:import -- shot.png --id <id> [--variant dark|light] [--width N] [--quality 90] [--budget KB] [--force]
+```
+
+`shots:import` converts the PNG or JPEG to WebP with the same Edge or Chrome as `shots`, keeps the aspect ratio (the table
+size is only a hint: a source over twice that wide is scaled down to 2x, a smaller one keeps its size), strips metadata,
+steps the quality from 90 down to 70 until the file is under the budget (150 KB), and writes
+`site/assets/img/shots/<id>.webp`, that folder's `shots.json` and the new size into the manifest. It then prints the
+`<figure>` to paste at the TODO spot in the guide (nothing to paste when the guide already has it), and refuses an
+unknown id or an auto shot (`--force` overrides the latter). Retaking a shot is the same command again.
+`npm run shots:check` lists what is still missing. Never commit the original PNG.
+
+| id | state | size | what to capture | used in | import |
+|---|---|---|---|---|---|
+| `install-release-page` | provided | 1229x617 | Browser at github.com/zubairbinshaukat/nook/releases/latest, assets list expanded, the installer and SHA256SUMS.txt rows highlighted (a red or accent box). Crop to the page, no other tabs or bookmarks. | guides/install | `npm run shots:import -- <file> --id install-release-page` |
+| `install-smartscreen` | to do | 960x640 | Run the installer on Windows 11: in the blue SmartScreen dialog click More info so the Run anyway button shows. Capture the dialog (Win+Shift+S, window snip). Needs the real Windows UI. | guides/install, guides/troubleshooting#smartscreen | `npm run shots:import -- <file> --id install-smartscreen` |
+| `install-wizard` | to do | 700x520 | Run Nook-Windows-0.2.0-setup.exe past SmartScreen and capture the first page of the installer window (not the last). Window snip, 100 % scale. | guides/install#run-installer | `npm run shots:import -- <file> --id install-wizard` |
+| `tray-menu` | to do | 420x480 | Windows 11, dark taskbar, 100 % scale. Open the hidden-icons chevron, right-click the Nook icon so its menu is open, then snip the menu plus the icon row (Win+Shift+S rectangle). Needs the real tray. | guides/install#run-installer, guides/troubleshooting#island-missing | `npm run shots:import -- <file> --id tray-menu` |
+| `log-folder` | to do | 900x520 | File Explorer at %LOCALAPPDATA%\Nook (type it in the address bar), details view so file names and sizes show. Hide your user name in the address bar if it is visible (blur or crop). | guides/install#where-files, guides/troubleshooting#collect-logs | `npm run shots:import -- <file> --id log-folder` |
+| `hooks-in-claude-code` | to do | 1000x560 | Install the hooks, start `claude` in a terminal, type /hooks and capture the list that shows the nook-hook.exe entries. Use a dark terminal at a readable font size; crop to the list. Hide any private path. | guides/claude-code-hooks#diagnose | `npm run shots:import -- <file> --id hooks-in-claude-code` |
+| `cursor-hooks-panel` | to do | 1000x560 | After Settings -> Cursor -> Install hooks and a restart of Cursor, open Cursor's Hooks view (Cursor Settings) and capture the list with Nook's entries. Crop to the panel. | guides/cursor#setup | `npm run shots:import -- <file> --id cursor-hooks-panel` |
+| `camera-privacy` | to do | 900x560 | Windows 11 Settings -> Privacy & security -> Camera, scrolled so the 'Let desktop apps access your camera' switch is visible and on. Light or dark, 100 % scale. | guides/troubleshooting#camera | `npm run shots:import -- <file> --id camera-privacy` |
+| `agents-list-real` | to do | 560x640 | In the real app turn on Settings -> Agents list with 3-4 real or fake-session sessions (npm run fake-session) so the small agents window shows rows. Snip the window with a bit of desktop around it; use the Nook wallpaper or a plain one. Not capturable in a plain browser. | README.md | `npm run shots:import -- <file> --id agents-list-real` |
+| `real-approval-terminal` | to do | 1600x700 | Real Windows 11 desktop, a Claude Code permission prompt waiting in Windows Terminal and the real island open on the same request above it (use a throwaway project; no private paths, no other windows). Crop to the top of the screen and the terminal. | guides/first-run#approvals, README.md | `npm run shots:import -- <file> --id real-approval-terminal` |
+| `cursor-session-list` | to do | 900x520 | Real Nook with one Claude Code session and one Cursor agent session running (Cursor hooks installed). Open the island on Home / the session list so both rows show; snip the island with 30 px around it over the Nook wallpaper or a plain desktop. | guides/cursor | `npm run shots:import -- <file> --id cursor-session-list` |
