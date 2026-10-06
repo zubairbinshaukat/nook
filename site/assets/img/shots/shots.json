@@ -99,6 +99,33 @@
     "alt": "The latest release page on GitHub, with the Windows installer and SHA256SUMS.txt in the assets list."
   },
   {
+    "id": "install-smartscreen-first",
+    "variant": null,
+    "file": "install-smartscreen-first.webp",
+    "width": 534,
+    "height": 496,
+    "bytes": 14996,
+    "alt": "The Windows protected your PC window before More info is clicked: only a More info link and Don't run."
+  },
+  {
+    "id": "install-smartscreen",
+    "variant": null,
+    "file": "install-smartscreen.webp",
+    "width": 534,
+    "height": 498,
+    "bytes": 19428,
+    "alt": "The Windows SmartScreen dialog 'Windows protected your PC' with More info expanded and the Run anyway button visible."
+  },
+  {
+    "id": "install-wizard",
+    "variant": null,
+    "file": "install-wizard.webp",
+    "width": 499,
+    "height": 388,
+    "bytes": 21822,
+    "alt": "The Nook installer wizard on its first page."
+  },
+  {
     "id": "island-home",
     "variant": "dark",
     "file": "island-home-dark.webp",
@@ -403,5 +430,14 @@
     "height": 252,
     "bytes": 14378,
     "alt": "The Shelf of the island with the six widget cards: To-do, Timer, Reminders, Media, Mirror and Projects."
+  },
+  {
+    "id": "tray-menu",
+    "variant": null,
+    "file": "tray-menu.webp",
+    "width": 248,
+    "height": 265,
+    "bytes": 6364,
+    "alt": "The Nook icon in the Windows notification area with its context menu open."
   }
 ]

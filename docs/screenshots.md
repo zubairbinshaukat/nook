@@ -77,11 +77,11 @@ Then import each one with a single command (from `windows/`):
 
 ```powershell
 npm run shots:import -- C:\path\to\shot.png --id install-smartscreen
-npm run shots:import -- shot.png --id <id> [--variant dark|light] [--width N] [--quality 90] [--budget KB] [--force]
+npm run shots:import -- shot.png --id <id> [--variant dark|light] [--width N] [--quality 90] [--budget KB] [--crop x,y,w,h] [--force]
 ```
 
 `shots:import` converts the PNG or JPEG to WebP with the same Edge or Chrome as `shots`, keeps the aspect ratio (the table
-size is only a hint: a source over twice that wide is scaled down to 2x, a smaller one keeps its size), strips metadata,
+size is only a hint: a source over twice that wide is scaled down to 2x, a smaller one keeps its size), strips metadata, cuts out `--crop x,y,w,h` (source pixels) first when given (use it to leave desktop around a dialog out of the picture),
 steps the quality from 90 down to 70 until the file is under the budget (150 KB), and writes
 `site/assets/img/shots/<id>.webp`, that folder's `shots.json` and the new size into the manifest. It then prints the
 `<figure>` to paste at the TODO spot in the guide (nothing to paste when the guide already has it), and refuses an
@@ -91,9 +91,10 @@ unknown id or an auto shot (`--force` overrides the latter). Retaking a shot is 
 | id | state | size | what to capture | used in | import |
 |---|---|---|---|---|---|
 | `install-release-page` | provided | 1229x617 | Browser at github.com/zubairbinshaukat/nook/releases/latest, assets list expanded, the installer and SHA256SUMS.txt rows highlighted (a red or accent box). Crop to the page, no other tabs or bookmarks. | guides/install | `npm run shots:import -- <file> --id install-release-page` |
-| `install-smartscreen` | to do | 960x640 | Run the installer on Windows 11: in the blue SmartScreen dialog click More info so the Run anyway button shows. Capture the dialog (Win+Shift+S, window snip). Needs the real Windows UI. | guides/install, guides/troubleshooting#smartscreen | `npm run shots:import -- <file> --id install-smartscreen` |
-| `install-wizard` | to do | 700x520 | Run Nook-Windows-0.2.1-setup.exe past SmartScreen and capture the first page of the installer window (not the last). Window snip, 100 % scale. | guides/install#run-installer | `npm run shots:import -- <file> --id install-wizard` |
-| `tray-menu` | to do | 420x480 | Windows 11, dark taskbar, 100 % scale. Open the hidden-icons chevron, right-click the Nook icon so its menu is open, then snip the menu plus the icon row (Win+Shift+S rectangle). Needs the real tray. | guides/install#run-installer, guides/troubleshooting#island-missing | `npm run shots:import -- <file> --id tray-menu` |
+| `install-smartscreen-first` | provided | 534x496 | The SmartScreen dialog as it first appears, before More info is clicked (a More info link and only Don't run). Capture the dialog only (Win+Shift+S, window snip), no desktop around it. | guides/install#smartscreen | `npm run shots:import -- <file> --id install-smartscreen-first` |
+| `install-smartscreen` | provided | 534x498 | Run the installer on Windows 11: in the blue SmartScreen dialog click More info so the Run anyway button shows. Capture the dialog (Win+Shift+S, window snip). Needs the real Windows UI. | guides/install, guides/troubleshooting#smartscreen | `npm run shots:import -- <file> --id install-smartscreen` |
+| `install-wizard` | provided | 499x388 | Run Nook-Windows-0.2.1-setup.exe past SmartScreen and capture the first page of the installer window (not the last). Window snip, 100 % scale. | guides/install#run-installer | `npm run shots:import -- <file> --id install-wizard` |
+| `tray-menu` | provided | 248x265 | Windows 11, dark taskbar, 100 % scale. Open the hidden-icons chevron, right-click the Nook icon so its menu is open, then snip the menu plus the icon row (Win+Shift+S rectangle). Needs the real tray. | guides/install#run-installer, guides/troubleshooting#island-missing | `npm run shots:import -- <file> --id tray-menu` |
 | `log-folder` | to do | 900x520 | File Explorer at %LOCALAPPDATA%\Nook (type it in the address bar), details view so file names and sizes show. Hide your user name in the address bar if it is visible (blur or crop). | guides/install#where-files, guides/troubleshooting#collect-logs | `npm run shots:import -- <file> --id log-folder` |
 | `hooks-in-claude-code` | to do | 1000x560 | Install the hooks, start `claude` in a terminal, type /hooks and capture the list that shows the nook-hook.exe entries. Use a dark terminal at a readable font size; crop to the list. Hide any private path. | guides/claude-code-hooks#diagnose | `npm run shots:import -- <file> --id hooks-in-claude-code` |
 | `cursor-hooks-panel` | to do | 1000x560 | After Settings -> Cursor -> Install hooks and a restart of Cursor, open Cursor's Hooks view (Cursor Settings) and capture the list with Nook's entries. Crop to the panel. | guides/cursor#setup | `npm run shots:import -- <file> --id cursor-hooks-panel` |

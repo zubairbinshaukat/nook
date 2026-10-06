@@ -370,7 +370,7 @@
       "id": "install-smartscreen",
       "kind": "manual",
       "page": "web",
-      "size": "960x640",
+      "size": "534x498",
       "variants": [],
       "used-in": [
         "guides/install",
@@ -381,10 +381,23 @@
       "notes": "Run the installer on Windows 11: in the blue SmartScreen dialog click More info so the Run anyway button shows. Capture the dialog (Win+Shift+S, window snip). Needs the real Windows UI."
     },
     {
+      "id": "install-smartscreen-first",
+      "kind": "manual",
+      "page": "web",
+      "size": "534x496",
+      "variants": [],
+      "used-in": [
+        "guides/install#smartscreen"
+      ],
+      "out": "install-smartscreen-first",
+      "alt": "The Windows protected your PC window before More info is clicked: only a More info link and Don't run.",
+      "notes": "The SmartScreen dialog as it first appears, before More info is clicked (a More info link and only Don't run). Capture the dialog only (Win+Shift+S, window snip), no desktop around it."
+    },
+    {
       "id": "install-wizard",
       "kind": "manual",
       "page": "web",
-      "size": "700x520",
+      "size": "499x388",
       "variants": [],
       "used-in": [
         "guides/install#run-installer"
@@ -397,7 +410,7 @@
       "id": "tray-menu",
       "kind": "manual",
       "page": "web",
-      "size": "420x480",
+      "size": "248x265",
       "variants": [],
       "used-in": [
         "guides/install#run-installer",

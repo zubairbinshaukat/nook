@@ -3,11 +3,11 @@
 // site/assets/img/shots/, updates that folder's shots.json and the manifest's recorded size.
 //
 //   npm run shots:import -- <image.png|jpg|webp> --id <manifest id> [--variant dark|light] [--width N]
-//                           [--quality 90] [--budget KB] [--force] [--browser EXE] [--out DIR]
+//                           [--quality 90] [--budget KB] [--crop x,y,w,h] [--force] [--browser EXE] [--out DIR]
 //
 // The aspect ratio is always kept; the manifest size is only a hint. A source wider than twice the manifest width
 // is scaled down to that 2x width (high-quality smoothing), a smaller one keeps its native size; --width N sets the
-// width by hand. Quality starts at 90 and steps down by 5 to 70 until the file is under the budget (the manifest's
+// width by hand. --crop x,y,w,h cuts that rectangle (source pixels) out first, e.g. to leave out desktop around a\n// dialog; the width rules then apply to the cropped size. Quality starts at 90 and steps down by 5 to 70 until the file is under the budget (the manifest's
 // budgetKB, 150 by default). Metadata is not carried over (the browser draws pixels only). See docs/screenshots.md.
 
 import { spawn } from "node:child_process";
@@ -32,7 +32,7 @@ const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 // ── Flags ────────────────────────────────────────────────────────────────────
 
 const argv = process.argv.slice(2);
-const valued = new Set(["--id", "--variant", "--width", "--quality", "--budget", "--browser", "--out"]);
+const valued = new Set(["--id", "--variant", "--width", "--quality", "--budget", "--crop", "--browser", "--out"]);
 const switches = new Set(["--force", "--help"]);
 const flags = {};
 const positional = [];
@@ -61,6 +61,8 @@ const num = (name, min, max) => {
 const widthFlag = num("--width", 16, 8000);
 const qualityStart = Math.min(100, Math.max(QUALITY_FLOOR, num("--quality", 1, 100) ?? 90));
 const budgetFlag = num("--budget", 1, 100000);
+const crop = flags["--crop"] === undefined ? null : flags["--crop"].split(",").map(Number);
+if (crop && (crop.length !== 4 || crop.some((n) => !Number.isInteger(n) || n < 0) || crop[2] < 1 || crop[3] < 1)) fail(`--crop needs four whole numbers x,y,w,h (got "${flags["--crop"]}")`);
 const outDir = resolve(flags["--out"] ?? join(repoRoot, "site", "assets", "img", "shots"));
 
 // ── The manifest entry ───────────────────────────────────────────────────────
@@ -178,14 +180,17 @@ let out;
 try {
   const expr = `(async () => {
     const bmp = await createImageBitmap(await (await fetch("data:${kind};base64,${bytesIn.toString("base64")}")).blob());
-    const nativeW = bmp.width, nativeH = bmp.height;
+    const crop = ${JSON.stringify(crop)};
+    if (crop && (crop[0] + crop[2] > bmp.width || crop[1] + crop[3] > bmp.height)) throw new Error("--crop is outside the image (" + bmp.width + "x" + bmp.height + ")");
+    const [sx, sy] = crop ?? [0, 0];
+    const nativeW = crop ? crop[2] : bmp.width, nativeH = crop ? crop[3] : bmp.height;
     const want = ${widthFlag ?? "null"} ?? (nativeW > ${nomW * 2} ? ${nomW * 2} : nativeW);
     const w = Math.max(1, Math.round(want)), h = Math.max(1, Math.round(nativeH * w / nativeW));
     const canvas = new OffscreenCanvas(w, h);
     const ctx = canvas.getContext("2d");
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(bmp, 0, 0, w, h);
+    ctx.drawImage(bmp, sx, sy, nativeW, nativeH, 0, 0, w, h);
     const toB64 = (blob) => blob.arrayBuffer().then((ab) => { let s = ""; const u = new Uint8Array(ab); for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); });
     let best = null; const tried = [];
     for (let q = ${qualityStart}; q >= ${QUALITY_FLOOR}; q -= ${QUALITY_STEP}) {

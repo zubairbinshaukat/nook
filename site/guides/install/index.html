@@ -132,9 +132,8 @@
 <li>Choose <strong>More info</strong>. A second button appears.</li>
 <li>Choose <strong>Run anyway</strong>.</li>
 </ol>
-<!-- Replace .shot with <img src=... width height alt> -->
-<!-- TODO screenshot: install-smartscreen (see docs/screenshots.md) -->
-<figure class="shot" data-shot="install-2"><div class="shot-box" role="img" aria-label="Screenshot placeholder: Windows SmartScreen with More info expanded and the Run anyway button visible"><b>Screenshot coming:</b> <span>Windows SmartScreen with More info expanded and the Run anyway button visible</span></div><figcaption>Windows SmartScreen with More info expanded and the Run anyway button visible</figcaption></figure>
+<figure class="shot" data-shot="install-smartscreen-first"><img class="shot-img" src="/assets/img/shots/install-smartscreen-first.webp" width="534" height="496" alt="The Windows protected your PC window before More info is clicked: only a More info link and Don't run." loading="lazy" decoding="async"><figcaption>Step 1: choose More info.</figcaption></figure>
+<figure class="shot" data-shot="install-smartscreen"><img class="shot-img" src="/assets/img/shots/install-smartscreen.webp" width="534" height="498" alt="The Windows SmartScreen dialog 'Windows protected your PC' with More info expanded and the Run anyway button visible." loading="lazy" decoding="async"><figcaption>Step 2: choose Run anyway.</figcaption></figure>
 <h3>Why does this happen?</h3>
 <p>Releases are unsigned for now. SmartScreen does not know new programs that are not code-signed, so it warns about them, whatever they do. Only choose Run anyway if you got the installer from the official release and its hash matches. Code signing is planned through the <a href="https://signpath.org" target="_blank" rel="noopener noreferrer">SignPath Foundation</a>&rsquo;s free programme once the project qualifies. When that happens the warning should fade. Until then Nook is open source, so you can read the code or build it yourself.</p>
 <div class="callout callout-warn"><svg class="i" aria-hidden="true"><use href="#i-warn"/></svg><p><strong>Antivirus flagged nook-hook.exe?</strong> Small unsigned programs that other programs start often are sometimes flagged by heuristics. That is a false positive. You can report it to Microsoft at <a href="https://www.microsoft.com/wdsi/filesubmission" target="_blank" rel="noopener noreferrer">www.microsoft.com/wdsi/filesubmission</a> as &ldquo;Software developer&rdquo; and &ldquo;Incorrectly detected&rdquo;. See <a href="/guides/troubleshooting/#antivirus">troubleshooting</a>.</p></div>
@@ -149,8 +148,8 @@
 <!-- Replace .shot with <img src=... width height alt> -->
 <figure class="shot" data-shot="island-home"><div class="shot-pair"><img class="shot-img shot-dark" src="/assets/img/shots/island-home-dark.webp" width="720" height="288" alt="The Nook island open on Home: a session card that needs permission, the working and done sessions, and CPU, GPU, RAM and Claude usage." loading="lazy" decoding="async"><img class="shot-img shot-light" src="/assets/img/shots/island-home-light.webp" width="720" height="288" alt="The Nook island open on Home: a session card that needs permission, the working and done sessions, and CPU, GPU, RAM and Claude usage." loading="lazy" decoding="async"></div><figcaption>The island after the first start.</figcaption></figure>
 
-<!-- TODO screenshot: install-wizard (see docs/screenshots.md) -->
-<!-- TODO screenshot: tray-menu (see docs/screenshots.md) -->
+<figure class="shot" data-shot="install-wizard"><img class="shot-img" src="/assets/img/shots/install-wizard.webp" width="499" height="388" alt="The Nook installer wizard on its first page." loading="lazy" decoding="async"><figcaption>The first page of the installer.</figcaption></figure>
+<figure class="shot" data-shot="tray-menu"><img class="shot-img" src="/assets/img/shots/tray-menu.webp" width="248" height="265" alt="The Nook icon in the Windows notification area with its context menu open." loading="lazy" decoding="async"><figcaption>The Nook tray menu: Open Nook, Hide island, Show agents list, Settings, Pause and Quit.</figcaption></figure>
 <h2 id="where-files">Where Nook keeps its files</h2>
 <table>
 <tr><th>What</th><th>Where</th></tr>
