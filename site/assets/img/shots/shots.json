@@ -1,5 +1,14 @@
 [
   {
+    "id": "agents-list-real",
+    "variant": null,
+    "file": "agents-list-real.webp",
+    "width": 429,
+    "height": 262,
+    "bytes": 15656,
+    "alt": "The Nook agents list window next to a desktop, listing running sessions with their states."
+  },
+  {
     "id": "approval-diff",
     "variant": "dark",
     "file": "approval-diff-dark.webp",

@@ -70,10 +70,11 @@ telemetry.
 </table>
 
 <p align="center"><img src="site/assets/img/shots/real-approval-terminal.webp" alt="Claude Code asking for permission in a terminal while the real Nook island shows the same request at the top of the screen." width="900"><br><sub>The real thing: Claude Code waits in the terminal, the island shows the same request.</sub></p>
-<!-- TODO screenshot: agents-list-real (see docs/screenshots.md) -->
+<p align="center"><img src="site/assets/img/shots/agents-list-real.webp" alt="The Nook agents list: one row per project with its status, elapsed time and context size, and the number of agents running." width="430"><br><sub>The agents list: every project at a glance, always on top.</sub></p>
 
-The images change with your GitHub theme. They are made by `npm run shots` from a
+Most images change with your GitHub theme and are made by `npm run shots` from a
 fake desktop and made-up sessions: see [docs/screenshots.md](docs/screenshots.md).
+The last two are plain screenshots of the real app.
 
 ## Features
 
