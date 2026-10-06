@@ -17,10 +17,13 @@ What Nook ships instead is its own:
   `windows/scripts/make-wallpaper.mjs`; no photo, render or other picture went into them (the optional
   Windows 11 Bloom wallpaper the stage can show is Microsoft's, stays on the developer's machine and is
   never committed);
+- **the installer artwork**, `windows/src-tauri/nsis/header.bmp` and `sidebar.bmp` (the pictures on
+  the installer and uninstaller pages), drawn from Gullu and Nook's palette on a canvas by
+  `windows/scripts/make-installer-art.mjs`; no photo, render or other picture went into them;
 - **the interface icons**, which come from Lucide and Simple Icons under their
   own licences (see [NOTICE](NOTICE)).
 
-Gullu, the icons, the sounds and the wallpapers are original to Nook and are covered by the
+Gullu, the icons, the sounds, the wallpapers and the installer artwork are original to Nook and are covered by the
 same MIT licence as the code. The name "Nook" and the look of Gullu are the
 project's; if you fork Nook to ship your own app, give it your own name and icon.
 

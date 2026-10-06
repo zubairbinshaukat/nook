@@ -63,6 +63,10 @@
         "installMode": "currentUser",
         "languages": ["English"],
         "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "headerImage": "nsis/header.bmp",
+        "uninstallerHeaderImage": "nsis/header.bmp",
+        "sidebarImage": "nsis/sidebar.bmp",
         "installerHooks": "nsis/hooks.nsh"
       }
     }
