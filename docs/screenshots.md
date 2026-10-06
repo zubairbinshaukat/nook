@@ -28,7 +28,7 @@ default 90), `--browser EXE`. The run fails (exit 1) on a page error, a missing 
 a shot that takes more than 30 s.
 
 Each image is captured by the browser as WebP at quality 90, then 85, 80, 75, 70 until it is under its budget
-(`budgetKB`, 150 by default, the hero 320). A loud warning follows if it is still over at 70.
+(`budgetKB`, 150 by default, the hero 250). A loud warning follows if it is still over at 70.
 `site/assets/img/shots/shots.json` lists `{id, variant, file, width, height, bytes, alt}` for every image, for the
 `width`/`height` attributes. A file is rewritten only when its pixels changed; some idle animation in the island
 makes a few stage shots differ by a few pixels from run to run, so after a full run use `git status` and keep only
@@ -47,7 +47,7 @@ the images you meant to change (or run with `--only`).
 | `page` | `stage` (`/dev/claude-preview.html`), `settings` (`/dev/settings-frame.html`: the Settings fake page in a Windows-style window with a shadow, on a transparent background) or `agents` |
 | `params` | query string or object: the keys of `windows/dev/README.md` (stage) or the fake-mode keys at the top of `src/settings/fake.ts` (settings). `theme`, `shot`, `w`, `h`, `time`, `date`, `seed`, `motion`, `wallpaper` and `scale` are added by the script |
 | `size` | `WxH`: the stage's display, or the Settings window |
-| `scale` | percent (default 100); `--125` etc. override it |
+| `scale` | percent (default 100), used when the shot is made, with no suffix on its files (the hero is 125); `--125` etc. override it for every shot and add the suffix |
 | `crop` | `{selector, pad}` (e.g. `#island` plus 40 px) or `{x,y,w,h}` in CSS px; clamped to the page; none = everything |
 | `variants` | `["dark","light"]` (default); `[]` for a manual shot with one file |
 | `wallpaper` | `nook` (default) or `bloom` |

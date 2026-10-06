@@ -15,15 +15,16 @@
       "id": "hero",
       "kind": "auto",
       "page": "stage",
-      "size": "1920x1080",
-      "budgetKB": 320,
-      "params": "home=4",
+      "size": "1280x720",
+      "budgetKB": 250,
+      "scale": 125,
+      "params": "home=3&tools=claude,claude,cursor&names=web,api,docs",
       "used-in": [
         "README.md"
       ],
       "out": "hero",
-      "alt": "Nook open at the top of a Windows desktop: one session needs permission, two are working, one is done, with CPU, GPU, RAM and Claude usage beside them.",
-      "notes": "The whole desktop, island open on Home with four sessions."
+      "alt": "Nook open on the Home view at 125% scaling: three agents, two from Claude Code and one from Cursor, with CPU, GPU, RAM and Claude usage beside them.",
+      "notes": "The whole desktop at 125 % Windows scaling, island open on Home with three sessions: web working, api needs permission, docs (Cursor) done."
     },
     {
       "id": "island-home",

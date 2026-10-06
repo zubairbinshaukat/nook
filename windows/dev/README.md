@@ -76,7 +76,7 @@ without checking Microsoft's terms; `wallpaper=nook` is the free-to-share look.
 
 `view=overview|session|question|approval|finished` (+ `live` `list` `file` `idle` `answered` `multi` `many` `diff`
 `reply=1|long`), `target=claude|vscode|cursor|wt|powershell|cmd|none`, `home=0|1|4|8|9|needs|long` (+ `hooks=0`
-`decision=1|main` `subs=two|asking|stopped|six`), `fold=1`, `cells=`, `screen=<px>`, `usage=fresh|stale|reset|soon|old|warm|hot|worst|none|off`,
+`decision=1|main` `subs=two|asking|stopped|six`), `tools=claude,claude,cursor` (the tool of each home session) + `names=web,api,docs` (their folders), `fold=1`, `cells=`, `screen=<px>`, `usage=fresh|stale|reset|soon|old|warm|hot|worst|none|off`,
 `metrics=live|worst|wait|off`, `gpu=none`, `tab=shelf` (+ `hidden=` `order=`), `sessions=1`, `subagents=1`
 (+ `ask=question|none` `queued=1` `stop=early|real|silent|both|same` `ids=missing`), `phantoms=`, `quiet=<s>`, `step=read|run`, `asked=1`.
 

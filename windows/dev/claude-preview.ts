@@ -649,8 +649,16 @@ const HOME: HomeSpec[] = [
 const LONG = "D:\\work\\client-with-an-unreasonably-long-repository-name-2026-rewrite";
 const MODELS = ["claude-opus-5-5", "claude-sonnet-4-5", undefined, "claude-haiku-4-5-20251001"];
 
+// `tools=claude,claude,cursor` says which tool each home session runs in (default all Claude Code): a Cursor
+// session carries `nook_tool: "cursor"` as the relay sets it, and runs in Cursor. `names=web,api,docs` renames
+// the sessions' folders (D:\\work\\acme\\<name>), in the order of the sessions. Cursor never asks, so a
+// Cursor session should be working or finished.
+const TOOLS = (params.get("tools") ?? "").split(",").map((s) => s.trim());
+const NAMES = (params.get("names") ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 function homeSession(i: number, spec: HomeSpec) {
-  const of: HookPayload = { session_id: `home-${i + 1}`, cwd: spec.cwd, session_title: undefined, ...TARGETS.wt };
+  const cursor = TOOLS[i] === "cursor";
+  if (NAMES[i]) spec = { ...spec, cwd: `D:\\work\\acme\\${NAMES[i]}` };
+  const of: HookPayload = { session_id: `home-${i + 1}`, cwd: spec.cwd, session_title: undefined, ...(cursor ? { ...TARGETS.cursor, nook_tool: "cursor" } : TARGETS.wt) };
   const send = (payload: HookPayload) => handleHook(island, { ...of, ...payload });
   const ago = Date.now() - spec.minutes * MIN;
   send({ hook_event_name: "SessionStart", model: MODELS[i % MODELS.length] });

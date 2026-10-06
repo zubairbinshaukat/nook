@@ -51,7 +51,7 @@ telemetry.
 
 <div align="center">
 
-<picture><source media="(prefers-color-scheme: light)" srcset="site/assets/img/shots/hero-light.webp"><img src="site/assets/img/shots/hero-dark.webp" alt="Nook open at the top of a Windows desktop: one session needs permission, two are working, one is done, with CPU, GPU, RAM and Claude usage beside them." width="860"></picture>
+<picture><source media="(prefers-color-scheme: light)" srcset="site/assets/img/shots/hero-light.webp"><img src="site/assets/img/shots/hero-dark.webp" alt="Nook open on the Home view at 125% scaling: three agents, two from Claude Code and one from Cursor, with CPU, GPU, RAM and Claude usage beside them." width="860"></picture>
 
 </div>
 

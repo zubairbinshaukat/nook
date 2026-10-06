@@ -51,23 +51,25 @@ const val = (name) => {
 };
 const known = new Set(["--list", "--only", "--theme", "--size", "--scale", "--out", "--budget", "--quality", "--check", "--base-url", "--keep-server", "--browser", "--help"]);
 let scalePct = 100;
+let scaleFlagged = false; // a --125 or --scale on the command line wins over the manifest's `scale` and puts a suffix on the files
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (!a.startsWith("--")) {
     if (argv[i - 1] && known.has(argv[i - 1]) && !["--list", "--check", "--keep-server", "--help"].includes(argv[i - 1])) continue;
     fail(`unexpected argument "${a}"`);
   }
-  if (/^--\d+$/.test(a)) scalePct = Number(a.slice(2));
+  if (/^--\d+$/.test(a)) { scalePct = Number(a.slice(2)); scaleFlagged = true; }
   else if (!known.has(a)) fail(`unknown flag ${a}. Known: ${[...known].join(" ")} and --NNN (a Windows scaling in percent: --125)`);
 }
 if (has("--help")) {
   console.log(readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(0, 17).map((l) => l.replace(/^\/\/ ?/, "")).join("\n"));
   process.exit(0);
 }
-if (val("--scale") !== null) scalePct = Number(val("--scale"));
+if (val("--scale") !== null) { scalePct = Number(val("--scale")); scaleFlagged = true; }
 if (!Number.isFinite(scalePct) || scalePct < 100 || scalePct > 300) fail(`the scaling must be 100..300 percent (got ${scalePct}); Windows offers up to 500 % but the stage stops at 300 %`);
 if (scalePct > 200) console.warn(`shots: warning: ${scalePct} % makes very large files; the budget will push the quality down.`);
-const scale = scalePct / 100;
+/** The scaling a shot is made at: the command line's, else its own `scale` in the manifest (hero: 125). */
+const scaleOf = (s) => (scaleFlagged ? scalePct : Number(s.scale ?? 100)) / 100;
 const onlyIds = val("--only")?.split(",").map((s) => s.trim()).filter(Boolean) ?? null;
 const themeFlag = val("--theme");
 if (themeFlag && !THEMES.includes(themeFlag)) fail(`--theme is dark or light (got "${themeFlag}")`);
@@ -335,7 +337,7 @@ function urlFor(base, s, variant) {
     if (!p.has("date")) set("date", "10/6/2026");
     if (!p.has("seed")) set("seed", 1);
     if (!p.has("motion")) set("motion", "reduce");
-    if (scale !== 1) set("scale", scale);
+    if (scaleOf(s) !== 1) set("scale", scaleOf(s));
     viewport = [w, h];
   } else if (s.page === "settings") {
     // The window is w x h; the frame adds a 32 px title bar and 56 px of shadow room all round.
@@ -372,7 +374,7 @@ async function captureShot(port, base, s, variant, previous) {
   return withTab(port, async (tab) => {
     const timer = setTimeout(() => tab.ws.close(), SHOT_TIMEOUT);
     try {
-      await tab.send("Emulation.setDeviceMetricsOverride", { width: viewport[0], height: viewport[1], deviceScaleFactor: scale, mobile: false });
+      await tab.send("Emulation.setDeviceMetricsOverride", { width: viewport[0], height: viewport[1], deviceScaleFactor: scaleOf(s), mobile: false });
       if (transparent) await tab.send("Emulation.setDefaultBackgroundColorOverride", { color: { r: 0, g: 0, b: 0, a: 0 } });
       await tab.send("Page.navigate", { url });
       const t0 = Date.now();
@@ -445,8 +447,8 @@ try {
         const [width, height] = webpSize(bytes);
         const same = existsSync(path) && readFileSync(path).equals(bytes);
         if (!same) writeFileSync(path, bytes);
-        table.push([s.id, variant + (scalePct !== 100 ? `@${scalePct}` : ""), `${width}x${height}`, (bytes.length / 1024).toFixed(1), quality, same ? "same" : "written"]);
-        results.push({ id: s.id, variant: variant || null, file, width, height, bytes: bytes.length, alt: s.alt, scale: scalePct });
+        table.push([s.id, variant + (scaleOf(s) !== 1 ? `@${Math.round(scaleOf(s) * 100)}` : ""), `${width}x${height}`, (bytes.length / 1024).toFixed(1), quality, same ? "same" : "written"]);
+        results.push({ id: s.id, variant: variant || null, file, width, height, bytes: bytes.length, alt: s.alt, scale: Math.round(scaleOf(s) * 100) });
       } catch (e) {
         errors.push(`${s.id} (${variant}): ${e.message}`);
         table.push([s.id, variant, "-", "-", "-", "FAILED"]);

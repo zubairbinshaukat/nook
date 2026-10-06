@@ -26,8 +26,8 @@ import { dirname, join, resolve } from "node:path";
 
 /** The README / guides set. Each entry is a query; the stage's defaults are dark, desktop, top dock. */
 const SET = {
-  "hero-dark": "home=4&theme=dark",
-  "hero-light": "home=4&theme=light",
+  "hero-dark": "home=3&tools=claude,claude,cursor&names=web,api,docs&scale=1.25&theme=dark",
+  "hero-light": "home=3&tools=claude,claude,cursor&names=web,api,docs&scale=1.25&theme=light",
   "dock-bottom": "home=4&dock=bottom&theme=light",
   "dock-left": "home=4&dock=left&theme=dark",
   "dock-right": "home=4&dock=right&theme=dark",
