@@ -1,0 +1,36 @@
+/* Nook site: full-screen image viewer for the guide screenshots (assets/js/lightbox.js).
+   A fixed dark UI that reads the same on the dark and the light site theme. */
+.shot-img.lb-ready{cursor:zoom-in}
+.shot-img.lb-ready:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+
+.lb{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;
+  background:rgba(8,8,12,.92);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  color:#F4F3F7;font:500 14px/1.4 var(--font-body,system-ui,sans-serif);
+  overscroll-behavior:contain;opacity:0;-webkit-user-select:none;user-select:none;
+  -webkit-tap-highlight-color:transparent}
+.lb.lb-in{opacity:1;transition:opacity .16s ease}
+.lb-bar{flex:none;display:flex;align-items:center;gap:6px;min-height:56px;
+  padding:calc(6px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) 6px calc(14px + env(safe-area-inset-left))}
+.lb-count{margin-right:auto;font-variant-numeric:tabular-nums;color:rgba(244,243,247,.75)}
+.lb-btn{flex:none;display:inline-grid;place-items:center;width:44px;height:44px;padding:0;border:0;border-radius:12px;
+  background:rgba(255,255,255,.09);color:#F4F3F7;cursor:pointer;transition:background .12s ease}
+.lb-btn:hover{background:rgba(255,255,255,.18)}
+.lb-btn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.lb-btn:disabled{opacity:.35;cursor:default}
+.lb-btn svg{width:22px;height:22px;display:block;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.lb-stage{position:relative;flex:1 1 auto;min-height:0;overflow:hidden;touch-action:none;cursor:default}
+.lb-stage.lb-zoomed{cursor:grab}
+.lb-stage.lb-drag{cursor:grabbing}
+.lb-img{position:absolute;left:50%;top:50%;max-width:none;max-height:none;margin:0;border-radius:6px;
+  transform-origin:0 0;will-change:transform;-webkit-user-drag:none;pointer-events:none;
+  box-shadow:0 20px 60px -20px rgba(0,0,0,.7);background:#0B0B0F}
+.lb-nav{position:absolute;top:50%;margin-top:-22px;background:rgba(20,20,28,.7)}
+.lb-prev{left:calc(10px + env(safe-area-inset-left))}
+.lb-next{right:calc(10px + env(safe-area-inset-right))}
+.lb-cap{flex:none;max-height:28vh;overflow:auto;text-align:center;color:rgba(244,243,247,.85);
+  padding:10px calc(18px + env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) calc(18px + env(safe-area-inset-left))}
+.lb-cap:empty{display:none}
+.lb-cap span{display:block;max-width:70ch;margin:0 auto}
+body.lb-lock{position:fixed;left:0;right:0;overflow:hidden}
+@media (prefers-reduced-motion:reduce){.lb.lb-in{transition:none}.lb-btn{transition:none}}
+@media (max-width:520px){.lb-nav{top:auto;bottom:12px;margin-top:0;background:rgba(20,20,28,.85)}}
