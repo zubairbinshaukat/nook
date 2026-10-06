@@ -435,6 +435,19 @@
       "notes": "File Explorer at %LOCALAPPDATA%\\Nook (type it in the address bar), details view so file names and sizes show. Hide your user name in the address bar if it is visible (blur or crop)."
     },
     {
+      "id": "log-file",
+      "kind": "manual",
+      "page": "web",
+      "size": "972x614",
+      "variants": [],
+      "used-in": [
+        "guides/troubleshooting#collect-logs"
+      ],
+      "out": "log-file",
+      "alt": "The Nook log file open in Notepad: one line per event, with the time first.",
+      "notes": "nook.log open in Notepad (dark theme), text area only: crop out the title bar, menu and toolbar row, which show the account picture."
+    },
+    {
       "id": "hooks-in-claude-code",
       "kind": "manual",
       "page": "web",

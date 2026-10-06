@@ -144,6 +144,15 @@
     "alt": "The Nook island open on Home: a session card that needs permission, the working and done sessions, and CPU, GPU, RAM and Claude usage."
   },
   {
+    "id": "log-file",
+    "variant": null,
+    "file": "log-file.webp",
+    "width": 972,
+    "height": 614,
+    "bytes": 102934,
+    "alt": "The Nook log file open in Notepad: one line per event, with the time first."
+  },
+  {
     "id": "over-browser-tabs",
     "variant": "dark",
     "file": "over-browser-tabs-dark.webp",
