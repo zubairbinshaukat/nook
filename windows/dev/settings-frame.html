@@ -3,6 +3,7 @@
      on a transparent page, for scripts/shots.mjs. It forwards its own query to /settings.html (chrome=0 is
      added), reads `size=WxH` for the window and sets window.__shotReady when the page inside is drawn.
        /dev/settings-frame.html?fake&section=connect&theme=dark&size=760x600
+     `version=X.Y.Z` is the version shown in About (shots.mjs passes it from package.json).
      `frame=0` leaves the title bar and shadow out (the bare window). Nothing here ships. -->
 <html lang="en">
   <head>
@@ -42,6 +43,7 @@
     <script>
       const q = new URLSearchParams(location.search);
       const size = /^(\d{3,4})x(\d{3,4})$/.exec(q.get("size") || "760x600") || [0, "760", "600"];
+      const version = /^[\w.+-]{1,32}$/.test(q.get("version") || "") ? q.get("version") : "0.0.0";
       const frame = document.getElementById("frame");
       const win = document.getElementById("win");
       const dark = q.get("theme") !== "light";
@@ -68,7 +70,7 @@
         try { ready = win.contentWindow.__shotReady === true && patched; } catch (e) { /* loading */ }
         if (!ready) return;
         const w = win.contentDocument.createTreeWalker(win.contentDocument.body, NodeFilter.SHOW_TEXT);
-        for (let n = w.nextNode(); n; n = w.nextNode()) n.nodeValue = n.nodeValue.replace('0.0.0-fake', '0.2.0');
+        for (let n = w.nextNode(); n; n = w.nextNode()) n.nodeValue = n.nodeValue.replace('0.0.0-fake', version);
         clearInterval(timer);
         window.__shotReady = true;
       }, 50);

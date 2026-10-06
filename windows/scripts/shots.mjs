@@ -24,6 +24,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const windowsDir = resolve(here, "..");
 const repoRoot = resolve(windowsDir, "..");
 const MANIFEST = join(here, "shots.json");
+const appVersion = JSON.parse(readFileSync(join(windowsDir, "package.json"), "utf8")).version;
 const DEFAULT_OUT = join(repoRoot, "site", "assets", "img", "shots");
 const SHOT_TIMEOUT = 30_000;
 const QUALITY_FLOOR = 70;
@@ -340,6 +341,7 @@ function urlFor(base, s, variant) {
     // The window is w x h; the frame adds a 32 px title bar and 56 px of shadow room all round.
     p.set("fake", "");
     set("size", `${w}x${h}`);
+    set("version", appVersion); // the frame shows it as the fake About version
     if (s.frame === false) set("frame", 0);
     viewport = [w + 112 + 8, h + 32 + 112 + 8];
   } else {

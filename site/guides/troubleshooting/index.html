@@ -94,14 +94,14 @@
     <p class="eyebrow">Guide</p>
     <h1>Troubleshooting Nook</h1>
     <p class="lede">Each problem below has a symptom, a likely cause and a fix. Where Nook cannot know for sure, this page says &ldquo;usually&rdquo;. The last section tells you how to file an issue we can act on.</p>
-    <p class="doc-meta">Last updated <time datetime="2026-10-06">2026-10-06</time> &middot; Nook 0.2.0 &middot; <a href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer">Was this helpful? Report a problem</a></p>
+    <p class="doc-meta">Last updated <time datetime="2026-10-06">2026-10-06</time> &middot; Nook 0.2.1 &middot; <a href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer">Was this helpful? Report a problem</a></p>
   </header>
   <div class="doc-grid">
     <aside class="doc-side"><nav class="toc" aria-label="On this page"><p class="toc-h">On this page</p><ol><li><a href="#smartscreen">SmartScreen blocks the installer</a></li><li><a href="#antivirus">Antivirus flags nook-hook.exe</a></li><li><a href="#island-missing">The island does not appear</a></li><li><a href="#no-sessions">No sessions show up</a></li><li><a href="#hooks-nothing">Hooks are installed but nothing happens</a></li><li><a href="#questions">Permission requests or questions cannot be answered</a></li><li><a href="#usage-missing">Usage limits are missing or stale</a></li><li><a href="#high-cpu">High CPU use</a></li><li><a href="#fullscreen">The island hides in full-screen apps</a></li><li><a href="#multi-monitor">Multi-monitor, 125% scaling, blur or wrong position</a></li><li><a href="#shortcut-conflict">Shortcuts do not work</a></li><li><a href="#camera">Mirror: the camera does not work</a></li><li><a href="#media">The Media widget shows nothing</a></li><li><a href="#goto-session">“Go to session” cannot select a Windows Terminal tab</a></li><li><a href="#wont-start">Nook does not start</a></li><li><a href="#collect-logs">How to collect logs and open an issue</a></li></ol></nav></aside>
     <article class="prose doc-body">
 
 <h2 id="smartscreen">SmartScreen blocks the installer</h2>
-<dl class="fix"><div><dt>Symptom</dt><dd>&ldquo;Windows protected your PC&rdquo; appears and there is no obvious way to run the installer.</dd></div><div><dt>Cause</dt><dd>The installer is not code-signed yet, and SmartScreen does not know new unsigned programs.</dd></div><div><dt>Fix</dt><dd><ol><li>Check the download first: <code>Get-FileHash .\Nook-Windows-0.2.0-setup.exe -Algorithm SHA256</code>, then compare with <code>SHA256SUMS.txt</code> from the release.</li><li>Choose <strong>More info</strong>, then <strong>Run anyway</strong>.</li></ol><p>Details in the <a href="/guides/install/#smartscreen">install guide</a>. Signing through SignPath is planned.</p></dd></div></dl>
+<dl class="fix"><div><dt>Symptom</dt><dd>&ldquo;Windows protected your PC&rdquo; appears and there is no obvious way to run the installer.</dd></div><div><dt>Cause</dt><dd>The installer is not code-signed yet, and SmartScreen does not know new unsigned programs.</dd></div><div><dt>Fix</dt><dd><ol><li>Check the download first: <code>Get-FileHash .\Nook-Windows-0.2.1-setup.exe -Algorithm SHA256</code>, then compare with <code>SHA256SUMS.txt</code> from the release.</li><li>Choose <strong>More info</strong>, then <strong>Run anyway</strong>.</li></ol><p>Details in the <a href="/guides/install/#smartscreen">install guide</a>. Signing through SignPath is planned.</p></dd></div></dl>
 
 <!-- TODO screenshot: install-smartscreen (see docs/screenshots.md) -->
 <h2 id="antivirus">Antivirus flags nook-hook.exe</h2>
@@ -154,7 +154,7 @@
 <p>A good issue gets fixed faster. Open one at <a href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer">github.com/zubairbinshaukat/nook/issues/new</a> and include:</p>
 <ul>
 <li>What you expected and what happened, with steps to repeat it.</li>
-<li>Your <strong>Nook version</strong> (Settings &rarr; About; this site documents 0.2.0), your <strong>Windows version</strong> (<code>winver</code>), and your <strong>Claude Code version</strong> (<code>claude --version</code>).</li>
+<li>Your <strong>Nook version</strong> (Settings &rarr; About; this site documents 0.2.1), your <strong>Windows version</strong> (<code>winver</code>), and your <strong>Claude Code version</strong> (<code>claude --version</code>).</li>
 <li>The last lines of <code>%LOCALAPPDATA%\Nook\nook.log</code>. The log has event names and decisions, never the content of your sessions.</li>
 <li>If it is about hooks, the output of <code>nook-hook --where</code>, and the Nook entries from <code>settings.json</code> (only those).</li>
 <li>A screenshot if the problem is visual.</li>

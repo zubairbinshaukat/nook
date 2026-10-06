@@ -66,7 +66,7 @@ trust and its hash matches (below): choose **More info**, then **Run anyway**.
 To check a download against `SHA256SUMS.txt`:
 
 ```powershell
-Get-FileHash .\Nook-Windows-0.2.0-setup.exe -Algorithm SHA256
+Get-FileHash .\Nook-Windows-0.2.1-setup.exe -Algorithm SHA256
 ```
 
 The hash printed must be the one on the installer's line in `SHA256SUMS.txt`.

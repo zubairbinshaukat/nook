@@ -306,7 +306,7 @@ const terminal = () => `
 <p><b class="pw">PS</b> C:\\Users\\nook\\code\\nook&gt; <b class="cm">npx tsc --noEmit</b></p>
 <p class="o ok">Found 0 errors.</p>
 <p><b class="pw">PS</b> C:\\Users\\nook\\code\\nook&gt; <b class="cm">cargo test --workspace</b></p>
-<p class="o">   Compiling nook v0.2.0 (C:\\Users\\nook\\code\\nook\\windows\\src-tauri)</p>
+<p class="o">   Compiling nook v0.2.1 (C:\\Users\\nook\\code\\nook\\windows\\src-tauri)</p>
 <p class="o">    Finished test profile [unoptimized + debuginfo] target(s) in 14.20s</p>
 <p class="o">     Running unittests src\\lib.rs</p>
 <p class="o">running 41 tests</p>

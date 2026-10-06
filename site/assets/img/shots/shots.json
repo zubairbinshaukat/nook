@@ -212,7 +212,7 @@
     "file": "settings-about-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 51602,
+    "bytes": 51528,
     "alt": "Nook Settings, About and privacy page: the version, where Nook keeps its files and the privacy summary."
   },
   {
@@ -221,7 +221,7 @@
     "file": "settings-about-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 54738,
+    "bytes": 54672,
     "alt": "Nook Settings, About and privacy page: the version, where Nook keeps its files and the privacy summary."
   },
   {
@@ -230,7 +230,7 @@
     "file": "settings-connect-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 50876,
+    "bytes": 50886,
     "alt": "Nook Settings on Connect: the Claude Code card says Not connected, with a Connect button."
   },
   {
@@ -239,7 +239,7 @@
     "file": "settings-connect-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 54556,
+    "bytes": 54532,
     "alt": "Nook Settings on Connect: the Claude Code card says Not connected, with a Connect button."
   },
   {
@@ -248,7 +248,7 @@
     "file": "settings-cursor-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 51422,
+    "bytes": 51396,
     "alt": "Nook Settings on Connect with the Cursor entry set up and its details open."
   },
   {
@@ -257,7 +257,7 @@
     "file": "settings-cursor-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 54544,
+    "bytes": 54502,
     "alt": "Nook Settings on Connect with the Cursor entry set up and its details open."
   },
   {
@@ -275,7 +275,7 @@
     "file": "settings-hooks-diff-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 72118,
+    "bytes": 72076,
     "alt": "The preview of the change to settings.json, with added lines in green, the backup file name and a confirm button."
   },
   {
@@ -284,7 +284,7 @@
     "file": "settings-island-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 53278,
+    "bytes": 53270,
     "alt": "Nook Settings, Island page: where the island sits, which display it uses, its size and when it folds."
   },
   {
@@ -293,7 +293,7 @@
     "file": "settings-island-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 56558,
+    "bytes": 56536,
     "alt": "Nook Settings, Island page: where the island sits, which display it uses, its size and when it folds."
   },
   {
@@ -302,7 +302,7 @@
     "file": "settings-look-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 50492,
+    "bytes": 50466,
     "alt": "Nook Settings, Look and colours page: theme, accent and the buddy."
   },
   {
@@ -311,7 +311,7 @@
     "file": "settings-look-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 53650,
+    "bytes": 53592,
     "alt": "Nook Settings, Look and colours page: theme, accent and the buddy."
   },
   {
@@ -320,7 +320,7 @@
     "file": "settings-shelf-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 56706,
+    "bytes": 56664,
     "alt": "Nook Settings, Shelf widgets page: switches for To-do, Timer, Reminders, Media, Mirror and Projects."
   },
   {
@@ -329,7 +329,7 @@
     "file": "settings-shelf-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 58812,
+    "bytes": 58856,
     "alt": "Nook Settings, Shelf widgets page: switches for To-do, Timer, Reminders, Media, Mirror and Projects."
   },
   {
@@ -338,7 +338,7 @@
     "file": "settings-shortcut-taken-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 59350,
+    "bytes": 59334,
     "alt": "Nook Settings, Shortcuts page, with a shortcut marked as already used by another app."
   },
   {
@@ -347,7 +347,7 @@
     "file": "settings-shortcut-taken-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 62902,
+    "bytes": 62874,
     "alt": "Nook Settings, Shortcuts page, with a shortcut marked as already used by another app."
   },
   {
@@ -356,7 +356,7 @@
     "file": "settings-shortcuts-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 57926,
+    "bytes": 57938,
     "alt": "Nook Settings, Shortcuts page: the keyboard shortcuts for the large panel, the normal panel, jumping to a session, hiding and the agents list."
   },
   {
@@ -365,7 +365,7 @@
     "file": "settings-shortcuts-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 61424,
+    "bytes": 61388,
     "alt": "Nook Settings, Shortcuts page: the keyboard shortcuts for the large panel, the normal panel, jumping to a session, hiding and the agents list."
   },
   {
@@ -374,7 +374,7 @@
     "file": "settings-usage-diff-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 57942,
+    "bytes": 57970,
     "alt": "The preview of the status line entry Nook would add to settings.json, with a confirm button."
   },
   {
@@ -383,7 +383,7 @@
     "file": "settings-usage-diff-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 61074,
+    "bytes": 61112,
     "alt": "The preview of the status line entry Nook would add to settings.json, with a confirm button."
   },
   {

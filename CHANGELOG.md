@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1
+
+- The uninstaller and the installer pages now use the Nook icon and artwork: the
+  uninstall window, its header logo and the welcome and finish pages no longer
+  show the default installer art (in 0.2.0 only the installer file's own icon
+  was Nook's).
+- The install guide shows the release page with the installer and
+  `SHA256SUMS.txt`.
+
 ## 0.2.0
 
 - Cursor's agent sessions in the island, next to Claude Code's, for their
