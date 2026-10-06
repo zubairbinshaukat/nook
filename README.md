@@ -15,7 +15,6 @@ Every Claude Code and Cursor agent you run, at the top of your screen: status, u
 [![Website](https://img.shields.io/badge/Website-nook.zubyr.dev-5aa9ff?style=for-the-badge&labelColor=0b0d10)](https://nook.zubyr.dev)
 [![Guides](https://img.shields.io/badge/Guides-read-a98bfa?style=for-the-badge&labelColor=0b0d10)](https://nook.zubyr.dev/guides/)
 
-[![CI](https://img.shields.io/github/actions/workflow/status/zubairbinshaukat/nook/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/zubairbinshaukat/nook/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-3ddc97?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078d4?style=flat-square&logo=windows11&logoColor=white)](#install)
 [![Tauri 2](https://img.shields.io/badge/Tauri-2-ffc131?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app)

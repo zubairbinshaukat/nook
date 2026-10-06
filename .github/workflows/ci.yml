@@ -1,12 +1,12 @@
 name: CI
 
-# Checks every pull request and every push to main. Builds nothing that is
-# published and uses no secrets.
+# Runs when a release tag (v*) is pushed, and by hand from the Actions tab. Builds
+# nothing that is published and uses no secrets.
 
 on:
-  pull_request:
   push:
-    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: read
