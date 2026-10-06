@@ -77,17 +77,36 @@ Then import each one with a single command (from `windows/`):
 
 ```powershell
 npm run shots:import -- C:\path\to\shot.png --id install-smartscreen
-npm run shots:import -- shot.png --id <id> [--variant dark|light] [--width N] [--quality 90] [--budget KB] [--crop x,y,w,h] [--force]
+npm run shots:import -- shot.png --id <id> [--variant dark|light] [--width N] [--quality 90] [--budget KB] [--crop x,y,w,h] [--blur x,y,w,h]... [--force]
 ```
 
 `shots:import` converts the PNG or JPEG to WebP with the same Edge or Chrome as `shots`, keeps the aspect ratio (the table
 size is only a hint: a source over twice that wide is scaled down to 2x, a smaller one keeps its size), strips metadata, cuts out `--crop x,y,w,h` (source pixels) first when given (use it to leave desktop around a dialog out of the picture),
+hides private details with `--blur x,y,w,h` (see Privacy below),
 steps the quality from 90 down to 70 until the file is under the budget (150 KB), and writes
 `site/assets/img/shots/<id>.webp`, that folder's `shots.json` and the new size into the manifest. It then prints the
 `<figure>` to paste at the TODO spot in the guide (nothing to paste when the guide already has it), and refuses an
 unknown id or an auto shot (`--force` overrides the latter). Retaking a shot is the same command again.
 `npm run shots:check` lists what is still missing. Never commit the original PNG.
 
+### Hiding private details (`--blur`)
+
+A screenshot of a real desktop can show your Windows user name (in `C:/Users/<name>/...` paths, an Explorer address bar)
+or other private text. Prefer `--crop` when the detail is at an edge. For text in the middle of a picture use
+`--blur x,y,w,h`, which can be given several times (one rectangle per line of text):
+
+```powershell
+npm run shots:import -- shot.png --id hooks-in-claude-code --blur 182,129,37,15 --blur 182,186,37,15
+```
+
+- **Coordinates** are in pixels of the ORIGINAL source image, the same grid as `--crop`. Blur is applied to the whole
+  source first, then `--crop` is cut and the width rules apply. A rectangle outside the image fails the import.
+- **What it does**: the rectangle becomes a mosaic of 8 px blocks (each block is the average colour of that part), drawn
+  on the canvas before the WebP is encoded. The original pixels are not kept anywhere, so it cannot be undone. Make the
+  rectangle just wider than the text (a pixel or two of margin) so the neighbouring characters stay readable.
+- **Measure** by cropping a small area with `--crop` and a large `--width` into a scratch folder (`--out DIR`), then read
+  off the character positions.
+- **Always open the finished WebP** and check that the text really is unreadable, then delete the original screenshot.
 | id | state | size | what to capture | used in | import |
 |---|---|---|---|---|---|
 | `install-release-page` | provided | 1229x617 | Browser at github.com/zubairbinshaukat/nook/releases/latest, assets list expanded, the installer and SHA256SUMS.txt rows highlighted (a red or accent box). Crop to the page, no other tabs or bookmarks. | guides/install | `npm run shots:import -- <file> --id install-release-page` |
@@ -95,11 +114,12 @@ unknown id or an auto shot (`--force` overrides the latter). Retaking a shot is 
 | `install-smartscreen` | provided | 534x498 | Run the installer on Windows 11: in the blue SmartScreen dialog click More info so the Run anyway button shows. Capture the dialog (Win+Shift+S, window snip). Needs the real Windows UI. | guides/install, guides/troubleshooting#smartscreen | `npm run shots:import -- <file> --id install-smartscreen` |
 | `install-wizard` | provided | 499x388 | Run Nook-Windows-0.2.1-setup.exe past SmartScreen and capture the first page of the installer window (not the last). Window snip, 100 % scale. | guides/install#run-installer | `npm run shots:import -- <file> --id install-wizard` |
 | `tray-menu` | provided | 248x265 | Windows 11, dark taskbar, 100 % scale. Open the hidden-icons chevron, right-click the Nook icon so its menu is open, then snip the menu plus the icon row (Win+Shift+S rectangle). Needs the real tray. | guides/install#run-installer, guides/troubleshooting#island-missing | `npm run shots:import -- <file> --id tray-menu` |
-| `log-folder` | to do | 900x520 | File Explorer at %LOCALAPPDATA%\Nook (type it in the address bar), details view so file names and sizes show. Hide your user name in the address bar if it is visible (blur or crop). | guides/install#where-files, guides/troubleshooting#collect-logs | `npm run shots:import -- <file> --id log-folder` |
+| `log-folder` | provided | 620x230 | File Explorer at %LOCALAPPDATA%\Nook (type it in the address bar), details view so file names and sizes show. Hide your user name in the address bar if it is visible (blur or crop). | guides/install#where-files, guides/troubleshooting#collect-logs | `npm run shots:import -- <file> --id log-folder --crop 162,128,620,230` |
 | `log-file` | provided | 972x614 | nook.log open in Notepad (dark theme), text area only: crop out the title bar, menu and toolbar row, which show the account picture. | guides/troubleshooting#collect-logs | `npm run shots:import -- <file> --id log-file --crop 0,84,972,614` |
-| `hooks-in-claude-code` | to do | 1000x560 | Install the hooks, start `claude` in a terminal, type /hooks and capture the list that shows the nook-hook.exe entries. Use a dark terminal at a readable font size; crop to the list. Hide any private path. | guides/claude-code-hooks#diagnose | `npm run shots:import -- <file> --id hooks-in-claude-code` |
-| `cursor-hooks-panel` | to do | 1000x560 | After Settings -> Cursor -> Install hooks and a restart of Cursor, open Cursor's Hooks view (Cursor Settings) and capture the list with Nook's entries. Crop to the panel. | guides/cursor#setup | `npm run shots:import -- <file> --id cursor-hooks-panel` |
-| `camera-privacy` | to do | 900x560 | Windows 11 Settings -> Privacy & security -> Camera, scrolled so the 'Let desktop apps access your camera' switch is visible and on. Light or dark, 100 % scale. | guides/troubleshooting#camera | `npm run shots:import -- <file> --id camera-privacy` |
+| `hooks-in-claude-code` | provided | 889x786 | Install the hooks, start `claude` in a terminal, type /hooks and capture the list that shows the nook-hook.exe entries. Use a dark terminal at a readable font size; crop to the list. Hide any private path. | guides/claude-code-hooks#diagnose | `npm run shots:import -- <file> --id hooks-in-claude-code` (user name blurred with 12 `--blur` rectangles) |
+| `cursor-hooks-panel` | provided | 761x692 | After Settings -> Cursor -> Install hooks and a restart of Cursor, open Cursor's Hooks view (Cursor Settings) and capture the list with Nook's entries. Crop to the panel. | guides/cursor#setup | `npm run shots:import -- <file> --id cursor-hooks-panel` (user name blurred with 10 `--blur` rectangles) |
+| `camera-privacy` | provided | 1014x620 | Windows 11 Settings -> Privacy & security -> Camera, scrolled so the 'Let desktop apps access your camera' switch is visible and on. Light or dark, 100 % scale. | guides/troubleshooting#camera | `npm run shots:import -- <file> --id camera-privacy` |
 | `agents-list-real` | to do | 560x640 | In the real app turn on Settings -> Agents list with 3-4 real or fake-session sessions (npm run fake-session) so the small agents window shows rows. Snip the window with a bit of desktop around it; use the Nook wallpaper or a plain one. Not capturable in a plain browser. | README.md | `npm run shots:import -- <file> --id agents-list-real` |
-| `real-approval-terminal` | to do | 1600x700 | Real Windows 11 desktop, a Claude Code permission prompt waiting in Windows Terminal and the real island open on the same request above it (use a throwaway project; no private paths, no other windows). Crop to the top of the screen and the terminal. | guides/first-run#approvals, README.md | `npm run shots:import -- <file> --id real-approval-terminal` |
-| `cursor-session-list` | to do | 900x520 | Real Nook with one Claude Code session and one Cursor agent session running (Cursor hooks installed). Open the island on Home / the session list so both rows show; snip the island with 30 px around it over the Nook wallpaper or a plain desktop. | guides/cursor | `npm run shots:import -- <file> --id cursor-session-list` |
+| `real-approval-terminal` | provided | 1914x472 | Real Windows 11 desktop, a Claude Code permission prompt waiting in Windows Terminal and the real island open on the same request above it (use a throwaway project; no private paths, no other windows). Crop to the top of the screen and the terminal. | guides/first-run#approvals, README.md | `npm run shots:import -- <file> --id real-approval-terminal --crop 0,0,1914,472` |
+| `cursor-session-list` | provided | 634x243 | Real Nook with one Claude Code session and one Cursor agent session running (Cursor hooks installed). Open the island on Home / the session list so both rows show; snip the island with 30 px around it over the Nook wallpaper or a plain desktop. | guides/cursor | `npm run shots:import -- <file> --id cursor-session-list` |
+| `real-approval-command` | provided | 1916x772 | A PowerShell command permission prompt waiting in Windows Terminal with the real island open on the same request above it; crop to the top of the screen and the prompt. | guides/first-run#approvals | `npm run shots:import -- <file> --id real-approval-command --crop 0,0,1916,772` |

@@ -18,6 +18,33 @@
     "alt": "An edit request in the island with the changed lines shown as a diff, removed lines in red and added lines in green."
   },
   {
+    "id": "camera-privacy",
+    "variant": null,
+    "file": "camera-privacy.webp",
+    "width": 1014,
+    "height": 620,
+    "bytes": 23564,
+    "alt": "Windows Settings, Privacy and security, Camera, with 'Let desktop apps access your camera' turned on."
+  },
+  {
+    "id": "cursor-hooks-panel",
+    "variant": null,
+    "file": "cursor-hooks-panel.webp",
+    "width": 761,
+    "height": 692,
+    "bytes": 32912,
+    "alt": "Cursor's hooks settings showing Nook's entries after the install."
+  },
+  {
+    "id": "cursor-session-list",
+    "variant": null,
+    "file": "cursor-session-list.webp",
+    "width": 634,
+    "height": 243,
+    "bytes": 15038,
+    "alt": "The island's session list with Claude Code and Cursor rows, the filter chips and the sparkle and cube marks."
+  },
+  {
     "id": "dock-bottom",
     "variant": "dark",
     "file": "dock-bottom-dark.webp",
@@ -90,6 +117,15 @@
     "alt": "Nook open at the top of a Windows desktop: one session needs permission, two are working, one is done, with CPU, GPU, RAM and Claude usage beside them."
   },
   {
+    "id": "hooks-in-claude-code",
+    "variant": null,
+    "file": "hooks-in-claude-code.webp",
+    "width": 889,
+    "height": 786,
+    "bytes": 82708,
+    "alt": "Claude Code's /hooks screen listing Nook's relay on the hook events."
+  },
+  {
     "id": "install-release-page",
     "variant": null,
     "file": "install-release-page.webp",
@@ -151,6 +187,15 @@
     "height": 614,
     "bytes": 102934,
     "alt": "The Nook log file open in Notepad: one line per event, with the time first."
+  },
+  {
+    "id": "log-folder",
+    "variant": null,
+    "file": "log-folder.webp",
+    "width": 620,
+    "height": 230,
+    "bytes": 18388,
+    "alt": "File Explorer open at the Nook folder in LocalAppData, showing the log file and the bin folder."
   },
   {
     "id": "over-browser-tabs",
@@ -223,6 +268,24 @@
     "height": 331,
     "bytes": 20798,
     "alt": "A question from Claude Code in the island with the answer options as buttons."
+  },
+  {
+    "id": "real-approval-command",
+    "variant": null,
+    "file": "real-approval-command.webp",
+    "width": 1916,
+    "height": 772,
+    "bytes": 62342,
+    "alt": "A Claude Code command prompt in Windows Terminal, with the same request in the island above it: Deny or Allow."
+  },
+  {
+    "id": "real-approval-terminal",
+    "variant": null,
+    "file": "real-approval-terminal.webp",
+    "width": 1914,
+    "height": 472,
+    "bytes": 37844,
+    "alt": "Claude Code asking for permission in a terminal while the real Nook island shows the same request at the top of the screen."
   },
   {
     "id": "session-agents",

@@ -424,7 +424,7 @@
       "id": "log-folder",
       "kind": "manual",
       "page": "web",
-      "size": "900x520",
+      "size": "620x230",
       "variants": [],
       "used-in": [
         "guides/install#where-files",
@@ -451,7 +451,7 @@
       "id": "hooks-in-claude-code",
       "kind": "manual",
       "page": "web",
-      "size": "1000x560",
+      "size": "889x786",
       "variants": [],
       "used-in": [
         "guides/claude-code-hooks#diagnose"
@@ -464,7 +464,7 @@
       "id": "cursor-hooks-panel",
       "kind": "manual",
       "page": "web",
-      "size": "1000x560",
+      "size": "761x692",
       "variants": [],
       "used-in": [
         "guides/cursor#setup"
@@ -477,7 +477,7 @@
       "id": "camera-privacy",
       "kind": "manual",
       "page": "web",
-      "size": "900x560",
+      "size": "1014x620",
       "variants": [],
       "used-in": [
         "guides/troubleshooting#camera"
@@ -503,7 +503,7 @@
       "id": "real-approval-terminal",
       "kind": "manual",
       "page": "web",
-      "size": "1600x700",
+      "size": "1914x472",
       "variants": [],
       "used-in": [
         "guides/first-run#approvals",
@@ -514,10 +514,23 @@
       "notes": "Real Windows 11 desktop, a Claude Code permission prompt waiting in Windows Terminal and the real island open on the same request above it (use a throwaway project; no private paths, no other windows). Crop to the top of the screen and the terminal."
     },
     {
+      "id": "real-approval-command",
+      "kind": "manual",
+      "page": "web",
+      "size": "1916x772",
+      "variants": [],
+      "used-in": [
+        "guides/first-run#approvals"
+      ],
+      "out": "real-approval-command",
+      "alt": "A Claude Code command prompt in Windows Terminal, with the same request in the island above it: Deny or Allow.",
+      "notes": "Real Windows 11 desktop, a Claude Code PowerShell command prompt waiting in Windows Terminal and the real island open on the same request above it (throwaway project, no private paths). Crop to the top of the screen and the prompt."
+    },
+    {
       "id": "cursor-session-list",
       "kind": "manual",
       "page": "web",
-      "size": "900x520",
+      "size": "634x243",
       "variants": [],
       "used-in": [
         "guides/cursor"

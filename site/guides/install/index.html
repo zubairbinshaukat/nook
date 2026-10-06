@@ -162,7 +162,7 @@
 </table>
 <p>The log records event names and decisions, never the content of your sessions. See the <a href="/privacy/">privacy page</a> for everything Nook stores.</p>
 
-<!-- TODO screenshot: log-folder (see docs/screenshots.md) -->
+<figure class="shot" data-shot="log-folder"><img class="shot-img" src="/assets/img/shots/log-folder.webp" width="620" height="230" alt="File Explorer open at the Nook folder in LocalAppData, showing the log file and the bin folder." loading="lazy" decoding="async"><figcaption>The Nook folder in %LOCALAPPDATA%: the program, the relay, the log and the uninstaller.</figcaption></figure>
 <h2 id="uninstall">Uninstall</h2>
 <ol>
 <li><strong>Remove the hooks first.</strong> Open Nook&rsquo;s <strong>Settings &rarr; Connect</strong> and click <strong>Disconnect&hellip;</strong> on the Claude Code card (and <strong>Turn off&hellip;</strong> for the usage status line if you installed it). Each shows a preview, takes a dated backup and waits for your click. Uninstalling the app does not edit <code>~/.claude/settings.json</code>, so if you skip this the entries stay behind and point at a relay that is gone.</li>
