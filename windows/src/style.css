@@ -517,6 +517,23 @@ body {
   background: rgba(255, 255, 255, 0.13);
 }
 
+/* A newer Nook is out: the way to it, with a dot that says it is news. */
+.header-actions button.ha-update {
+  position: relative;
+  color: var(--ink);
+}
+
+.header-actions button.ha-update i {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4fd69c;
+  box-shadow: 0 0 0 2px #000;
+}
+
 /* The strip of numbers between the tabs and the buttons. It is its own size
    container: how much of it shows follows the width the island gives it. */
 .hstats {

@@ -15,11 +15,12 @@
 // between is refused by Rust rather than written over.
 
 import "./settings.css";
-import type { AboutLink, CodexStatus, CursorStatus, DataPaths, HookPreview, HookStatus, ReplyFormatAction, ReplyFormatStatus, ShortcutName, ShortcutStatus, UsageStatus } from "../core/bridge";
-import { COMPACT_METRICS, DEFAULT_SETTINGS, FADE_MAX, FADE_MIN, FOLDED_AUTO_HIDE, MAX_COMPACT_METRICS, compactMetrics, foldedAutoHide, type CompactMetric, type Settings } from "../core/state";
+import type { AboutLink, CodexStatus, CursorStatus, DataPaths, HookPreview, HookStatus, ReplyFormatAction, ReplyFormatStatus, ShortcutName, ShortcutStatus, UpdateInfo, UsageStatus } from "../core/bridge";
+import { COMPACT_METRICS, DEFAULT_SETTINGS, FADE_MAX, FADE_MIN, FOLDED_AUTO_HIDE, MAX_COMPACT_METRICS, compactMetrics, foldedAutoHide, type CompactMetric, type SessionAgent, type Settings } from "../core/state";
 import { BOT_THEMES } from "../bot/engine";
 import { clear, h, replay } from "../views/dom";
-import { BRANDS, LUCIDE, brand } from "../views/iconset";
+import { BRANDS, CLAUDE_MARK, CODEX_MARK, LUCIDE, brand } from "../views/iconset";
+import { TOOL_NAME } from "../views/tool";
 import { connect, type Backend } from "./backend";
 import { isBotTheme, mountBot, refreshBots, startBots, wearBotTheme } from "./bots";
 import { COMPACT_BOT, COMPACT_CELLS, cellIcon, islandPreview } from "./island-preview";
@@ -61,7 +62,7 @@ const reason = (err: unknown) => (err instanceof Error ? err.message : String(er
 const INFO: Record<Section, { name: string; icon: string; group: string; lede: string }> = {
   connect: {
     name: "Connect", icon: LUCIDE.plug, group: "Setup",
-    lede: "Link Nook to Claude Code, Cursor and Codex.Nothing on your computer is changed until you have seen the change and said yes.",
+    lede: "Link Nook to Claude Code, Cursor and Codex. Nothing on your computer is changed until you have seen the change and said yes.",
   },
   island: {
     name: "Island", icon: LUCIDE.panelTop, group: "The island",
@@ -1147,15 +1148,27 @@ function integration(kind: Change): HTMLElement {
 const connectGroup = (kind: Change, label: string, what: string, keys: string, ...more: Kid[]) =>
   findable(bare(label, integration(kind), ...more), label, what, keys, true);
 
+/** A tool's own part of Connect: its mark, its name, what Nook does with it, and under them everything Nook writes for it. */
+const toolPart = (key: SessionAgent, what: string, ...kids: Kid[]) =>
+  h("section", { class: `sp-tool ${key}`, "aria-label": TOOL_NAME[key] },
+    h("header", { class: "sp-tool-head" },
+      h("span", { class: "sp-tool-mark", "aria-hidden": "true" },
+        key === "cursor" ? brand(BRANDS.cursor, 18) : icon(key === "codex" ? CODEX_MARK : CLAUDE_MARK, 18, 2.4)),
+      h("div", { class: "sp-tool-text" },
+        h("h2", { class: "sp-tool-name", text: TOOL_NAME[key] }),
+        h("p", { class: "sp-tool-what", text: what }))),
+    ...kids);
+
 function connectSection(): Kid[] {
   return [
     head("connect"),
-    connectGroup("hooks", "Claude Code", "Connect Claude Code to Nook: see your sessions in the island and answer them there.",
-      "hooks hook claude code connect connection install setup set up link sessions permissions approve relay settings.json uninstall disconnect"),
-    connectGroup("usage", "Usage limits", "Show how much of your 5-hour and weekly Claude limits you have used.",
-      "usage limits limit quota plan subscription status line statusline weekly 5-hour five hour"),
-    connectGroup("reply", "Reply layout", REPLY_DOES,
-      "reply replies format answers layout claude.md instructions summary decisions warnings tips markdown"),
+    toolPart("claude", "Your sessions and what they ask, your usage limits, and how replies are laid out.",
+      connectGroup("hooks", "Sessions and approvals", "Connect Claude Code to Nook: see your sessions in the island and answer them there.",
+        "hooks hook claude code connect connection install setup set up link sessions permissions approve relay settings.json uninstall disconnect"),
+      connectGroup("usage", "Usage limits", "Show how much of your 5-hour and weekly Claude limits you have used.",
+        "usage limits limit quota plan subscription status line statusline weekly 5-hour five hour"),
+      connectGroup("reply", "Reply layout", REPLY_DOES,
+        "reply replies format answers layout claude.md instructions summary decisions warnings tips markdown")),
     cursorGroup(),
     codexGroup(),
   ];
@@ -1165,8 +1178,8 @@ function connectSection(): Kid[] {
 function codexGroup(): HTMLElement {
   const show = toggle(settings.showCodexSessions, "Show Codex sessions", (on) => change({ showCodexSessions: on }));
   followers.push(() => show.set(settings.showCodexSessions));
-  return h("div", {},
-    connectGroup("codex", "Codex", CODEX_DOES, "codex openai cli hooks.json agent sessions permissions approve allow deny connect"),
+  return toolPart("codex", "Its sessions, and Allow or Deny for what it asks permission for.",
+    connectGroup("codex", "Sessions and approvals", CODEX_DOES, "codex openai cli hooks.json agent sessions permissions approve allow deny connect"),
     group(null,
       row("Show Codex sessions", "Codex's sessions appear in the island with a Codex mark. Off, they are not followed at all, and Codex asks for permission in its own window.", show.el,
         "codex show hide sessions openai")));
@@ -1176,8 +1189,8 @@ function codexGroup(): HTMLElement {
 function cursorGroup(): HTMLElement {
   const show = toggle(settings.showCursorSessions, "Show Cursor sessions", (on) => change({ showCursorSessions: on }));
   followers.push(() => show.set(settings.showCursorSessions));
-  return h("div", {},
-    connectGroup("cursor", "Cursor", CURSOR_DOES, "cursor editor ide hooks.json agent sessions connect"),
+  return toolPart("cursor", "Its agent sessions, to watch only: Nook answers nothing in Cursor.",
+    connectGroup("cursor", "Sessions", CURSOR_DOES, "cursor editor ide hooks.json agent sessions connect"),
     group(null,
       row("Show Cursor sessions", "Cursor's sessions appear in the island with a Cursor mark. Off, they are not followed at all.", show.el,
         "cursor show hide sessions editor")));
@@ -1929,6 +1942,61 @@ const LINKS: readonly { which: AboutLink; name: string; where: string; mark: () 
   { which: "x", name: "X", where: "x.com/zubyrdev", mark: () => brand(BRANDS.x, 14) },
 ];
 
+/**
+ * Updates: the one thing Nook uses the internet for, and only on the user's
+ * say — the switch (a check a day) or the button (a check now). What a check
+ * found is said here; the island says it too while the switch is on.
+ */
+function updatesGroup(): HTMLElement {
+  const auto = toggle(settings.checkUpdates, "Check for updates every day", (on) => change({ checkUpdates: on }));
+  followers.push(() => auto.set(settings.checkUpdates));
+  const status = h("p", { class: "sp-help", role: "status" });
+  const check = button("Check now", "quiet", () => void run());
+  const get = button("Get it…", "primary", () => void nook.updateOpen());
+  let found: UpdateInfo | null = null;
+  let busy = false;
+  let failed: string | null = null;
+
+  const paint = () => {
+    get.style.display = found?.available && !busy ? "" : "none";
+    check.disabled = busy;
+    check.textContent = busy ? "Checking…" : "Check now";
+    status.classList.toggle("sp-danger-text", failed != null);
+    status.textContent = failed
+      ?? (busy ? "Asking GitHub…"
+        : !found ? "Not checked yet."
+          : found.available ? `Nook ${found.latest} is out. Get it opens its download page in your browser.`
+            : `You have the latest version.${found.checkedAt ? ` Checked ${new Date(found.checkedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}.` : ""}`);
+  };
+  async function run() {
+    if (busy) return;
+    busy = true;
+    failed = null;
+    paint();
+    try {
+      found = await nook.updateCheck();
+    } catch (err) {
+      failed = reason(err) || "The check could not be made.";
+    }
+    busy = false;
+    paint();
+  }
+  void nook.updateLast().then((last) => {
+    if (last && !busy) found = last;
+    paint();
+  });
+  paint();
+
+  return group("Updates",
+    row("Check for updates every day",
+      "Once a day, Nook asks GitHub whether a newer version is out, and tells you here and in the island. It sends nothing about you. Off, Nook never connects to the internet by itself.",
+      auto.el, "update updates upgrade new version automatic auto check daily github release internet network"),
+    findable(h("div", { class: "sp-row" },
+      rowText(version ? `You have version ${version}` : "This version", null, status),
+      h("div", { class: "sp-update-actions" }, get, check)),
+    "Check now", "Ask GitHub now whether a newer version of Nook is out.", "update updates check now latest version download upgrade"));
+}
+
 function aboutSection(): Kid[] {
   const place = (label: string, help: string, path: string | undefined, keys: string) =>
     findable(h("div", { class: "sp-row" },
@@ -1947,10 +2015,11 @@ function aboutSection(): Kid[] {
         h("p", { class: "sp-about-name", text: "Nook" }),
         h("p", { class: "sp-about-version", text: version ? `Version ${version}` : "" }),
         h("p", { class: "sp-about-version", text: "With Gullu, Nook's buddy" }))),
+    updatesGroup(),
     findable(bare("Privacy",
       h("div", { class: "sp-box sp-privacy" },
         icon(LUCIDE.circleCheck, 18, 2),
-        h("p", { text: "Nook sends nothing anywhere: no tracking, and no internet connections. Everything stays on this computer." }))),
+        h("p", { text: "Nook sends nothing anywhere, and tracks nothing. It uses the internet for one thing only, and only if you ask: checking whether a newer version is out. Everything else stays on this computer." }))),
     "Privacy", "Nook sends nothing anywhere: everything stays on this computer.",
     "privacy private telemetry tracking data network internet offline online send", true),
     group("Where your things are kept",

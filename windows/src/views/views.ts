@@ -17,6 +17,7 @@ import { COLOR } from "./palette";
 import { LUCIDE, lucide } from "./iconset";
 import { TOOL_NAME, toolMark } from "./tool";
 import { buildReplyBox } from "./reply-box";
+import { Update } from "../core/update";
 import { buildHeaderStats } from "./header-stats";
 
 /** What stands for a session where there is none to go to: another agent's pill has no ↗. */
@@ -262,6 +263,13 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const gearBtn = h("button", { class: "ha", title: "Settings", "aria-label": "Settings", onclick: () => go("settings") }, lucide(LUCIDE.slidersHorizontal, 15, 1.75));
   const soundBtn = h("button", { class: "ha", title: "Mute", "aria-label": "Mute", onclick: () => actions.toggleSound() });
   let soundKey = "";
+  // A newer Nook is out, and the user asked to be told (core/update.ts): the way to its release page.
+  const updateBtn = h("button", { class: "ha ha-update", onclick: () => {
+    actions.blip();
+    Update.open();
+  } }, lucide(LUCIDE.download, 15, 1.75), h("i"));
+  updateBtn.style.display = "none";
+  let updateKey = "";
   // The machine and Claude's usage: written when a sample or a usage comes, never on a timer.
   const stats = buildHeaderStats();
   State.onGauges(stats.draw);
@@ -277,7 +285,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
     { id: "header" },
     h("div", { class: "tabs" }, tabHome, tabShelf),
     stats.el,
-    h("div", { class: "header-actions" }, expandBtn, gearBtn, soundBtn),
+    h("div", { class: "header-actions" }, updateBtn, expandBtn, gearBtn, soundBtn),
   );
 
   return {
@@ -305,6 +313,13 @@ export function buildHeader(actions: ViewActions): ViewHost {
         clear(soundBtn);
         soundBtn.append(lucide(soundOn ? LUCIDE.volume2 : LUCIDE.volumeX, 15, 1.75));
         soundBtn.title = soundBtn.ariaLabel = soundOn ? "Mute" : "Unmute";
+      }
+      const offered = Update.offered;
+      const nextUpdate = offered?.latest ?? "";
+      if (nextUpdate !== updateKey) {
+        updateKey = nextUpdate;
+        updateBtn.style.display = offered ? "" : "none";
+        updateBtn.title = updateBtn.ariaLabel = offered ? `Nook ${offered.latest} is out. Opens its download page.` : "";
       }
       stats.draw();
       el.style.opacity = v === "confused" ? "0" : "1";

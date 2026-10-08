@@ -26,7 +26,7 @@
 // Nothing in it is random, and its timestamps are fixed: the same address draws
 // the same page, for screenshots.
 
-import type { CodexStatus, CursorStatus, HookPreview, HookStatus, ReplyFormatStatus, ShortcutName, ShortcutStatus, UsageStatus } from "../core/bridge";
+import type { CodexStatus, CursorStatus, HookPreview, HookStatus, ReplyFormatStatus, ShortcutName, ShortcutStatus, UpdateInfo, UsageStatus } from "../core/bridge";
 import { DEFAULT_SETTINGS, type Settings } from "../core/state";
 import type { Backend } from "./backend";
 
@@ -84,6 +84,7 @@ export function fakeBackend(): Backend {
   };
   const cursor = { installed: q.get("cursor") === "installed" };
   const codex = { installed: q.get("codex") === "installed" };
+  let update: UpdateInfo | null = null;
   const usage = { installed: usageCase === "installed" || usageCase === "chained", chained: usageCase === "chained", other: usageCase === "other" };
   /** Stands for the bytes of settings.json: every write changes it. */
   let revision = 1;
@@ -210,6 +211,21 @@ export function fakeBackend(): Backend {
       const backup = written(fingerprint).replace(SETTINGS_JSON, CURSOR_JSON);
       cursor.installed = install;
       return backup;
+    },
+
+    // `?update=available|latest|offline`: what a check finds. Nothing is asked of anybody here.
+    async updateCheck() {
+      await wait(500);
+      const found = q.get("update") ?? "available";
+      if (found === "offline") throw new Error("Couldn't reach GitHub. Check your connection and try again.");
+      update = { current: "0.2.1", latest: found === "latest" ? "0.2.1" : "0.3.0", available: found !== "latest", url: "https://github.com/zubairbinshaukat/nook/releases/latest", checkedAt: Date.parse("2026-10-06T09:15:00Z") };
+      return update;
+    },
+    async updateLast() {
+      return update;
+    },
+    async updateOpen() {
+      console.info("[fake] open the release page");
     },
 
     async codexStatus(): Promise<CodexStatus> {

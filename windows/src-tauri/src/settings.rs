@@ -98,6 +98,11 @@ pub struct Settings {
     /// Settings → Codex: Codex's sessions are shown beside Claude Code's.
     #[serde(default = "default_true")]
     pub show_codex_sessions: bool,
+    /// Settings → About: Nook asks GitHub for its latest release once a day
+    /// (update.rs). Off until the user switches it on: it is the one thing that
+    /// uses the network.
+    #[serde(default)]
+    pub check_updates: bool,
 }
 
 /// The choices of "Auto-hide the folded island after", in seconds; 0 is never.
@@ -294,6 +299,7 @@ impl Default for Settings {
             hide_in_fullscreen: true,
             show_cursor_sessions: true,
             show_codex_sessions: true,
+            check_updates: false,
         }
     }
 }

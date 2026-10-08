@@ -628,6 +628,8 @@ export interface Settings {
   showCursorSessions: boolean;
   /** Settings → Codex: Codex's sessions are shown beside Claude Code's. */
   showCodexSessions: boolean;
+  /** Settings → About: once a day, ask GitHub whether a newer Nook is out. Off unless the user switches it on. */
+  checkUpdates: boolean;
 }
 
 /** The choices of "Auto-hide the folded island after", in seconds; 0 is "never". 60 is what it always was. */
@@ -848,6 +850,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hideInFullscreen: true,
   showCursorSessions: true,
   showCodexSessions: true,
+  checkUpdates: false,
 };
 
 type Listener = () => void;

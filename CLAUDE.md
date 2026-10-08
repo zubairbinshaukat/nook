@@ -23,7 +23,7 @@ cargo test --workspace
 
 ## Rules
 - No new dependency unless there is a real need for it.
-- No telemetry and no network calls.
+- No telemetry and no network calls. One exception, which the user has to ask for: the update check (`update.rs`), off by default, asks GitHub for the latest release and sends nothing else.
 - Never block Claude Code: if the app does not answer, the relay exits right away.
 - Never approve a permission without an explicit click.
 - Never write `~/.claude/settings.json` without a preview of the diff, a dated backup and an explicit click. Never touch another tool's hooks.

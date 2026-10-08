@@ -125,6 +125,14 @@ export const Bridge = {
 
   openSettingsWindow: () => call<void>("open_settings_window"),
 
+  // ── The update check (src-tauri/src/update.rs): only ever on the user's say ──
+  /** Asks GitHub now for the latest release. Throws a sentence when it could not. */
+  updateCheck: () => callOrThrow<UpdateInfo>("update_check"),
+  /** The last result known, without asking anybody. */
+  updateLast: () => call<UpdateInfo | null>("update_last"),
+  /** Opens the latest release's page in the browser. */
+  updateOpen: () => call<void>("update_open"),
+
   // ── A reply to a session at rest (src-tauri/src/reply.rs) ─────────────────
   /** Which tools' command lines are on this machine: a reply runs through them. */
   replyTools: () => call<ReplyTools>("reply_tools"),
@@ -369,6 +377,19 @@ export interface CursorStatus {
   refused: string | null;
   /** hooks.json is there but is not plain JSON (comments, a trailing comma): never written over. */
   unreadable: string | null;
+}
+
+/** What an update check found (the `update_checked` event, `updateCheck`, `updateLast`). */
+export interface UpdateInfo {
+  /** This build's version. */
+  current: string;
+  /** The newest release's, without a leading "v". */
+  latest: string;
+  /** `latest` is newer than `current`. */
+  available: boolean;
+  url: string;
+  /** When it was checked (Unix ms). */
+  checkedAt: number;
 }
 
 /** The tools a reply can be sent to. */

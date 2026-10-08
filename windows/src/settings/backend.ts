@@ -5,7 +5,7 @@
 
 import {
   Bridge, IS_TAURI, SettingsBridge, onEvent,
-  type AboutLink, type CodexStatus, type CursorStatus, type DataPaths, type HookPreview, type HookStatus, type ReplyFormatAction, type ReplyFormatStatus, type ShortcutName,
+  type AboutLink, type CodexStatus, type CursorStatus, type DataPaths, type HookPreview, type HookStatus, type ReplyFormatAction, type ReplyFormatStatus, type ShortcutName, type UpdateInfo,
   type ShortcutStatus, type UsageStatus,
 } from "../core/bridge";
 import type { Settings } from "../core/state";
@@ -32,6 +32,11 @@ export interface Backend {
   codexStatus(): Promise<CodexStatus | null>;
   codexPreview(install: boolean): Promise<HookPreview>;
   codexApply(install: boolean, fingerprint: string): Promise<string>;
+  /** Asks GitHub now whether a newer Nook is out. Throws a sentence when it could not. */
+  updateCheck(): Promise<UpdateInfo>;
+  /** The last result known, without asking anybody. */
+  updateLast(): Promise<UpdateInfo | null>;
+  updateOpen(): Promise<void>;
 
   usageStatus(): Promise<UsageStatus | null>;
   usagePreview(install: boolean): Promise<HookPreview>;
@@ -65,6 +70,9 @@ const nook: Backend = {
   codexStatus: () => Bridge.codexStatus(),
   codexPreview: (install) => Bridge.codexPreview(install),
   codexApply: (install, fingerprint) => Bridge.codexApply(install, fingerprint),
+  updateCheck: () => Bridge.updateCheck(),
+  updateLast: () => Bridge.updateLast(),
+  updateOpen: async () => void (await Bridge.updateOpen()),
   usageStatus: () => Bridge.usageStatus(),
   usagePreview: (install) => Bridge.usagePreview(install),
   usageApply: (install, fingerprint) => Bridge.usageApply(install, fingerprint),

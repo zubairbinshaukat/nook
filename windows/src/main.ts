@@ -6,6 +6,7 @@ import { Bridge, IS_TAURI, onEvent, type PanelSize } from "./core/bridge";
 import { Reply } from "./core/reply";
 import { Sound } from "./core/sound";
 import { State, readMetrics, readUsage, type Settings } from "./core/state";
+import { Update } from "./core/update";
 import { startAgentsFeed } from "./agents/feed";
 import { Island } from "./island/island";
 import { registerHookHandlers } from "./island/hooks";
@@ -76,6 +77,9 @@ async function main() {
   // A reply typed in the island: which command lines can take one, and when a run of ours is over.
   await onEvent<unknown>("reply_ended", (payload) => Reply.ended(payload));
   void Reply.load();
+  // A newer Nook, when the user asked to be told of one (core/update.ts): the island is told, and never asks.
+  await onEvent<unknown>("update_checked", (payload) => Update.checked(payload));
+  void Update.load();
   island.applySettings();
   // The Shelf's widgets read what they kept, and arm what must run on its own.
   startWidgets();

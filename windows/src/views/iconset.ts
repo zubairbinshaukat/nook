@@ -60,6 +60,8 @@ export const LUCIDE = {
   search: '<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
   /** lucide: x (from Feather, MIT) */
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  /** lucide: download (from Feather, MIT) — a newer Nook is out */
+  download: '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
   /** lucide: arrow-up (from Feather, MIT) — the reply box's send */
   arrowUp: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
   /** lucide: square (from Feather, MIT) — the reply box's stop */

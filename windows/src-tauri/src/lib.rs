@@ -24,6 +24,7 @@ mod shortcut;
 mod statusline;
 mod target;
 mod tray;
+mod update;
 mod usage;
 mod visibility;
 
@@ -810,6 +811,9 @@ pub fn run() {
             data_paths,
             open_log_folder,
             restart_app,
+            update::update_check,
+            update::update_last,
+            update::update_open,
             shelf::shelf_load,
             shelf::shelf_save,
             media_state,
@@ -862,6 +866,7 @@ pub fn run() {
             pipe::start(handle.clone());
             shortcut::start(&handle, &loaded);
             agents::start(&handle);
+            update::start(&handle);
             Ok(())
         })
         .build(tauri::generate_context!())

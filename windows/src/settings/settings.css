@@ -580,6 +580,80 @@ body.settings-window {
   margin-top: 12px;
 }
 
+/* About → Updates: "Get it" and "Check now", side by side. */
+.sp-update-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Connect: each tool's own part — its mark and name, and under them what Nook writes for it. */
+.sp-tool {
+  margin-top: 30px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+.sp-head + .sp-tool {
+  margin-top: 22px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.sp-tool-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sp-tool-mark {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--text);
+}
+
+.sp-tool.claude .sp-tool-mark {
+  border-color: color-mix(in srgb, #d97757 34%, transparent);
+  background: color-mix(in srgb, #d97757 14%, var(--card));
+  color: #d97757;
+}
+
+.sp-tool-text {
+  min-width: 0;
+}
+
+.sp-tool-name {
+  margin: 0;
+  font: 600 15px/20px var(--font-title);
+  letter-spacing: -0.008em;
+  color: var(--text);
+}
+
+.sp-tool-what {
+  margin: 1px 0 0;
+  font: 400 12px/16px var(--font);
+  color: var(--text-2);
+}
+
+.sp-tool > .sp-group {
+  margin-top: 18px;
+}
+
+.sp-tool-head + .sp-group {
+  margin-top: 14px;
+}
+
+.sp-tool > .sp-group + .sp-group:has(> .sp-box:only-child) {
+  margin-top: 10px;
+}
+
 /* A row brought into view from a search result: lit for a moment. */
 .sp-lit {
   animation: sp-lit 1.4s ease-out;
