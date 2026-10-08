@@ -109,7 +109,7 @@
 
 <h2 id="what-nook-does">What the Nook app does with your data</h2>
 <p>Nook shows your Claude Code sessions. To do that, Claude Code runs a small relay program (<code>nook-hook.exe</code>) on each hook event. The relay passes the event to the Nook app over a local named pipe that only your Windows account can open. To show an event the relay may read a little context: the end of the session&rsquo;s transcript (its title and last message), the file an edit targets and the output of a command. That goes only to the app, only over the local pipe, and stays in memory. It is not sent anywhere else, and it is not written to the log.</p>
-<p>The same goes for Codex and Cursor sessions, which Nook shows when you turn them on. If you reply to a finished Claude Code or Codex session from the island, Nook starts that tool&rsquo;s own command (<code>claude</code> or <code>codex</code>) on your PC with your text, and the tool then talks to its own service exactly as it does when you run it yourself. Nook sends your text nowhere else.</p>
+<p>The same goes for Codex and Cursor sessions, which Nook shows when you turn them on. If you reply to a finished Claude Code or Codex session from the island, Nook types your text into the session&rsquo;s own window on your PC (or, for the Claude Code panel of an editor, puts it in the session&rsquo;s prompt box), and the tool then talks to its own service exactly as it does when you type it yourself. Nook sends your text nowhere else.</p>
 
 <h2 id="stored-locally">What is stored locally</h2>
 <table>

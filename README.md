@@ -86,7 +86,7 @@ The last two are plain screenshots of the real app.
 |---|---|
 | **Every session at a glance** | One page for all running sessions: project, status, last message, subagents, and a button back to the window each one runs in. |
 | **Approve from the island** | Permission requests and questions are answered from the island, for Claude Code and Codex. Edits show a real diff. Nothing is approved without your click. |
-| **Reply from the island** | When a Claude Code or Codex session's turn is over, type a reply on its card. It continues that conversation in the background through the tool's own command line (`claude` or `codex` must be installed). The terminal the session started in does not show that turn. Not offered for Cursor. |
+| **Reply from the island** | When a Claude Code or Codex session's turn is over, type a reply on its card. Nook types it into the session's own window (a terminal), or opens the session in VS Code or Cursor with the reply in its prompt box. Not offered for Cursor's own agent sessions. |
 | **Claude Code, Codex and Cursor** | Codex's and Cursor's agent sessions appear next to Claude Code's, each with its own mark. Codex gets Allow and Deny; Cursor is status only. |
 | **Usage limits** | Your 5-hour and 7-day Claude limits, from Claude Code's own status line, with no network call. Codex's limits are not shown. |
 | **Resources** | CPU, GPU and RAM in the header of every screen. |
@@ -159,12 +159,23 @@ deny or delay anything there. Restart Cursor afterwards. Details in
 
 When a Claude Code or Codex session's turn is over, its finished card and its
 session panel show a box to reply in: Enter sends, Shift+Enter starts a new
-line. Nook continues that conversation in the background through the tool's
-own command line (`claude -p --resume <id>` with your text on stdin, or
-`codex exec resume <id> -`), follows the run like any other turn, and shows a
-Stop button while it runs. The limits are plain: the terminal or window the
-session was started in does not show the reply's turn; it is not offered for
-Cursor; and it needs the `claude` or `codex` command to be installed.
+line. Nook delivers the reply in the window the session runs in, so the
+conversation carries on there. For a terminal session, Nook brings the terminal
+forward, types the reply and presses Enter. For the Claude Code panel of VS Code
+or Cursor (the extension), Nook brings the editor forward and opens that session
+with the reply already in its prompt box; you press Enter there yourself. Nook
+never touches the clipboard. A reply can also be sent while the session's
+subagents are still running; a warning says the new turn may cross with what
+they report.
+
+The box is only there while Nook can find that window. It is not offered for
+Cursor's own agent sessions, for Claude Code running in an editor's built-in
+terminal, for the Claude desktop app, or on Linux. In a terminal with tabs
+(Windows Terminal) the session's tab has to be the one showing: Nook cannot
+switch tabs. If another tab is showing, or the terminal runs as administrator,
+nothing is sent anywhere and what you typed stays in the box, with the reason.
+If you change windows while Nook is typing, it stops, does not press Enter, and
+says so.
 
 ## Updates
 

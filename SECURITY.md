@@ -19,8 +19,15 @@ answer within a few days.
 - Permission requests are answered only by a click on the island. If the app is
   closed, slow, paused or crashes, the relay prints nothing and exits 0, and
   Claude Code asks in the terminal.
-- Nothing is sent over the network, and the window's content security policy
-  forbids it. Event text is rendered as text, never as HTML.
+- Nothing is sent over the network, with one exception: an update check you
+  switch on yourself (Settings → About, off by default, or the **Check now**
+  button), which asks GitHub's API for the latest release and sends nothing
+  about you or your machine. The window's content security policy forbids
+  everything else. Event text is rendered as text, never as HTML.
+- A reply typed in the island is typed into the session's own window with
+  synthesized keystrokes, only after Nook has checked that the window is the
+  session's (its terminal's visible tab must carry the conversation's title),
+  never into an administrator window, and never through the clipboard.
 - The hook installer writes `~/.claude/settings.json` only after a diff
   preview, a dated backup and a click, and touches only Nook's own entries.
 - The installer is not code-signed yet; check releases against `SHA256SUMS.txt`.
