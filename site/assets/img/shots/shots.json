@@ -14,7 +14,7 @@
     "file": "approval-diff-dark.webp",
     "width": 720,
     "height": 360,
-    "bytes": 21030,
+    "bytes": 21394,
     "alt": "An edit request in the island with the changed lines shown as a diff, removed lines in red and added lines in green."
   },
   {
@@ -23,7 +23,7 @@
     "file": "approval-diff-light.webp",
     "width": 720,
     "height": 360,
-    "bytes": 20344,
+    "bytes": 20730,
     "alt": "An edit request in the island with the changed lines shown as a diff, removed lines in red and added lines in green."
   },
   {
@@ -59,7 +59,7 @@
     "file": "dock-bottom-dark.webp",
     "width": 780,
     "height": 366,
-    "bytes": 30440,
+    "bytes": 30450,
     "alt": "Nook docked to the bottom edge of the screen, standing on the taskbar."
   },
   {
@@ -68,7 +68,7 @@
     "file": "dock-bottom-light.webp",
     "width": 780,
     "height": 366,
-    "bytes": 28156,
+    "bytes": 28174,
     "alt": "Nook docked to the bottom edge of the screen, standing on the taskbar."
   },
   {
@@ -77,7 +77,7 @@
     "file": "dock-left-dark.webp",
     "width": 390,
     "height": 562,
-    "bytes": 22890,
+    "bytes": 22882,
     "alt": "Nook docked to the left edge of the screen as a tall panel."
   },
   {
@@ -86,7 +86,7 @@
     "file": "dock-left-light.webp",
     "width": 390,
     "height": 562,
-    "bytes": 21346,
+    "bytes": 21374,
     "alt": "Nook docked to the left edge of the screen as a tall panel."
   },
   {
@@ -113,7 +113,7 @@
     "file": "folded-dark.webp",
     "width": 352,
     "height": 62,
-    "bytes": 2962,
+    "bytes": 2978,
     "alt": "The Nook island folded to a small pill: the character, a dot for each session, and the CPU, GPU, RAM and Claude usage readings."
   },
   {
@@ -122,7 +122,7 @@
     "file": "folded-light.webp",
     "width": 352,
     "height": 62,
-    "bytes": 3054,
+    "bytes": 3126,
     "alt": "The Nook island folded to a small pill: the character, a dot for each session, and the CPU, GPU, RAM and Claude usage readings."
   },
   {
@@ -194,7 +194,7 @@
     "file": "island-home-dark.webp",
     "width": 720,
     "height": 288,
-    "bytes": 19214,
+    "bytes": 19084,
     "alt": "The Nook island open on Home: a session card that needs permission, the working and done sessions, and CPU, GPU, RAM and Claude usage."
   },
   {
@@ -203,7 +203,7 @@
     "file": "island-home-light.webp",
     "width": 720,
     "height": 288,
-    "bytes": 18706,
+    "bytes": 18570,
     "alt": "The Nook island open on Home: a session card that needs permission, the working and done sessions, and CPU, GPU, RAM and Claude usage."
   },
   {
@@ -230,7 +230,7 @@
     "file": "over-browser-tabs-dark.webp",
     "width": 1440,
     "height": 420,
-    "bytes": 35742,
+    "bytes": 35812,
     "alt": "The Nook island floating over the tab strip of a browser window, so it never takes space from the page."
   },
   {
@@ -239,7 +239,7 @@
     "file": "over-browser-tabs-light.webp",
     "width": 1440,
     "height": 420,
-    "bytes": 36714,
+    "bytes": 36686,
     "alt": "The Nook island floating over the tab strip of a browser window, so it never takes space from the page."
   },
   {
@@ -248,7 +248,7 @@
     "file": "over-editor-dark.webp",
     "width": 1280,
     "height": 460,
-    "bytes": 31344,
+    "bytes": 32308,
     "alt": "A permission request for an edit in the Nook island, with the changed lines as a diff and Deny and Allow buttons, above a code editor."
   },
   {
@@ -257,7 +257,7 @@
     "file": "over-editor-light.webp",
     "width": 1280,
     "height": 460,
-    "bytes": 32322,
+    "bytes": 33494,
     "alt": "A permission request for an edit in the Nook island, with the changed lines as a diff and Deny and Allow buttons, above a code editor."
   },
   {
@@ -266,7 +266,7 @@
     "file": "over-terminal-dark.webp",
     "width": 1280,
     "height": 560,
-    "bytes": 51692,
+    "bytes": 51724,
     "alt": "A Claude Code session open in the Nook island above a terminal window."
   },
   {
@@ -275,7 +275,7 @@
     "file": "over-terminal-light.webp",
     "width": 1280,
     "height": 560,
-    "bytes": 50498,
+    "bytes": 50508,
     "alt": "A Claude Code session open in the Nook island above a terminal window."
   },
   {
@@ -284,7 +284,7 @@
     "file": "question-dark.webp",
     "width": 720,
     "height": 331,
-    "bytes": 21268,
+    "bytes": 21278,
     "alt": "A question from Claude Code in the island with the answer options as buttons."
   },
   {
@@ -293,7 +293,7 @@
     "file": "question-light.webp",
     "width": 720,
     "height": 331,
-    "bytes": 20798,
+    "bytes": 20688,
     "alt": "A question from Claude Code in the island with the answer options as buttons."
   },
   {
@@ -320,7 +320,7 @@
     "file": "session-agents-dark.webp",
     "width": 800,
     "height": 360,
-    "bytes": 31768,
+    "bytes": 31692,
     "alt": "A session page listing its subagents under the parent session, each with its own state."
   },
   {
@@ -329,7 +329,7 @@
     "file": "session-agents-light.webp",
     "width": 800,
     "height": 360,
-    "bytes": 30704,
+    "bytes": 30908,
     "alt": "A session page listing its subagents under the parent session, each with its own state."
   },
   {
@@ -554,7 +554,7 @@
     "file": "shelf-dark.webp",
     "width": 952,
     "height": 252,
-    "bytes": 14890,
+    "bytes": 14896,
     "alt": "The Shelf of the island with the six widget cards: To-do, Timer, Reminders, Media, Mirror and Projects."
   },
   {
@@ -563,7 +563,7 @@
     "file": "shelf-light.webp",
     "width": 952,
     "height": 252,
-    "bytes": 14378,
+    "bytes": 14374,
     "alt": "The Shelf of the island with the six widget cards: To-do, Timer, Reminders, Media, Mirror and Projects."
   },
   {
