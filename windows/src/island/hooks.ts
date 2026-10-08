@@ -473,7 +473,8 @@ function sessionOf(island: Island, payload: HookPayload): ClaudeSession {
   }
   // Where it runs: Nook says it on every event of the session. An event that
   // says nothing of it leaves what is known alone.
-  const target = readTarget(payload.target);
+  // A reply's run has no window: where the session runs is still where the user opened it.
+  const target = payload.nook_reply === "1" ? null : readTarget(payload.target);
   if (target) session.target = target;
   if (payload.session_title) session.title = payload.session_title;
   // The model it runs on, on the events that say it — and only the session's
@@ -884,6 +885,11 @@ export function handleHook(island: Island, payload: HookPayload) {
   }
 
   const name = payload.hook_event_name ?? "";
+
+  // A reply typed in the island runs in a process of its own (core/reply.ts), which
+  // starts and ends like a session. Neither is the session's: the one the user
+  // opened is still there when the reply's run is over, journal and all.
+  if (payload.nook_reply === "1" && (name === "SessionStart" || name === "SessionEnd")) return;
 
   if (name === "SessionEnd") {
     const over = State.sessions.find((s) => s.id === (payload.session_id || ANONYMOUS));
