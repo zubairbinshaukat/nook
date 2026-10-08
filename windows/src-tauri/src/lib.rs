@@ -17,6 +17,8 @@ mod pipe;
 mod platform;
 mod projects;
 mod reply;
+#[cfg_attr(not(windows), allow(dead_code))]
+mod reply_here;
 mod replyformat;
 mod settings;
 mod shelf;
@@ -231,31 +233,41 @@ fn focus_session(sessions: State<Sessions>, session_id: String) -> bool {
     went
 }
 
-fn go_to(plan: &Plan) -> bool {
+/// The window a session's terminal or editor is in, as the ↗ finds it — not yet
+/// brought forward. None for the Claude app, for a session nothing is known of,
+/// and when no such window is open. Shared with reply_here.rs.
+fn plan_window(plan: &Plan) -> Option<isize> {
     // A pid is given out again once its process has gone: only the processes
     // that are still the program the relay named are gone to.
     let chain = target::still_there(&plan.chain, platform::image_name);
     let cwd = plan.cwd.as_deref();
+    match plan.target.kind {
+        Kind::Unknown | Kind::Claude => None,
+        Kind::Terminal => target::terminal_window(&platform::top_windows(), &chain, cwd),
+        Kind::Vscode | Kind::Cursor => {
+            let pids: Vec<u32> = chain.iter().map(|p| p.pid).collect();
+            // The editor the relay named must still be there for one of its windows to be touched.
+            let named = plan.target.pid.is_some_and(|pid| pids.contains(&pid));
+            target::editor_image(&plan.target)
+                .filter(|_| named)
+                .and_then(|image| target::editor_window(&platform::top_windows(), image, cwd, &pids))
+        }
+    }
+}
+
+fn go_to(plan: &Plan) -> bool {
     match plan.target.kind {
         Kind::Unknown => false,
         Kind::Claude => {
             open_claude_app();
             true
         }
-        Kind::Terminal => target::terminal_window(&platform::top_windows(), &chain, cwd).is_some_and(platform::bring_forward),
-        Kind::Vscode | Kind::Cursor => {
-            let pids: Vec<u32> = chain.iter().map(|p| p.pid).collect();
-            // The editor the relay named must still be there for one of its windows to be touched.
-            let named = plan.target.pid.is_some_and(|pid| pids.contains(&pid));
-            let window = target::editor_image(&plan.target)
-                .filter(|_| named)
-                .and_then(|image| target::editor_window(&platform::top_windows(), image, cwd, &pids));
-            match window {
-                Some(window) => platform::bring_forward(window),
-                // No window of it at all: the folder is opened in it, as before.
-                None => target::launcher_of(&plan.target).is_some_and(|launcher| open_folder_in(launcher, plan.cwd.clone())),
-            }
-        }
+        Kind::Terminal => plan_window(plan).is_some_and(platform::bring_forward),
+        Kind::Vscode | Kind::Cursor => match plan_window(plan) {
+            Some(window) => platform::bring_forward(window),
+            // No window of it at all: the folder is opened in it, as before.
+            None => target::launcher_of(&plan.target).is_some_and(|launcher| open_folder_in(launcher, plan.cwd.clone())),
+        },
     }
 }
 
@@ -827,6 +839,7 @@ pub fn run() {
             projects_new_session,
             reply::reply_tools,
             reply::session_reply,
+            reply_here::session_reply_here,
             reply::session_reply_cancel,
             agents::agents_snapshot,
             agents::agents_last,

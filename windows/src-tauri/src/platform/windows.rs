@@ -14,7 +14,7 @@ use ::windows::core::{w, BOOL, PCWSTR, PWSTR};
 use ::windows::Win32::Foundation::{CloseHandle, FILETIME, HANDLE, HLOCAL, HWND, LocalFree, LPARAM, POINT, RECT};
 use ::windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST};
 use ::windows::Win32::Security::Authorization::ConvertSidToStringSidW;
-use ::windows::Win32::Security::{GetTokenInformation, TokenUser, TOKEN_QUERY, TOKEN_USER};
+use ::windows::Win32::Security::{GetTokenInformation, TokenElevation, TokenUser, TOKEN_ELEVATION, TOKEN_QUERY, TOKEN_USER};
 use ::windows::Win32::System::Performance::{
     PdhAddEnglishCounterW, PdhCloseQuery, PdhCollectQueryData, PdhGetFormattedCounterArrayW, PdhOpenQueryW, PDH_CSTATUS_NEW_DATA,
     PDH_CSTATUS_VALID_DATA, PDH_FMT_COUNTERVALUE_ITEM_W, PDH_FMT_DOUBLE, PDH_HCOUNTER, PDH_HQUERY, PDH_MORE_DATA,
@@ -657,6 +657,124 @@ fn in_front(hwnd: HWND) -> bool {
         }
         std::thread::sleep(Duration::from_millis(10));
     }
+}
+
+// ── Typing into a session's window ────────────────────────────────────────────
+//
+// What reply_here.rs does with them is its own business; these are the system
+// calls, each one small.
+
+/// The title of a window as it is now; empty when it is gone.
+pub fn window_title(hwnd: isize) -> String {
+    let mut title = [0u16; 512];
+    let len = unsafe { GetWindowTextW(HWND(hwnd as *mut _), &mut title) }.max(0) as usize;
+    String::from_utf16_lossy(&title[..len])
+}
+
+/// True when `hwnd` is the window in front.
+pub fn is_foreground(hwnd: isize) -> bool {
+    unsafe { GetForegroundWindow() }.0 as isize == hwnd
+}
+
+/// True once `hwnd` is the window in front, waiting up to `ms` for it.
+pub fn wait_foreground(hwnd: isize, ms: u64) -> bool {
+    let until = Instant::now() + Duration::from_millis(ms);
+    loop {
+        if is_foreground(hwnd) {
+            return true;
+        }
+        if Instant::now() >= until {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+/// Whether a process's token is elevated; None when it cannot be read.
+fn token_elevated(process: HANDLE) -> Option<bool> {
+    unsafe {
+        let mut token = HANDLE::default();
+        OpenProcessToken(process, TOKEN_QUERY, &mut token).ok()?;
+        let mut elevation = TOKEN_ELEVATION { TokenIsElevated: 0 };
+        let mut returned = 0u32;
+        let read = GetTokenInformation(
+            token,
+            TokenElevation,
+            Some((&mut elevation as *mut TOKEN_ELEVATION).cast()),
+            std::mem::size_of::<TOKEN_ELEVATION>() as u32,
+            &mut returned,
+        )
+        .is_ok();
+        let _ = CloseHandle(token);
+        read.then_some(elevation.TokenIsElevated != 0)
+    }
+}
+
+/// True when the program that owns `hwnd` runs elevated and we do not: Windows
+/// would drop what is typed to it, silently. A token that cannot be read is
+/// taken to be elevated.
+pub fn elevated_out_of_reach(hwnd: isize) -> bool {
+    if token_elevated(unsafe { GetCurrentProcess() }).unwrap_or(false) {
+        return false;
+    }
+    let mut pid = 0u32;
+    unsafe { GetWindowThreadProcessId(HWND(hwnd as *mut _), Some(&mut pid)) };
+    let Ok(process) = (unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }) else { return true };
+    let elevated = token_elevated(process).unwrap_or(true);
+    let _ = unsafe { CloseHandle(process) };
+    elevated
+}
+
+/// True once the Enter, Shift, Ctrl, Alt and Windows keys are all up, waiting up
+/// to `ms` for it: the user has just pressed Enter in the island.
+pub fn wait_keys_released(ms: u64) -> bool {
+    use ::windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_CONTROL, VK_LWIN, VK_MENU, VK_RETURN, VK_RWIN, VK_SHIFT};
+    let down = || [VK_RETURN, VK_SHIFT, VK_CONTROL, VK_MENU, VK_LWIN, VK_RWIN].iter().any(|key| unsafe { GetAsyncKeyState(key.0 as i32) } < 0);
+    let until = Instant::now() + Duration::from_millis(ms);
+    loop {
+        if !down() {
+            return true;
+        }
+        if Instant::now() >= until {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+/// Sends keys to the window in front: a character as Unicode input, a key down
+/// and up for each unit of UTF-16; Enter as the key. Returns how many input
+/// events the system took, and how many there were.
+pub fn send_keys(keys: &[crate::reply_here::KeyAction]) -> (usize, usize) {
+    use ::windows::Win32::UI::Input::KeyboardAndMouse::{
+        MapVirtualKeyW, SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, MAPVK_VK_TO_VSC,
+        VIRTUAL_KEY, VK_RETURN,
+    };
+    use crate::reply_here::KeyAction;
+
+    let stroke = |vk: VIRTUAL_KEY, scan: u16, flags: KEYBD_EVENT_FLAGS| INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: vk, wScan: scan, dwFlags: flags, time: 0, dwExtraInfo: 0 } },
+    };
+    let mut events: Vec<INPUT> = Vec::with_capacity(keys.len() * 2);
+    for key in keys {
+        match key {
+            KeyAction::Char(c) => {
+                let mut units = [0u16; 2];
+                for unit in c.encode_utf16(&mut units) {
+                    events.push(stroke(VIRTUAL_KEY(0), *unit, KEYEVENTF_UNICODE));
+                    events.push(stroke(VIRTUAL_KEY(0), *unit, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP));
+                }
+            }
+            KeyAction::Enter => {
+                let scan = unsafe { MapVirtualKeyW(VK_RETURN.0 as u32, MAPVK_VK_TO_VSC) } as u16;
+                events.push(stroke(VK_RETURN, scan, KEYBD_EVENT_FLAGS(0)));
+                events.push(stroke(VK_RETURN, scan, KEYEVENTF_KEYUP));
+            }
+        }
+    }
+    let sent = unsafe { SendInput(&events, std::mem::size_of::<INPUT>() as i32) } as usize;
+    (sent, events.len())
 }
 
 #[cfg(test)]

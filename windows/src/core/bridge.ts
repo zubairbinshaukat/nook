@@ -136,6 +136,13 @@ export const Bridge = {
   // ── A reply to a session at rest (src-tauri/src/reply.rs) ─────────────────
   /** Which tools' command lines are on this machine: a reply runs through them. */
   replyTools: () => call<ReplyTools>("reply_tools"),
+  /**
+   * Puts `text` where the session runs (src-tauri/src/reply_here.rs): typed into its terminal and sent, or
+   * pre-filled in its editor's Claude panel. `sessionId` is the island's own id of the session; `title` only
+   * proves which tab is showing. Throws, with nothing typed anywhere, when that place cannot be reached.
+   */
+  sessionReplyHere: (sessionId: string, title: string | null, text: string) =>
+    callOrThrow<ReplyPlace>("session_reply_here", { sessionId, title, text }),
   /** Continues that conversation in the background with `text`. Throws what Rust refused with, as a sentence. */
   sessionReply: (tool: ReplyTool, sessionId: string, cwd: string, text: string) =>
     callOrThrow<void>("session_reply", { tool, sessionId, cwd, text }),
@@ -391,6 +398,13 @@ export interface UpdateInfo {
   /** When it was checked (Unix ms). */
   checkedAt: number;
 }
+
+/**
+ * Where a reply went, when it went to the session's own window: "typed" and sent in its terminal;
+ * "prefilled" in its editor's Claude panel, where Enter is still to be pressed; "interrupted" — the user
+ * changed windows while it was being typed, so part of it is in the terminal and it was not sent.
+ */
+export type ReplyPlace = "typed" | "prefilled" | "interrupted";
 
 /** The tools a reply can be sent to. */
 export type ReplyTool = "claude" | "codex";

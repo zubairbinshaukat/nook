@@ -104,7 +104,17 @@ const MAX_ANCESTORS: usize = 16;
 /// Sessions remembered at once; past that, the one heard from longest ago goes.
 const MAX_SESSIONS: usize = 32;
 /// The id of a session whose hooks carry none (island/hooks.ts `ANONYMOUS`).
-const ANONYMOUS: &str = "session";
+pub const ANONYMOUS: &str = "session";
+/// The entry point of the Claude Code extension of VS Code and Cursor: its
+/// panel, as against a Claude Code run in the editor's integrated terminal ("cli").
+const EXTENSION_ENTRYPOINT: &str = "claude-vscode";
+
+/// True when a session runs in the extension's panel of an editor. Only the
+/// Windows reply path asks.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn is_extension(entrypoint: &str) -> bool {
+    entrypoint.eq_ignore_ascii_case(EXTENSION_ENTRYPOINT)
+}
 /// How the Agent SDK names itself as an entry point: "sdk-ts", "sdk-py", "sdk-cli".
 const SDK_ENTRYPOINT: &str = "sdk";
 /// How many folders up from the session's own a window's title is looked for.
@@ -250,16 +260,20 @@ struct Host {
     chain: Vec<Proc>,
     target: Target,
     cwd: Option<String>,
+    /// `CLAUDE_CODE_ENTRYPOINT`, as the events that carry it said it last.
+    entrypoint: String,
     heard: u64,
 }
 
 /// What it takes to go to a session: its target, the chain it was decided
-/// from, and its folder.
+/// from, its folder, and the entry point it was started through.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Plan {
     pub target: Target,
     pub chain: Vec<Proc>,
     pub cwd: Option<String>,
+    #[cfg_attr(not(windows), allow(dead_code))]
+    pub entrypoint: String,
 }
 
 /// The sessions heard from, by id.
@@ -311,8 +325,10 @@ impl Sessions {
         });
         let cwd = Some(text(map, "cwd")).filter(|cwd| !cwd.is_empty()).or_else(|| known.get(&id).and_then(|host| host.cwd.clone()));
 
+        let entrypoint = Some(text(map, "entrypoint")).filter(|e| !e.is_empty()).or_else(|| known.get(&id).map(|host| host.entrypoint.clone())).unwrap_or_default();
+
         *clock += 1;
-        known.insert(id, Host { chain, target: target.clone(), cwd, heard: *clock });
+        known.insert(id, Host { chain, target: target.clone(), cwd, entrypoint, heard: *clock });
         while known.len() > MAX_SESSIONS {
             let Some(oldest) = known.iter().min_by_key(|(_, host)| host.heard).map(|(id, _)| id.clone()) else { break };
             known.remove(&oldest);
@@ -327,7 +343,7 @@ impl Sessions {
     pub fn plan(&self, session_id: &str) -> Option<Plan> {
         let guard = self.known.lock().unwrap();
         let host = guard.0.get(session_id)?;
-        (host.target.kind != Kind::Unknown).then(|| Plan { target: host.target.clone(), chain: host.chain.clone(), cwd: host.cwd.clone() })
+        (host.target.kind != Kind::Unknown).then(|| Plan { target: host.target.clone(), chain: host.chain.clone(), cwd: host.cwd.clone(), entrypoint: host.entrypoint.clone() })
     }
 }
 
@@ -682,6 +698,24 @@ mod tests {
         assert!(sessions.plan("s0").is_some() && sessions.plan(&format!("s{}", MAX_SESSIONS - 1)).is_some());
         // Not an object: nothing to read, nothing kept.
         assert_eq!(sessions.note(&mut json!("hello"), false, nobody), Target::UNKNOWN);
+    }
+
+    #[test]
+    fn the_entry_point_of_a_session_is_kept_and_tells_the_extension_from_the_terminal() {
+        let sessions = Sessions::default();
+        let chain = json!([{ "pid": 10, "name": "claude.exe" }, { "pid": 20, "name": "Code.exe" }]);
+        let mut start = event("a", "SessionStart", json!({ "ancestors": chain.clone(), "entrypoint": "claude-vscode" }));
+        sessions.note(&mut start, false, nobody);
+        assert!(is_extension(&sessions.plan("a").unwrap().entrypoint));
+        // An event that says none leaves what was said.
+        let mut tool = event("a", "PreToolUse", json!({ "entrypoint": "" }));
+        sessions.note(&mut tool, false, nobody);
+        assert_eq!(sessions.plan("a").unwrap().entrypoint, "claude-vscode");
+        // The integrated terminal of the same editor is not the panel.
+        let mut cli = event("b", "SessionStart", json!({ "ancestors": chain, "entrypoint": "cli", "term_program": "vscode" }));
+        sessions.note(&mut cli, false, nobody);
+        assert_eq!(sessions.plan("b").unwrap().target.kind, Kind::Vscode);
+        assert!(!is_extension(&sessions.plan("b").unwrap().entrypoint) && !is_extension(""));
     }
 
     #[test]

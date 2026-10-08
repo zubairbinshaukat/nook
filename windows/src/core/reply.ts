@@ -27,6 +27,8 @@ const drafts = new Map<string, string>();
 /** The sessions a reply of ours is running for. */
 const running = new Set<string>();
 const errors = new Map<string, string>();
+const notes = new Map<string, string>();
+const background = new Map<string, string>();
 /** Runs stopped from the island: their end is no error. */
 const stopped = new Set<string>();
 
@@ -81,12 +83,17 @@ export const Reply = {
   isOurs: (sessionId: string | undefined) => sessionId != null && running.has(sessionId),
 
   error: (session: ClaudeSession) => errors.get(session.id) ?? null,
+  /** Something to know about the last reply that is no error: where it was put, and what is left to do. */
+  note: (session: ClaudeSession) => notes.get(session.id) ?? null,
+  /** Why the reply under way runs in the background and not in the session's window: Rust's own sentence, or "". */
+  background: (session: ClaudeSession) => background.get(session.id) ?? "",
   draft: (session: ClaudeSession) => drafts.get(session.id) ?? "",
   setDraft(session: ClaudeSession, text: string) {
     if (text) drafts.set(session.id, text);
     else drafts.delete(session.id);
-    // Typing again is the answer to an error: it goes.
+    // Typing again is the answer to an error, or to a note: it goes.
     errors.delete(session.id);
+    notes.delete(session.id);
   },
 
   /** Sends what was typed. True once the run has started; the draft is kept when it could not. */
@@ -95,12 +102,33 @@ export const Reply = {
     const text = typed.trim();
     if (!tool || !text || !session.cwd || !Reply.open(session)) return false;
     const id = session.id;
+    const message = text.slice(0, MAX_REPLY_CHARS);
     running.add(id);
     errors.delete(id);
+    notes.delete(id);
     State.notify();
+    // First, where the session runs: its own window carries the conversation on. Rust refuses, with
+    // nothing typed anywhere, when it cannot be sure of the place — and only then the background takes it.
+    let why = "";
     try {
-      await Bridge.sessionReply(tool, rawId(session), session.cwd, text.slice(0, MAX_REPLY_CHARS));
+      const place = await Bridge.sessionReplyHere(id, session.title ?? null, message);
+      running.delete(id);
+      if (place === "interrupted") {
+        notes.set(id, "You changed windows while Nook was typing. Part of your reply is in the terminal, and it was not sent.");
+        return false;
+      }
       drafts.delete(id);
+      if (place === "prefilled") notes.set(id, `Your reply is in ${session.target?.label || "the editor"}'s Claude prompt. Press Enter there to send it.`);
+      return true;
+    } catch (err) {
+      why = words(err);
+    } finally {
+      State.notify();
+    }
+    try {
+      await Bridge.sessionReply(tool, rawId(session), session.cwd, message);
+      drafts.delete(id);
+      background.set(id, why);
       return true;
     } catch (err) {
       running.delete(id);
@@ -126,6 +154,7 @@ export const Reply = {
     if (typeof sessionId !== "string") return;
     const id = tool === "codex" ? `${CODEX_PREFIX}${sessionId}` : sessionId;
     running.delete(id);
+    background.delete(id);
     const byHand = stopped.delete(id);
     if (ok !== true && !byHand) errors.set(id, typeof error === "string" && error.trim() ? error.trim() : "The reply could not be sent.");
     // A run that ended without its session saying so (stopped, or failed before its first event): at rest again.
