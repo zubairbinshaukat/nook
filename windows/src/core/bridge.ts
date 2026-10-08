@@ -177,6 +177,12 @@ export const Bridge = {
   cursorApply: (install: boolean, fingerprint: string) =>
     callOrThrow<string>("cursor_apply", { install, fingerprint }),
 
+  // ── Codex's hooks: the same flow, on ~/.codex/hooks.json ───────────────────
+  codexStatus: () => call<CodexStatus>("codex_status"),
+  codexPreview: (install: boolean) => callOrThrow<HookPreview>("codex_preview", { install }),
+  codexApply: (install: boolean, fingerprint: string) =>
+    callOrThrow<string>("codex_apply", { install, fingerprint }),
+
   approvalDecision: (requestId: string, decision: "allow" | "deny" | "skip") =>
     call<void>("approval_decision", { requestId, decision }),
   /** "The card is up" — until this lands the relay only waits a moment. */
@@ -347,6 +353,23 @@ export interface CursorStatus {
   fileExists: boolean;
   /** ~/.cursor is there: Cursor has run on this account. */
   cursorFound: boolean;
+  hooksPath: string;
+  hookPath: string;
+  hookReady: boolean;
+  /** Why Nook will not write its command (a relay path with a space in it). */
+  refused: string | null;
+  /** hooks.json is there but is not plain JSON (comments, a trailing comma): never written over. */
+  unreadable: string | null;
+}
+
+/** Codex's hooks (~/.codex/hooks.json); its sessions are followed and its permission requests answered. */
+export interface CodexStatus {
+  installed: boolean;
+  /** Every entry is what Nook would write now: the relay has not moved. */
+  current: boolean;
+  fileExists: boolean;
+  /** ~/.codex is there: Codex has run on this account. */
+  codexFound: boolean;
   hooksPath: string;
   hookPath: string;
   hookReady: boolean;

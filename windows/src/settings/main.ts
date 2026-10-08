@@ -15,7 +15,7 @@
 // between is refused by Rust rather than written over.
 
 import "./settings.css";
-import type { AboutLink, CursorStatus, DataPaths, HookPreview, HookStatus, ReplyFormatAction, ReplyFormatStatus, ShortcutName, ShortcutStatus, UsageStatus } from "../core/bridge";
+import type { AboutLink, CodexStatus, CursorStatus, DataPaths, HookPreview, HookStatus, ReplyFormatAction, ReplyFormatStatus, ShortcutName, ShortcutStatus, UsageStatus } from "../core/bridge";
 import { COMPACT_METRICS, DEFAULT_SETTINGS, FADE_MAX, FADE_MIN, FOLDED_AUTO_HIDE, MAX_COMPACT_METRICS, compactMetrics, foldedAutoHide, type CompactMetric, type Settings } from "../core/state";
 import { BOT_THEMES } from "../bot/engine";
 import { clear, h, replay } from "../views/dom";
@@ -44,6 +44,7 @@ let hooks: HookStatus | null = null;
 let usage: UsageStatus | null = null;
 let reply: ReplyFormatStatus | null = null;
 let cursor: CursorStatus | null = null;
+let codex: CodexStatus | null = null;
 /** The last write of the reply format created CLAUDE.md: there was no previous file to save. */
 let wasCreated = false;
 let paths: DataPaths | null = null;
@@ -60,7 +61,7 @@ const reason = (err: unknown) => (err instanceof Error ? err.message : String(er
 const INFO: Record<Section, { name: string; icon: string; group: string; lede: string }> = {
   connect: {
     name: "Connect", icon: LUCIDE.plug, group: "Setup",
-    lede: "Link Nook to Claude Code and Cursor. Nothing on your computer is changed until you have seen the change and said yes.",
+    lede: "Link Nook to Claude Code, Cursor and Codex.Nothing on your computer is changed until you have seen the change and said yes.",
   },
   island: {
     name: "Island", icon: LUCIDE.panelTop, group: "The island",
@@ -611,19 +612,22 @@ function resetFoot(id: Section): HTMLElement {
  * limits come through, in ~/.claude/settings.json; the reply format, in
  * ~/.claude/CLAUDE.md. One flow for the three: the diff, then an explicit click.
  */
-type Change = "hooks" | "usage" | "reply" | "cursor";
-const CHANGES: readonly Change[] = ["hooks", "usage", "reply", "cursor"];
-/** The file each one changes, as the panel names it. (Cursor's is ~/.cursor/hooks.json: the same flow.) */
-const CHANGED_FILE: Record<Change, string> = { hooks: "settings.json", usage: "settings.json", reply: "CLAUDE.md", cursor: "hooks.json" };
+type Change = "hooks" | "usage" | "reply" | "cursor" | "codex";
+const CHANGES: readonly Change[] = ["hooks", "usage", "reply", "cursor", "codex"];
+/** The file each one changes, as the panel names it. (Cursor's is ~/.cursor/hooks.json, Codex's ~/.codex/hooks.json: the same flow.) */
+const CHANGED_FILE: Record<Change, string> = { hooks: "settings.json", usage: "settings.json", reply: "CLAUDE.md", cursor: "hooks.json", codex: "hooks.json" };
 
 /** Where a part's install flow is at: its status, or the diff to confirm. */
 type Flow =
   | { at: "status"; error?: string; done?: { install: boolean; backup: string }; note?: string }
   | { at: "confirm"; install: boolean; preview: HookPreview; error?: string; busy?: boolean; action?: ReplyFormatAction };
 
-const flows: Record<Change, Flow> = { hooks: { at: "status" }, usage: { at: "status" }, reply: { at: "status" }, cursor: { at: "status" } };
+const flows: Record<Change, Flow> = { hooks: { at: "status" }, usage: { at: "status" }, reply: { at: "status" }, cursor: { at: "status" }, codex: { at: "status" } };
 /** Whether each part's Details are open: kept across its repaints. */
-const detailsOpen: Record<Change, boolean> = { hooks: false, usage: false, reply: false, cursor: false };
+const detailsOpen: Record<Change, boolean> = { hooks: false, usage: false, reply: false, cursor: false, codex: false };
+
+/** Codex runs a new hook only once it is trusted: said after connecting, and in the details. */
+const CODEX_TRUST = "Codex runs new hooks only once you trust them: start Codex and review them once with /hooks.";
 
 /** What the preview panel says of each change, before and after it is written. */
 const CHANGE_WORDS: Record<Change, { install: string; remove: string; done: string }> = {
@@ -646,6 +650,11 @@ const CHANGE_WORDS: Record<Change, { install: string; remove: string; done: stri
     install: "This is exactly what will change in Cursor's hooks.json: Nook's entries, and nothing else. Your own hooks and any other key stay as they are.",
     remove: "This removes Nook's entries only. Your own hooks stay as they are.",
     done: "Cursor reloads hooks.json when it is saved. If its sessions do not show up, restart Cursor.",
+  },
+  codex: {
+    install: "This is exactly what will change in Codex's hooks.json: Nook's entries, and nothing else. Your own hooks and any other key stay as they are.",
+    remove: "This removes Nook's entries only. Your own hooks stay as they are.",
+    done: CODEX_TRUST,
   },
 };
 
@@ -815,6 +824,53 @@ function cursorSpec(): Spec {
   };
 }
 
+const CODEX_DOES = "Shows your Codex sessions in the island too, and lets you allow or deny what Codex asks permission for.";
+const CODEX_HOW = "Nook adds its entries to Codex's hooks.json. A permission request waits for your click in the island; with none, Codex asks in its own window as it always does.";
+
+function codexSpec(): Spec {
+  const c = codex;
+  const name = "Codex";
+  if (!c) return { name, ...UNREACHABLE };
+  const file: [string, string] = ["hooks.json", c.hooksPath];
+  const relay: [string, string] = ["Relay", c.hookPath];
+  if (c.unreadable) return { name, tone: "error", title: "Can't be changed", text: "Nook can't safely change Codex's hooks file.", details: [c.unreadable], facts: [file] };
+  if (c.refused) return { name, tone: "error", title: "Can't be changed", text: "Nook can't safely change Codex's hooks file.", details: [c.refused], facts: [file, relay] };
+  if (!c.hookReady) {
+    return {
+      name, tone: "error", title: "Needs a restart",
+      text: "A part of Nook that Codex talks to is missing, so connecting now would not work. Restarting Nook puts it back.",
+      details: ["The relay is not in place yet, and hooks written now would point at nothing."],
+      facts: [file, relay], primary: { label: "Restart Nook", act: "restart" }, remove: c.installed ? "Disconnect…" : undefined,
+    };
+  }
+  if (c.installed && !c.current) {
+    return {
+      name, tone: "warn", title: "Needs an update",
+      text: "Nook's connection to Codex points at an old place. Updating fixes it.",
+      details: ["Nook's entries in hooks.json point at a relay that has moved. Updating rewrites them, and nothing else.", CODEX_TRUST],
+      facts: [file, relay], primary: { label: "Update…", act: "install" }, remove: "Disconnect…",
+    };
+  }
+  if (c.installed) {
+    return {
+      name, tone: "ok", title: "Connected", text: CODEX_DOES,
+      details: [CODEX_HOW, CODEX_TRUST],
+      facts: [file, relay], again: "Connect again…", remove: "Disconnect…",
+    };
+  }
+  return {
+    name, tone: "off", title: "Not connected", text: CODEX_DOES,
+    details: [
+      CODEX_HOW,
+      c.codexFound
+        ? c.fileExists ? "Your hooks.json is kept: Nook adds its own entries beside yours." : "You have no hooks.json yet: the file is created."
+        : "There is no .codex folder here, so Codex may not be installed. Nook can still create hooks.json, and it works once Codex is.",
+      CODEX_TRUST,
+    ],
+    facts: [file], primary: { label: "Connect…", act: "install" },
+  };
+}
+
 /** The reply format's one sentence, said the same whatever its state. */
 const REPLY_DOES = "Asks Claude Code to lay out its answers the same way each time — a summary first, then what it needs you to decide, its warnings and its tips — so Nook can point them out.";
 const REPLY_HOW = "Nook adds a short block, between two marker lines, to your CLAUDE.md (the instructions Claude Code reads in every session). Nothing outside the block is touched. Applies to new sessions.";
@@ -857,7 +913,7 @@ function replySpec(): Spec {
   }
 }
 
-const SPECS: Record<Change, () => Spec> = { hooks: hooksSpec, usage: usageSpec, reply: replySpec, cursor: cursorSpec };
+const SPECS: Record<Change, () => Spec> = { hooks: hooksSpec, usage: usageSpec, reply: replySpec, cursor: cursorSpec, codex: codexSpec };
 /** Each part's block, repainted in place. */
 const painters: Partial<Record<Change, (opening?: boolean, focus?: "primary" | "panel") => void>> = {};
 const paintClaude = () => {
@@ -865,11 +921,12 @@ const paintClaude = () => {
 };
 
 async function readClaude() {
-  const [h2, u, r, c] = await Promise.all([nook.hooksStatus(), nook.usageStatus(), nook.replyFormatStatus(), nook.cursorStatus()]);
+  const [h2, u, r, c, x] = await Promise.all([nook.hooksStatus(), nook.usageStatus(), nook.replyFormatStatus(), nook.cursorStatus(), nook.codexStatus()]);
   hooks = h2;
   usage = u;
   reply = r;
   cursor = c;
+  codex = x;
 }
 
 /** The diff of what `install` (or removing) would write: asked of Rust, and shown. Nothing is written here. */
@@ -884,7 +941,8 @@ async function openPreview(kind: Change, install: boolean) {
     const preview = kind === "reply" ? await nook.replyFormatPreview(action)
       : kind === "usage" ? await nook.usagePreview(install)
         : kind === "cursor" ? await nook.cursorPreview(install)
-          : await nook.hooksPreview(install);
+          : kind === "codex" ? await nook.codexPreview(install)
+            : await nook.hooksPreview(install);
     flows[kind] = { at: "confirm", install, preview, action };
     paintOthers();
     painters[kind]?.(true, "panel");
@@ -911,9 +969,12 @@ async function writeChange(kind: Change) {
         ? await nook.usageApply(flow.install, flow.preview.fingerprint)
         : kind === "cursor"
           ? await nook.cursorApply(flow.install, flow.preview.fingerprint)
-          : await nook.hooksApply(flow.install, flow.preview.fingerprint);
+          : kind === "codex"
+            ? await nook.codexApply(flow.install, flow.preview.fingerprint)
+            : await nook.hooksApply(flow.install, flow.preview.fingerprint);
     if (kind === "reply") wasCreated = reply?.exists === false;
     if (kind === "cursor") wasCreated = cursor?.fileExists === false;
+    if (kind === "codex") wasCreated = codex?.fileExists === false;
     flows[kind] = { at: "status", done: { install: flow.install, backup } };
     await readClaude();
     paintClaude();
@@ -929,7 +990,7 @@ function diffPanel(kind: Change, flow: Extract<Flow, { at: "confirm" }>, close: 
   const words = CHANGE_WORDS[kind];
   const fileName = CHANGED_FILE[kind];
   // A file that is not there yet has nothing to copy: said, rather than a backup promised.
-  const created = (kind === "reply" && reply?.exists === false) || (kind === "cursor" && cursor?.fileExists === false);
+  const created = (kind === "reply" && reply?.exists === false) || (kind === "cursor" && cursor?.fileExists === false) || (kind === "codex" && codex?.fileExists === false);
   const lines = flow.preview.diff.split("\n");
   const added = lines.filter((l) => l.startsWith("+")).length;
   const removed = lines.filter((l) => l.startsWith("-")).length;
@@ -985,7 +1046,7 @@ function integration(kind: Change): HTMLElement {
 
     if (flow.at === "status" && flow.done) {
       // A file Nook created had no previous one to save.
-      const saved = (kind === "reply" || kind === "cursor") && wasCreated ? [] : ["Your previous file is saved as ", ...breakable(flow.done.backup), ". "];
+      const saved = (kind === "reply" || kind === "cursor" || kind === "codex") && wasCreated ? [] : ["Your previous file is saved as ", ...breakable(flow.done.backup), ". "];
       block.append(h("div", { class: "sp-flash", role: "status" }, icon(LUCIDE.check, 15, 2.4),
         h("span", {}, flow.done.install ? "Done. " : "Removed. ", ...saved, CHANGE_WORDS[kind].done)));
     }
@@ -1096,7 +1157,19 @@ function connectSection(): Kid[] {
     connectGroup("reply", "Reply layout", REPLY_DOES,
       "reply replies format answers layout claude.md instructions summary decisions warnings tips markdown"),
     cursorGroup(),
+    codexGroup(),
   ];
+}
+
+/** Codex beside Claude Code: its hooks (sessions and permission requests), and whether its sessions are shown. */
+function codexGroup(): HTMLElement {
+  const show = toggle(settings.showCodexSessions, "Show Codex sessions", (on) => change({ showCodexSessions: on }));
+  followers.push(() => show.set(settings.showCodexSessions));
+  return h("div", {},
+    connectGroup("codex", "Codex", CODEX_DOES, "codex openai cli hooks.json agent sessions permissions approve allow deny connect"),
+    group(null,
+      row("Show Codex sessions", "Codex's sessions appear in the island with a Codex mark. Off, they are not followed at all, and Codex asks for permission in its own window.", show.el,
+        "codex show hide sessions openai")));
 }
 
 /** Cursor beside Claude Code: its hooks (status only), and whether its sessions are shown. */
@@ -1114,9 +1187,9 @@ function cursorGroup(): HTMLElement {
 async function refreshClaude() {
   const onShow = () => section === "connect" || query !== "";
   if (!onShow() || CHANGES.some((kind) => flows[kind].at === "confirm")) return;
-  const before = JSON.stringify([hooks, usage, reply, cursor]);
+  const before = JSON.stringify([hooks, usage, reply, cursor, codex]);
   await readClaude();
-  if (JSON.stringify([hooks, usage, reply, cursor]) !== before && onShow()) paintClaude();
+  if (JSON.stringify([hooks, usage, reply, cursor, codex]) !== before && onShow()) paintClaude();
 }
 
 // ── Shortcuts ─────────────────────────────────────────────────────────────────

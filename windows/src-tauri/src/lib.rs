@@ -3,6 +3,7 @@
 mod about;
 mod agents;
 #[cfg_attr(not(windows), allow(dead_code))]
+mod codex_hooks;
 mod cursor_hooks;
 mod dock;
 mod fullscreen;
@@ -434,6 +435,36 @@ fn cursor_apply(app: AppHandle, shared: State<Shared>, install: bool, fingerprin
     Ok(backup)
 }
 
+// ── Codex's hooks (~/.codex/hooks.json) ───────────────────────────────────────
+
+#[tauri::command]
+fn codex_status() -> codex_hooks::CodexStatus {
+    codex_hooks::status()
+}
+
+/// The diff to look at before anything is written. `install: false` previews removal.
+#[tauri::command]
+fn codex_preview(install: bool) -> Result<HookPreview, String> {
+    codex_hooks::preview(install)
+}
+
+/// Only ever called from an explicit click in the settings window.
+#[tauri::command]
+fn codex_apply(app: AppHandle, shared: State<Shared>, install: bool, fingerprint: String) -> Result<String, String> {
+    let backup = codex_hooks::apply(install, &fingerprint)?;
+    // Installed hooks mean Codex sessions are wanted; removed, there is nothing to show.
+    let updated = {
+        let mut current = shared.settings.lock().unwrap();
+        if install {
+            current.show_codex_sessions = true;
+        }
+        let _ = settings::save(&current);
+        current.clone()
+    };
+    let _ = app.emit("settings-changed", updated);
+    Ok(backup)
+}
+
 // ── Claude's usage limits ─────────────────────────────────────────────────────
 
 /// The latest usage Claude Code reported to its status line, or nothing yet.
@@ -755,6 +786,9 @@ pub fn run() {
             cursor_status,
             cursor_preview,
             cursor_apply,
+            codex_status,
+            codex_preview,
+            codex_apply,
             usage_last,
             usage_status,
             usage_preview,

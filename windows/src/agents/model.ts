@@ -38,8 +38,8 @@ export interface AgentSource {
 }
 
 /** The tools a session can belong to, in the order a row lists them: Claude Code first. */
-export type AgentTool = "claude" | "cursor";
-const TOOLS: readonly AgentTool[] = ["claude", "cursor"];
+export type AgentTool = "claude" | "cursor" | "codex";
+const TOOLS: readonly AgentTool[] = ["claude", "cursor", "codex"];
 
 /** One project: its main sessions, as one line of the list. */
 export interface AgentRow {

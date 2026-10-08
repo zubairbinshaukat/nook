@@ -6002,7 +6002,8 @@ input[type="range"]::-webkit-slider-thumb {
   line-height: 0;
 }
 
-.tool-mark.cursor {
+.tool-mark.cursor,
+.tool-mark.codex {
   color: #f4f4f5;
 }
 

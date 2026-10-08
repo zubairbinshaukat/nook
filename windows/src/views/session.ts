@@ -518,7 +518,7 @@ export function buildSession(actions: ViewActions): ViewHost {
   // normal size, where the line above the journal has no room for it.
   const nameModel = h("span", { class: "sess-name-model" });
   const tree =h("div", { class: "sess-tree", role: "tree", "aria-label": "Sessions and their subagents" });
-  // All · Claude Code · Cursor: there only while sessions of both tools are followed.
+  // All · Claude Code · Cursor · Codex: there only while sessions of more than one tool are followed.
   let toolFilter: "all" | SessionAgent = "all";
   const toolChips = h("div", { class: "sess-tools", role: "group", "aria-label": "Show sessions of" });
   toolChips.hidden = true;
@@ -532,16 +532,16 @@ export function buildSession(actions: ViewActions): ViewHost {
   /** The chips of the filter, drawn again when the kinds followed change. */
   let chipsKey = "";
   function drawToolChips() {
-    const kinds = (["claude", "cursor"] as const).filter((kind) => State.sessions.some((s) => s.agent === kind));
+    const kinds = (["claude", "cursor", "codex"] as const).filter((kind) => State.sessions.some((s) => s.agent === kind));
     const both = kinds.length > 1;
-    if (!both) toolFilter = "all";
-    const key = `${both}|${toolFilter}`;
+    if (!both || (toolFilter !== "all" && !kinds.includes(toolFilter))) toolFilter = "all";
+    const key = `${kinds.join()}|${toolFilter}`;
     toolChips.hidden = !both;
     if (key === chipsKey) return;
     chipsKey = key;
     clear(toolChips);
     if (!both) return;
-    for (const which of ["all", "claude", "cursor"] as const) {
+    for (const which of ["all", ...kinds] as const) {
       const label = which === "all" ? "All" : TOOL_NAME[which];
       const chip = h("button", { class: `sess-tool${toolFilter === which ? " on" : ""}`, type: "button", "aria-pressed": String(toolFilter === which) },
         which === "all" ? null : toolMark(which, 10), label);

@@ -26,7 +26,7 @@
 // Nothing in it is random, and its timestamps are fixed: the same address draws
 // the same page, for screenshots.
 
-import type { CursorStatus, HookPreview, HookStatus, ReplyFormatStatus, ShortcutName, ShortcutStatus, UsageStatus } from "../core/bridge";
+import type { CodexStatus, CursorStatus, HookPreview, HookStatus, ReplyFormatStatus, ShortcutName, ShortcutStatus, UsageStatus } from "../core/bridge";
 import { DEFAULT_SETTINGS, type Settings } from "../core/state";
 import type { Backend } from "./backend";
 
@@ -37,6 +37,7 @@ const RELAY_BEFORE = `${HOME}\\Downloads\\Nook\\nook-hook.exe`;
 const OWN_STATUS_LINE = "npx ccstatusline";
 const CLAUDE_MD = `${HOME}\\.claude\\CLAUDE.md`;
 const CURSOR_JSON = `${HOME}\\.cursor\\hooks.json`;
+const CODEX_JSON = `${HOME}\\.codex\\hooks.json`;
 /** The block, as replyformat.rs writes it. */
 const REPLY_BLOCK = [
   "<!-- nook:reply-format:start -->",
@@ -82,6 +83,7 @@ export function fakeBackend(): Backend {
     unreadable: hooksCase === "unreadable",
   };
   const cursor = { installed: q.get("cursor") === "installed" };
+  const codex = { installed: q.get("codex") === "installed" };
   const usage = { installed: usageCase === "installed" || usageCase === "chained", chained: usageCase === "chained", other: usageCase === "other" };
   /** Stands for the bytes of settings.json: every write changes it. */
   let revision = 1;
@@ -207,6 +209,25 @@ export function fakeBackend(): Backend {
       await wait(300);
       const backup = written(fingerprint).replace(SETTINGS_JSON, CURSOR_JSON);
       cursor.installed = install;
+      return backup;
+    },
+
+    async codexStatus(): Promise<CodexStatus> {
+      return {
+        installed: codex.installed, current: codex.installed, fileExists: codex.installed, codexFound: true,
+        hooksPath: CODEX_JSON, hookPath: RELAY, hookReady: true, refused: null, unreadable: null,
+      };
+    },
+    async codexPreview(install) {
+      await wait();
+      const line = `"hooks": [{ "type": "command", "command": "${RELAY.replaceAll("\\", "/")} --agent codex", "timeout": 10 }]`;
+      const diff = ["  {", '    "hooks": {', install ? `+     "Stop": [{ ${line} }]` : `-     "Stop": [{ ${line} }]`, "    }", "  }"].join("\n");
+      return { diff, backup: `${CODEX_JSON}.bak-${stamp()}`, settingsPath: CODEX_JSON, fingerprint: String(revision) };
+    },
+    async codexApply(install, fingerprint) {
+      await wait(300);
+      const backup = written(fingerprint).replace(SETTINGS_JSON, CODEX_JSON);
+      codex.installed = install;
       return backup;
     },
 

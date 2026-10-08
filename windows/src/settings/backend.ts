@@ -5,7 +5,7 @@
 
 import {
   Bridge, IS_TAURI, SettingsBridge, onEvent,
-  type AboutLink, type CursorStatus, type DataPaths, type HookPreview, type HookStatus, type ReplyFormatAction, type ReplyFormatStatus, type ShortcutName,
+  type AboutLink, type CodexStatus, type CursorStatus, type DataPaths, type HookPreview, type HookStatus, type ReplyFormatAction, type ReplyFormatStatus, type ShortcutName,
   type ShortcutStatus, type UsageStatus,
 } from "../core/bridge";
 import type { Settings } from "../core/state";
@@ -29,6 +29,9 @@ export interface Backend {
   cursorStatus(): Promise<CursorStatus | null>;
   cursorPreview(install: boolean): Promise<HookPreview>;
   cursorApply(install: boolean, fingerprint: string): Promise<string>;
+  codexStatus(): Promise<CodexStatus | null>;
+  codexPreview(install: boolean): Promise<HookPreview>;
+  codexApply(install: boolean, fingerprint: string): Promise<string>;
 
   usageStatus(): Promise<UsageStatus | null>;
   usagePreview(install: boolean): Promise<HookPreview>;
@@ -59,6 +62,9 @@ const nook: Backend = {
   cursorStatus: () => Bridge.cursorStatus(),
   cursorPreview: (install) => Bridge.cursorPreview(install),
   cursorApply: (install, fingerprint) => Bridge.cursorApply(install, fingerprint),
+  codexStatus: () => Bridge.codexStatus(),
+  codexPreview: (install) => Bridge.codexPreview(install),
+  codexApply: (install, fingerprint) => Bridge.codexApply(install, fingerprint),
   usageStatus: () => Bridge.usageStatus(),
   usagePreview: (install) => Bridge.usagePreview(install),
   usageApply: (install, fingerprint) => Bridge.usageApply(install, fingerprint),

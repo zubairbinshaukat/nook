@@ -44,7 +44,7 @@ export interface HookPayload {
   tool_input?: Record<string, unknown>;
   /** Optional agent tag: lowercase, digits and hyphens, ≤ 24 chars. */
   nook_agent?: string;
-  /** "cursor" on an event of Cursor's agent (nook-hook --agent cursor); absent for Claude Code. */
+  /** "cursor" or "codex" on an event of that tool's (nook-hook --agent cursor, --agent codex); absent for Claude Code. */
   nook_tool?: string;
   /** CLAUDE_CODE_ENTRYPOINT and TERM_PROGRAM, added by nook-hook. */
   entrypoint?: string;
@@ -462,7 +462,7 @@ function sessionOf(island: Island, payload: HookPayload): ClaudeSession {
   const id = payload.session_id || ANONYMOUS;
   let session = State.sessions.find((s) => s.id === id);
   if (!session) {
-    session = newSession(id, payload.nook_tool === "cursor" ? "cursor" : "claude");
+    session = newSession(id, payload.nook_tool === "cursor" ? "cursor" : payload.nook_tool === "codex" ? "codex" : "claude");
     State.sessions.push(session);
     makeRoom(island, session);
   }
@@ -859,6 +859,12 @@ export function handleHook(island: Island, payload: HookPayload) {
   // not at all when the user turned it off (Settings → Cursor).
   const cursor = payload.nook_tool === "cursor";
   if (cursor && (payload.hook_event_name === "PermissionRequest" || !State.settings.showCursorSessions)) {
+    if (payload.request_id) void Bridge.approvalDecline(payload.request_id);
+    return;
+  }
+  // Codex's sessions are followed as Claude Code's are, requests and all — unless
+  // the user turned them off (Settings → Codex): Codex then asks in its own window.
+  if (payload.nook_tool === "codex" && !State.settings.showCodexSessions) {
     if (payload.request_id) void Bridge.approvalDecline(payload.request_id);
     return;
   }

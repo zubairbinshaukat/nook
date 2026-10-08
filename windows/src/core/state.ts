@@ -534,7 +534,7 @@ export const DECISION_WORDS = "Needs your decision";
 export const SESSION_UNNAMED = "Session";
 
 /** The tool a session runs in: its id, for Cursor, is `cursor:<conversation>` (set by the relay). */
-export type SessionAgent = "claude" | "cursor";
+export type SessionAgent = "claude" | "cursor" | "codex";
 
 export function newSession(id: string, agent: SessionAgent = "claude"): ClaudeSession {
   return {
@@ -626,6 +626,8 @@ export interface Settings {
   hideInFullscreen: boolean;
   /** Cursor's agent sessions are shown beside Claude Code's (Settings → Cursor). */
   showCursorSessions: boolean;
+  /** Settings → Codex: Codex's sessions are shown beside Claude Code's. */
+  showCodexSessions: boolean;
 }
 
 /** The choices of "Auto-hide the folded island after", in seconds; 0 is "never". 60 is what it always was. */
@@ -845,6 +847,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hideOnlyWhenIdle: false,
   hideInFullscreen: true,
   showCursorSessions: true,
+  showCodexSessions: true,
 };
 
 type Listener = () => void;

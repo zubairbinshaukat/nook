@@ -129,6 +129,13 @@ export const BRANDS = {
 export const CLAUDE_MARK =
   '<path d="M12 3v18"/><path d="M3 12h18"/><path d="M5.6 5.6l12.8 12.8"/><path d="M18.4 5.6 5.6 18.4"/>';
 
+/**
+ * Codex's mark: a command prompt in a rounded frame, drawn here (it is no
+ * brand's artwork), stroked in the colour of the text around it.
+ */
+export const CODEX_MARK =
+  '<rect x="3" y="3" width="18" height="18" rx="5"/><path d="m8 9 3 3-3 3"/><path d="M13 15h3"/>';
+
 function frame(size: number): SVGSVGElement {
   const el = document.createElementNS(NS, "svg");
   el.setAttribute("viewBox", "0 0 24 24");

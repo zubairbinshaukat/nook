@@ -133,6 +133,7 @@ mod unix;
 #[cfg(target_os = "linux")]
 use unix::connect;
 
+mod codex;
 mod cursor;
 mod statusline;
 
@@ -598,6 +599,10 @@ fn read_event() -> Option<Event> {
     // only, so nothing here ever waits for an answer or prints one.
     if agent == cursor::TOOL {
         return event_of(cursor::translate(&payload, &arg_event)?, String::new(), String::new());
+    }
+    // Codex's hooks are shaped as Claude Code's: tagged, and answered the same way.
+    if agent == codex::TOOL {
+        return event_of(codex::translate(&payload, &arg_event)?, String::new(), String::new());
     }
     // A Claude Code hook that Cursor ran: Cursor's session, or nothing at all.
     if agent.is_empty() && cursor::runs_in_cursor() && !cursor::from_claude_hooks(&mut payload) {

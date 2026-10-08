@@ -95,6 +95,9 @@ pub struct Settings {
     /// Settings → Cursor: Cursor's agent sessions are shown beside Claude Code's.
     #[serde(default = "default_true")]
     pub show_cursor_sessions: bool,
+    /// Settings → Codex: Codex's sessions are shown beside Claude Code's.
+    #[serde(default = "default_true")]
+    pub show_codex_sessions: bool,
 }
 
 /// The choices of "Auto-hide the folded island after", in seconds; 0 is never.
@@ -290,6 +293,7 @@ impl Default for Settings {
             hide_only_when_idle: false,
             hide_in_fullscreen: true,
             show_cursor_sessions: true,
+            show_codex_sessions: true,
         }
     }
 }
