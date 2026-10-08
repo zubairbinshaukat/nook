@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+- Codex's sessions in the island, with Allow / Deny for what Codex asks
+  permission for. Hooks installed from Settings into `~/.codex/hooks.json`
+  with a diff, a dated backup and a click; Codex runs them once they are
+  trusted with `/hooks`. "Show Codex sessions" in Settings.
+- Reply to a session from the island once its turn is over: a line to type in
+  on the finished card and under the session panel's journal, for Claude Code
+  and Codex. Nook types the reply into the terminal the session runs in and
+  sends it, so the conversation carries on there; for the Claude Code panel of
+  VS Code or Cursor it opens the session with the reply in its prompt, for you
+  to send. The box is there only while that window can be found. When Nook
+  cannot be sure of the place — another tab is showing, the terminal runs as
+  administrator — the reply is not sent anywhere, and what you typed stays in
+  the box with the reason.
+- An update check you switch on yourself: Settings → About has "Check for
+  updates every day" (off by default) and "Check now". When a newer version
+  is out, Settings and the island's header say so and open its download.
+  It is the only time Nook uses the internet, and it sends nothing about you.
+- Settings → Connect is grouped by tool — Claude Code, Cursor, Codex — each
+  with its mark.
+- The usage limits no longer disappear or go back to older numbers when
+  several Claude Code sessions are open: each window keeps its newest report.
+- A line of Nook's log no longer shows two timestamps when two things are
+  logged in the same second.
+
 ## 0.2.1
 
 - The uninstaller and the installer pages now use the Nook icon and artwork: the
