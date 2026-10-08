@@ -456,7 +456,7 @@
       ],
       "out": "install-wizard",
       "alt": "The Nook installer wizard on its first page.",
-      "notes": "Run Nook-Windows-0.2.1-setup.exe past SmartScreen and capture the first page of the installer window (not the last). Window snip, 100 % scale."
+      "notes": "Run Nook-Windows-0.2.2-setup.exe past SmartScreen and capture the first page of the installer window (not the last). Window snip, 100 % scale."
     },
     {
       "id": "tray-menu",

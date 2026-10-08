@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.2
 
 - Codex's sessions in the island, with Allow / Deny for what Codex asks
   permission for. Hooks installed from Settings into `~/.codex/hooks.json`

@@ -270,7 +270,7 @@ export const EXAMPLE_REPLY = [
   "",
   "1. `windows/src-tauri/src/openfile.rs:98` resolves a path to one existing file",
   "2. `C:\\Users\\nook\\code\\nook\\NOTICE` is absolute, and opens wherever it is",
-  "3. A long one may break: `windows/src-tauri/target/release/bundle/nsis/Nook_0.2.1_x64-setup.exe`",
+  "3. A long one may break: `windows/src-tauri/target/release/bundle/nsis/Nook_0.2.2_x64-setup.exe`",
   "",
   "| Alert | Colour | Says |",
   "|---|---|---|",
