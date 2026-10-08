@@ -305,10 +305,27 @@ pub fn update_last(_app: AppHandle) -> Option<UpdateInfo> {
     last()
 }
 
-/// Opens the releases page. No argument: the address is Nook's own.
+/// A release's Windows installer, by the name the release workflow gives it
+/// (`Nook-Windows-<version>-setup.exe`, under the tag `v<version>`). None for a
+/// version that is not plain numbers and dots: nothing else goes into an address.
+fn installer_url(version: &str) -> Option<String> {
+    let plain = parse_version(version).is_some() && version.chars().all(|c| c.is_ascii_digit() || c == '.');
+    plain.then(|| format!("https://github.com/zubairbinshaukat/nook/releases/download/v{version}/Nook-Windows-{version}-setup.exe"))
+}
+
+/// Where "Get it" goes: on Windows, straight to the newer version's installer,
+/// which the browser downloads; anywhere else, or with no newer version known,
+/// the releases page.
+fn open_target(last: Option<&UpdateInfo>, windows: bool) -> String {
+    last.filter(|info| windows && info.available)
+        .and_then(|info| installer_url(&info.latest))
+        .unwrap_or_else(|| RELEASES_URL.to_string())
+}
+
+/// Opens the newer version's download in the browser. No argument: the address is Nook's own.
 #[tauri::command]
 pub fn update_open() {
-    platform::open_url(RELEASES_URL);
+    platform::open_url(&open_target(last().as_ref(), cfg!(windows)));
 }
 
 #[cfg(test)]
@@ -360,6 +377,25 @@ mod tests {
         assert_eq!(parse_release(ok), Ok(Release { version: "0.3.0".into(), offered: true }));
         let bare = br#"{"tag_name":"0.3.0"}"#;
         assert_eq!(parse_release(bare), Ok(Release { version: "0.3.0".into(), offered: true }));
+    }
+
+    #[test]
+    fn get_it_goes_to_the_installer_on_windows_and_to_the_page_otherwise() {
+        let info = |latest: &str, available| UpdateInfo { current: "0.2.1".into(), latest: latest.into(), available, url: RELEASES_URL.into(), checked_at: 1 };
+        let newer = info("0.3.0", true);
+        assert_eq!(
+            open_target(Some(&newer), true),
+            "https://github.com/zubairbinshaukat/nook/releases/download/v0.3.0/Nook-Windows-0.3.0-setup.exe"
+        );
+        // Not Windows, nothing newer, nothing known: the releases page.
+        assert_eq!(open_target(Some(&newer), false), RELEASES_URL);
+        assert_eq!(open_target(Some(&info("0.2.1", false)), true), RELEASES_URL);
+        assert_eq!(open_target(None, true), RELEASES_URL);
+        // A version that is more than numbers and dots never reaches an address.
+        for odd in ["0.3.0-beta.1", "0.3.0/../x", "v0.3.0", "", "0.3.0?x=1"] {
+            assert_eq!(installer_url(odd), None, "{odd}");
+            assert_eq!(open_target(Some(&info(odd, true)), true), RELEASES_URL);
+        }
     }
 
     #[test]

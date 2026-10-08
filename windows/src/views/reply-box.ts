@@ -107,7 +107,8 @@ export function buildReplyBox(actions: ReplyBoxActions, where: "card" | "panel",
   field.addEventListener("input", () => {
     if (session) Reply.setDraft(session, field.value);
     send.disabled = !field.value.trim();
-    if (note.textContent) {
+    // An error is answered by typing again: it goes. A warning stays, it is still true.
+    if (note.textContent && !note.classList.contains("warn")) {
       note.textContent = "";
       note.hidden = true;
     }
@@ -170,10 +171,14 @@ export function buildReplyBox(actions: ReplyBoxActions, where: "card" | "panel",
         status.textContent = Reply.starting(to) ? `Sending to ${name}…` : `${name} is working on your reply`;
         status.title = SENT_WHERE;
       }
+      // Why the last one was not sent; or, with nothing wrong, what to know before sending this one.
       const error = open ? Reply.error(to) : null;
-      note.textContent = error ?? "";
-      note.title = error ?? "";
-      note.hidden = !error;
+      const said = error ?? (open ? Reply.warning(to) : null);
+      note.textContent = said ?? "";
+      note.title = said ?? "";
+      note.hidden = !said;
+      note.classList.toggle("warn", !error && said != null);
+      note.setAttribute("role", error ? "alert" : "note");
       if (open) grow();
       else if (el.offsetHeight !== lastHeight) {
         lastHeight = el.offsetHeight;

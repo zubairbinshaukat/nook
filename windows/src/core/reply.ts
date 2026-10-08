@@ -30,7 +30,11 @@ const errors = new Map<string, string>();
 /** Runs stopped from the island: their end is no error. */
 const stopped = new Set<string>();
 
-const toolOf = (session: ClaudeSession): ReplyTool | null => (session.agent === "claude" || session.agent === "codex" ? session.agent : null);
+const subagentsGoing = (session: ClaudeSession) => session.subagents.filter((agent) => agent.state === "running").length;
+/** No turn of the session's own is under way: at rest, or it has replied while its subagents go on (`parked`). */
+const turnOver = (session: ClaudeSession) => AT_REST.has(session.state) || (session.parked && subagentsGoing(session) > 0);
+
+const toolOf =(session: ClaudeSession): ReplyTool | null => (session.agent === "claude" || session.agent === "codex" ? session.agent : null);
 /** The session's id as its tool knows it. */
 const rawId = (session: ClaudeSession) => (session.agent === "codex" && session.id.startsWith(CODEX_PREFIX) ? session.id.slice(CODEX_PREFIX.length) : session.id);
 const words = (err: unknown) => (err instanceof Error ? err.message : String(err ?? "")).trim() || "The reply could not be sent.";
@@ -51,19 +55,28 @@ export const Reply = {
     return tool != null && tools[tool] && !!session.cwd && SESSION_ID.test(rawId(session));
   },
 
-  /** The field is there: the session is at rest, asks nothing, and no reply of ours is on its way. */
+  /** The field is there: the session's turn is over, it asks nothing, and no reply of ours is on its way. */
   open(session: ClaudeSession): boolean {
     return Reply.offered(session)
-      && AT_REST.has(session.state)
+      && turnOver(session)
       && session.approval == null && session.question == null
-      && !session.subagents.some((agent) => agent.state === "running")
       && !running.has(session.id);
+  },
+
+  /**
+   * What to know before sending, or null: the session has replied but its
+   * subagents are still at work, and a reply starts a new turn beside them.
+   */
+  warning(session: ClaudeSession): string | null {
+    const going = subagentsGoing(session);
+    if (going === 0) return null;
+    return `${going === 1 ? "A subagent is" : `${going} subagents are`} still running. Your reply starts a new turn now, and may cross with what ${going === 1 ? "it reports" : "they report"}.`;
   },
 
   /** A reply of ours is running for this session. */
   running: (session: ClaudeSession) => running.has(session.id),
   /** …and the session has not been heard from since: it is still on its way. */
-  starting: (session: ClaudeSession) => running.has(session.id) && AT_REST.has(session.state),
+  starting: (session: ClaudeSession) => running.has(session.id) && turnOver(session),
   /** An event of a run a reply started: never taken for an automated session's. */
   isOurs: (sessionId: string | undefined) => sessionId != null && running.has(sessionId),
 
@@ -117,7 +130,7 @@ export const Reply = {
     if (ok !== true && !byHand) errors.set(id, typeof error === "string" && error.trim() ? error.trim() : "The reply could not be sent.");
     // A run that ended without its session saying so (stopped, or failed before its first event): at rest again.
     const session = State.sessions.find((s) => s.id === id);
-    if (session && !AT_REST.has(session.state) && session.approval == null && session.question == null && (ok !== true || byHand)) session.state = "idle";
+    if (session && !AT_REST.has(session.state) && subagentsGoing(session) === 0 && session.approval == null && session.question == null && (ok !== true || byHand)) session.state = "idle";
     State.notify();
   },
 };

@@ -3635,6 +3635,12 @@ input[type="range"]::-webkit-slider-thumb {
   color: #ff8f8f;
 }
 
+/* Not an error: what to know before sending. It may take two lines. */
+.rb-note.warn {
+  white-space: normal;
+  color: #ffc46b;
+}
+
 /* Under the session panel's journal: a foot of the panel, edge to edge. */
 .reply-box.rb-panel {
   padding: 6px 7px 7px;
