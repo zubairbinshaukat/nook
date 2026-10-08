@@ -76,7 +76,6 @@ async function main() {
   void readUsageInstalled();
   // A reply typed in the island: which command lines can take one, and when a run of ours is over.
   await onEvent<unknown>("reply_ended", (payload) => Reply.ended(payload));
-  void Reply.load();
   // A newer Nook, when the user asked to be told of one (core/update.ts): the island is told, and never asks.
   await onEvent<unknown>("update_checked", (payload) => Update.checked(payload));
   void Update.load();

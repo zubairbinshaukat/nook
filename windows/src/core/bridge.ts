@@ -143,6 +143,8 @@ export const Bridge = {
    */
   sessionReplyHere: (sessionId: string, title: string | null, text: string) =>
     callOrThrow<ReplyPlace>("session_reply_here", { sessionId, title, text }),
+  /** Whether the session's own window is there to take a reply: its terminal, or its editor's Claude panel. Touches nothing. */
+  sessionReplyReachable: (sessionId: string) => call<boolean>("session_reply_reachable", { sessionId }),
   /** Continues that conversation in the background with `text`. Throws what Rust refused with, as a sentence. */
   sessionReply: (tool: ReplyTool, sessionId: string, cwd: string, text: string) =>
     callOrThrow<void>("session_reply", { tool, sessionId, cwd, text }),

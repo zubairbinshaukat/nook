@@ -20,9 +20,7 @@ const FOCUS_MS = 120;
 const MAX_LINES = { card: 2, panel: 5 } as const;
 
 /** What a reply does, said on the field. */
-const SENT_HOW = "Nook types it into the window this session runs in. When it cannot be sure of that window, the reply runs in the background instead.";
-/** What a reply in the background means, said on its status. */
-const SENT_WHERE = "The window this session was started in won't show this turn.";
+const SENT_HOW = "Nook types it into the window this session runs in, and the conversation carries on there. In a terminal with tabs, this session's tab has to be the one showing.";
 
 export interface ReplyBoxActions {
   /** A text field wants the keyboard, or gives it back. */
@@ -171,9 +169,8 @@ export function buildReplyBox(actions: ReplyBoxActions, where: "card" | "panel",
         field.title = `Enter sends, Shift+Enter starts a new line. ${SENT_HOW}`;
         send.disabled = !field.value.trim() || busy;
       } else {
-        // Only a reply the session's window could not take runs here, in the background.
-        status.textContent = Reply.starting(to) ? `Sending to ${name}…` : `${name} is working on your reply, in the background`;
-        status.title = [Reply.background(to), SENT_WHERE].filter(Boolean).join(" ");
+        status.textContent = `Sending to ${name}…`;
+        status.title = SENT_HOW;
       }
       // Why the last one was not sent; where it was put; or, with neither, what to know before sending this one.
       const error = open ? Reply.error(to) : null;

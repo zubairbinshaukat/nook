@@ -1,15 +1,16 @@
 // A reply to a session at rest, typed in the island.
 //
-// The session's own command line continues the conversation in the background
-// (src-tauri/src/reply.rs: `claude -p --resume <id>`, the text on its stdin).
-// Its hooks fire as for any turn, so the island follows the run like any
-// other — and the window the session was started in does not show it.
+// It goes where the session runs (src-tauri/src/reply_here.rs): typed into its
+// terminal and sent, or put in the prompt of its editor's Claude Code panel.
+// The conversation carries on in the window it was started in. Where that
+// window cannot be found there is no box to type in; and a reply Nook cannot
+// be sure of the place for — another tab is showing — is not sent anywhere:
+// what was typed stays in the box, with the reason.
 //
 // Kept here, per session: what is being typed (a draft outlives a redraw, a
-// fold, another session coming in front), whether a reply of ours is running,
-// and why the last one could not be sent.
-
-import { Bridge, IS_TAURI, type ReplyEnded, type ReplyTool, type ReplyTools } from "./bridge";
+// fold, another session coming in front), whether its window was there when
+// last looked for, and why the last reply could not be sent.
+import { Bridge, IS_TAURI, type ReplyEnded, type ReplyTool } from "./bridge";
 import { State, type ClaudeSession } from "./state";
 
 /** The longest a reply may be: Rust refuses a longer one. */
@@ -21,8 +22,10 @@ const AT_REST: ReadonlySet<string> = new Set(["idle", "finished", "error", "slee
 const SESSION_ID = /^[A-Za-z0-9_-]{1,128}$/;
 const CODEX_PREFIX = "codex:";
 
-/** Which command lines are there. Outside the app — a preview page, the screenshot stage — both are taken to be. */
-const tools: ReplyTools = { claude: !IS_TAURI, codex: !IS_TAURI };
+/** How long what was found of a session's window is believed before it is looked for again. */
+const REACH_FRESH_MS = 4000;
+/** Whether each session's own window was there, and when that was asked. */
+const reach = new Map<string, { there: boolean; at: number; asking: boolean }>();
 const drafts = new Map<string, string>();
 /** The sessions a reply of ours is running for. */
 const running = new Set<string>();
@@ -42,21 +45,32 @@ const rawId = (session: ClaudeSession) => (session.agent === "codex" && session.
 const words = (err: unknown) => (err instanceof Error ? err.message : String(err ?? "")).trim() || "The reply could not be sent.";
 
 export const Reply = {
-  /** Asked once, when the island starts: which command lines are there. */
-  async load() {
-    const found = await Bridge.replyTools();
-    if (!found) return;
-    tools.claude = found.claude === true;
-    tools.codex = found.codex === true;
-    State.notify();
+  /**
+   * The session's own window is there to take a reply. What was last found is
+   * said at once, and looked for again when it is a few seconds old: the island
+   * is told when the answer has changed. Outside the app — a preview page, the
+   * screenshot stage — every window is taken to be there.
+   */
+  reachable(session: ClaudeSession): boolean {
+    if (!IS_TAURI) return true;
+    const id = session.id;
+    const known = reach.get(id) ?? { there: false, at: 0, asking: false };
+    reach.set(id, known);
+    if (!known.asking && Date.now() - known.at > REACH_FRESH_MS) {
+      known.asking = true;
+      void Bridge.sessionReplyReachable(id).then((there) => {
+        const changed = known.there !== (there === true);
+        Object.assign(known, { there: there === true, at: Date.now(), asking: false });
+        if (changed) State.notify();
+      });
+    }
+    return known.there;
   },
 
-  /** A reply can reach this session at all: its tool takes one, its command line is there, and it says where it runs. */
+  /** A reply can reach this session: its tool takes one, it has an id of its own, and its window is there. */
   offered(session: ClaudeSession): boolean {
-    const tool = toolOf(session);
-    return tool != null && tools[tool] && !!session.cwd && SESSION_ID.test(rawId(session));
+    return toolOf(session) != null && SESSION_ID.test(rawId(session)) && Reply.reachable(session);
   },
-
   /** The field is there: the session's turn is over, it asks nothing, and no reply of ours is on its way. */
   open(session: ClaudeSession): boolean {
     return Reply.offered(session)
@@ -96,23 +110,17 @@ export const Reply = {
     notes.delete(session.id);
   },
 
-  /** Sends what was typed. True once the run has started; the draft is kept when it could not. */
+  /** Sends what was typed, in the session's own window. True once it is there; the draft is kept when it is not. */
   async send(session: ClaudeSession, typed: string): Promise<boolean> {
-    const tool = toolOf(session);
     const text = typed.trim();
-    if (!tool || !text || !session.cwd || !Reply.open(session)) return false;
+    if (!text || !Reply.open(session)) return false;
     const id = session.id;
-    const message = text.slice(0, MAX_REPLY_CHARS);
     running.add(id);
     errors.delete(id);
     notes.delete(id);
     State.notify();
-    // First, where the session runs: its own window carries the conversation on. Rust refuses, with
-    // nothing typed anywhere, when it cannot be sure of the place — and only then the background takes it.
-    let why = "";
     try {
-      const place = await Bridge.sessionReplyHere(id, session.title ?? null, message);
-      running.delete(id);
+      const place = await Bridge.sessionReplyHere(id, session.title ?? null, text.slice(0, MAX_REPLY_CHARS));
       if (place === "interrupted") {
         notes.set(id, "You changed windows while Nook was typing. Part of your reply is in the terminal, and it was not sent.");
         return false;
@@ -121,24 +129,16 @@ export const Reply = {
       if (place === "prefilled") notes.set(id, `Your reply is in ${session.target?.label || "the editor"}'s Claude prompt. Press Enter there to send it.`);
       return true;
     } catch (err) {
-      why = words(err);
-    } finally {
-      State.notify();
-    }
-    try {
-      await Bridge.sessionReply(tool, rawId(session), session.cwd, message);
-      drafts.delete(id);
-      background.set(id, why);
-      return true;
-    } catch (err) {
-      running.delete(id);
-      errors.set(id, words(err));
+      // Rust refused with nothing typed anywhere: said, and what was typed stays to send again.
+      errors.set(id, `${words(err)} Your reply was not sent.`);
+      // Its window may be gone: looked for again at once.
+      reach.delete(id);
       return false;
     } finally {
+      running.delete(id);
       State.notify();
     }
   },
-
   /** Stops the run a reply started. Its end comes back as `ended`, and is no error. */
   stop(session: ClaudeSession) {
     const tool = toolOf(session);

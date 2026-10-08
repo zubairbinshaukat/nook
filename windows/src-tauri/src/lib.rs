@@ -840,6 +840,7 @@ pub fn run() {
             reply::reply_tools,
             reply::session_reply,
             reply_here::session_reply_here,
+            reply_here::session_reply_reachable,
             reply::session_reply_cancel,
             agents::agents_snapshot,
             agents::agents_last,

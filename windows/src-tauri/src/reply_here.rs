@@ -171,9 +171,26 @@ pub async fn session_reply_here(
         .map_err(|_| "The reply could not be delivered.".to_string())?
 }
 
+/// Whether a reply could be delivered in the session's own window at all: its
+/// terminal's window is there, or its editor's with the Claude Code panel. It
+/// touches nothing — no window is brought forward — and says nothing of which
+/// tab a terminal shows: that is checked when a reply is sent.
+#[tauri::command]
+pub async fn session_reply_reachable(sessions: State<'_, Sessions>, session_id: String) -> Result<bool, String> {
+    if !cfg!(windows) {
+        return Ok(false);
+    }
+    let Some(plan) = sessions.plan(&session_id) else { return Ok(false) };
+    Ok(tauri::async_runtime::spawn_blocking(move || imp::reachable(&plan)).await.unwrap_or(false))
+}
+
 #[cfg(not(windows))]
 mod imp {
     use crate::target::Plan;
+
+    pub fn reachable(_plan: &Plan) -> bool {
+        false
+    }
 
     pub fn reply(_plan: &Plan, _session_id: &str, _title: Option<&str>, _text: &str) -> Result<String, String> {
         Err("not available on Linux".into())
@@ -195,6 +212,14 @@ mod imp {
     /// Characters sent in one go, and the pause after each go: a slow terminal keeps up.
     const CHUNK: usize = 32;
     const CHUNK_PAUSE: Duration = Duration::from_millis(12);
+
+    pub fn reachable(plan: &Plan) -> bool {
+        match plan.target.kind {
+            Kind::Terminal => crate::plan_window(plan).is_some(),
+            Kind::Vscode | Kind::Cursor => target::is_extension(&plan.entrypoint) && crate::plan_window(plan).is_some(),
+            Kind::Claude | Kind::Unknown => false,
+        }
+    }
 
     pub fn reply(plan: &Plan, session_id: &str, title: Option<&str>, text: &str) -> Result<String, String> {
         let mut text = clean_text(text)?;
