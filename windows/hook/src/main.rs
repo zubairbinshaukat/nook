@@ -94,6 +94,9 @@ const ENV_CONTEXT: &[(&str, &str)] = &[
     ("session_pid", "CLAUDE_CODE_SSE_PORT"),
     // Which Claude Code this is: the desktop app, VS Code, the command line.
     ("entrypoint", "CLAUDE_CODE_ENTRYPOINT"),
+    // Set by Nook on a run it started itself (a reply from the island), so the
+    // events of that run can be told from a session the user typed in.
+    ("nook_reply", "NOOK_REPLY"),
 ];
 /// The events that say where the session runs — the processes above the relay,
 /// so the island's ↗ can bring the right window forward. A session does not

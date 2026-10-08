@@ -3,6 +3,7 @@
 import "./style.css";
 import { invoke } from "@tauri-apps/api/core";
 import { Bridge, IS_TAURI, onEvent, type PanelSize } from "./core/bridge";
+import { Reply } from "./core/reply";
 import { Sound } from "./core/sound";
 import { State, readMetrics, readUsage, type Settings } from "./core/state";
 import { startAgentsFeed } from "./agents/feed";
@@ -72,6 +73,9 @@ async function main() {
     if (usage) State.setUsage(usage);
   });
   void readUsageInstalled();
+  // A reply typed in the island: which command lines can take one, and when a run of ours is over.
+  await onEvent<unknown>("reply_ended", (payload) => Reply.ended(payload));
+  void Reply.load();
   island.applySettings();
   // The Shelf's widgets read what they kept, and arm what must run on its own.
   startWidgets();

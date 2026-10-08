@@ -16,6 +16,7 @@ mod openfile;
 mod pipe;
 mod platform;
 mod projects;
+mod reply;
 mod replyformat;
 mod settings;
 mod shelf;
@@ -768,6 +769,7 @@ pub fn run() {
         .manage(Sessions::default())
         .manage(usage::Latest::default())
         .manage(shelf::Store::default())
+        .manage(reply::Runs::default())
         .invoke_handler(tauri::generate_handler![
             boot,
             save_settings,
@@ -819,6 +821,9 @@ pub fn run() {
             projects_note,
             projects_open_code,
             projects_new_session,
+            reply::reply_tools,
+            reply::session_reply,
+            reply::session_reply_cancel,
             agents::agents_snapshot,
             agents::agents_last,
             agents::agents_shown,

@@ -3477,6 +3477,172 @@ input[type="range"]::-webkit-slider-thumb {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+/* ── The reply box: a line to answer a session at rest with (views/reply-box.ts) ── */
+
+.reply-box {
+  flex: 0 0 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reply-box[hidden] {
+  display: none;
+}
+
+.rb-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  min-height: 30px;
+  padding: 3px 3px 3px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  transition: border-color 0.12s ease-out, background 0.12s ease-out;
+}
+
+.rb-row:focus-within {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.rb-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 22px;
+  margin: 0;
+  padding: 2px 0 3px;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--ink);
+  font: 400 12.5px/17px var(--font);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.rb-field[hidden],
+.rb-btn[hidden],
+.rb-status[hidden],
+.rb-note[hidden] {
+  display: none;
+}
+
+.rb-field::placeholder {
+  color: var(--dim-3);
+}
+
+.rb-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 12px var(--font);
+  color: var(--dim-2);
+}
+
+/* Sending, or at work on it: three dots that breathe after the words. */
+.rb-status::after {
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  margin-left: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+  animation: rb-breathe 1.2s ease-in-out infinite;
+}
+
+@keyframes rb-breathe {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rb-status::after {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+.rb-btn {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  cursor: default;
+  transition: transform 0.08s ease-out, background 0.12s ease-out, opacity 0.12s ease-out;
+}
+
+.rb-btn:active {
+  transform: scale(0.9);
+}
+
+.rb-send {
+  background: var(--ink);
+  color: #0b0c0e;
+}
+
+.rb-send:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--dim-3);
+  transform: none;
+}
+
+.rb-stop {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--ink);
+}
+
+.rb-stop:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.rb-note {
+  padding: 0 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 11px var(--font);
+  color: #ff8f8f;
+}
+
+/* Under the session panel's journal: a foot of the panel, edge to edge. */
+.reply-box.rb-panel {
+  padding: 6px 7px 7px;
+  border-top: 1px solid var(--gh-edge);
+}
+
+.session-view.large .reply-box.rb-panel {
+  padding: 8px 10px 10px;
+}
+
+.session-view.large .rb-field {
+  height: 23px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.session-view.large .rb-note {
+  white-space: normal;
+}
+
+/* The way back to the journal's end stays above the box. */
+.gh-main .sess-jump {
+  bottom: calc(10px + var(--rb-h, 0px));
+}
+
 /* Options that explain themselves: one to a line, its name then what it means,
    always on show — a choice is read before it is made. */
 .q-options.q-list {

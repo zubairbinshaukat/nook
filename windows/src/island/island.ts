@@ -152,6 +152,8 @@ const HOME_TICK_MS = 30_000;
 
 /** How long after the shortcut the window has the keyboard, if it is going to have it at all. */
 const SUMMON_FOCUS_MS = 600;
+/** The views with a text field of their own: the island stays open while one of them is typed in. */
+const TYPING_VIEWS: ReadonlySet<IslandViewName> = new Set(["shelf", "finished", "session"]);
 
 /** The views that show one session — its panel, its cards: Tab goes from one session to the next there. */
 const ABOUT_SESSION: ReadonlySet<IslandViewName> = new Set(["session", "approval", "question", "finished", "error"]);
@@ -944,7 +946,8 @@ export class Island {
    * never while a request or the panel the shortcut opened holds it open itself.
    */
   private holdWhileTyping(on: boolean) {
-    if (on && (State.mode !== "expanded" || State.view !== "shelf")) return;
+    // The Shelf's fields, and the reply box of a finished turn's card and of the session panel.
+    if (on && (State.mode !== "expanded" || !TYPING_VIEWS.has(State.view))) return;
     if (on === this.typingPin) return;
     this.typingPin = on;
     const holds = State.pendingApproval != null || State.pendingQuestion != null || this.summoned;

@@ -60,6 +60,10 @@ export const LUCIDE = {
   search: '<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
   /** lucide: x (from Feather, MIT) */
   x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  /** lucide: arrow-up (from Feather, MIT) — the reply box's send */
+  arrowUp: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+  /** lucide: square (from Feather, MIT) — the reply box's stop */
+  square: '<rect width="18" height="18" x="3" y="3" rx="2"/>',
   /** lucide: rotate-ccw (from Feather, MIT) */
   rotateCcw: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
   /** lucide: chevron-down (from Feather, MIT) */

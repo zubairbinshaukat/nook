@@ -11,6 +11,7 @@
 
 import { Bridge, onEvent } from "../core/bridge";
 import { Reader } from "../core/reading";
+import { Reply } from "../core/reply";
 import { Sound } from "../core/sound";
 import {
   CLAUDE_ID, QUESTION_TOOL, SESSION_UNNAMED, State, TURN_DONE, isQuestion, newSession, newStep, nextRequest, readModel, readTarget, requestsOf, taskStart,
@@ -46,6 +47,8 @@ export interface HookPayload {
   nook_agent?: string;
   /** "cursor" or "codex" on an event of that tool's (nook-hook --agent cursor, --agent codex); absent for Claude Code. */
   nook_tool?: string;
+  /** "1" on an event of a run a reply typed in the island started (NOOK_REPLY, set by reply.rs). */
+  nook_reply?: string;
   /** CLAUDE_CODE_ENTRYPOINT and TERM_PROGRAM, added by nook-hook. */
   entrypoint?: string;
   term_program?: string;
@@ -439,6 +442,8 @@ const SDK_ENTRYPOINT = "sdk";
  * the user is in, steps, title and all.
  */
 function isAutomated(payload: HookPayload): boolean {
+  // A reply typed in the island runs through the command line too (core/reply.ts): it is the user's own turn.
+  if (payload.nook_reply === "1" || Reply.isOurs(payload.session_id)) return false;
   return (payload.entrypoint ?? "").toLowerCase().startsWith(SDK_ENTRYPOINT);
 }
 

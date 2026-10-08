@@ -35,6 +35,7 @@ import {
 } from "../core/state";
 import { targetButton, targetIcon } from "./target";
 import { TOOL_NAME, toolMark } from "./tool";
+import { buildReplyBox } from "./reply-box";
 import type { SessionAgent } from "../core/state";
 import { stepIcon, stepName, stepPreview, type ToType } from "./step";
 import { botGlowColor } from "../core/layout";
@@ -585,7 +586,13 @@ export function buildSession(actions: ViewActions): ViewHost {
   // scroller, not a child: the journal is redrawn and fades out at its edge.
   const jumpDot = h("i", { class: "sess-jump-dot" });
   const jump = h("button", { class: "sess-jump", type: "button", "aria-label": "Jump to latest", title: "Jump to latest", hidden: true }, svg(ICONS.chevronDown, 12, { stroke: 2.4 }), jumpDot);
-  const main = h("div", { class: "gh-main" }, head, crumb, filters, journal, list, jump);
+  // Under the journal: a line to answer a session at rest with (views/reply-box.ts).
+  // Its height is told to the panel, so the way back to the journal's end stays above it.
+  const replyBox = buildReplyBox(actions, "panel", () => {
+    main.style.setProperty("--rb-h", `${replyBox.el.offsetHeight}px`);
+    if (pinned) journal.scrollTop = journal.scrollHeight;
+  });
+  const main = h("div", { class: "gh-main" }, head, crumb, filters, journal, list, replyBox.el, jump);
   // The panel itself can hold the focus, unseen: keys then reach the island
   // without any line of the sidebar having been given it.
   const el = h("div", { class: "view gh-view session-view", tabindex: "-1" }, h("div", { class: "card gh-card" }, rail, main));
@@ -1490,6 +1497,9 @@ export function buildSession(actions: ViewActions): ViewHost {
       crumb.style.display = agent ? "" : "none";
       filters.style.display = live && (!agent || stepsApart(session, agent)) ? "" : "none";
       main.classList.toggle("of-agent", agent != null);
+      // A reply goes to the session, never to one of its subagents; and not from its changes.
+      replyBox.sync(screen.kind === "live" ? session : null);
+      if (replyBox.el.hidden) main.style.removeProperty("--rb-h");
       if (!live) stopTyping();
 
       if (live) {

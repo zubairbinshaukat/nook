@@ -125,6 +125,15 @@ export const Bridge = {
 
   openSettingsWindow: () => call<void>("open_settings_window"),
 
+  // ── A reply to a session at rest (src-tauri/src/reply.rs) ─────────────────
+  /** Which tools' command lines are on this machine: a reply runs through them. */
+  replyTools: () => call<ReplyTools>("reply_tools"),
+  /** Continues that conversation in the background with `text`. Throws what Rust refused with, as a sentence. */
+  sessionReply: (tool: ReplyTool, sessionId: string, cwd: string, text: string) =>
+    callOrThrow<void>("session_reply", { tool, sessionId, cwd, text }),
+  /** Stops the run a reply started, if it is still going. */
+  sessionReplyCancel: (tool: ReplyTool, sessionId: string) => call<void>("session_reply_cancel", { tool, sessionId }),
+
   // ── The agents list (src-tauri/src/agents.rs) ─────────────────────────────
   /** The island hands the list its rows: Rust keeps them and tells the list. Only the island's page is heard. */
   agentsSnapshot: (snapshot: AgentsSnapshot) => call<void>("agents_snapshot", { snapshot }),
@@ -360,6 +369,18 @@ export interface CursorStatus {
   refused: string | null;
   /** hooks.json is there but is not plain JSON (comments, a trailing comma): never written over. */
   unreadable: string | null;
+}
+
+/** The tools a reply can be sent to. */
+export type ReplyTool = "claude" | "codex";
+export type ReplyTools = Record<ReplyTool, boolean>;
+/** The `reply_ended` event: the run a reply started is over. */
+export interface ReplyEnded {
+  tool: ReplyTool;
+  /** The tool's own id of the session, as it was given to `sessionReply`. */
+  sessionId: string;
+  ok: boolean;
+  error: string | null;
 }
 
 /** Codex's hooks (~/.codex/hooks.json); its sessions are followed and its permission requests answered. */

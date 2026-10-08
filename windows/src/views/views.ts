@@ -16,6 +16,7 @@ import { diffLine, fileKind, plusMinus, readPatch } from "./code";
 import { COLOR } from "./palette";
 import { LUCIDE, lucide } from "./iconset";
 import { TOOL_NAME, toolMark } from "./tool";
+import { buildReplyBox } from "./reply-box";
 import { buildHeaderStats } from "./header-stats";
 
 /** What stands for a session where there is none to go to: another agent's pill has no ↗. */
@@ -731,7 +732,9 @@ function buildFinished(actions: ViewActions, onResize: () => void): ViewHost {
     changesBtn,
     btn("OK", "secondary", () => actions.leaveCard(true)),
   );
-  const lines = stack(116, 16, who, title, row);
+  // A line to answer with, where a reply can reach the session (views/reply-box.ts).
+  const replyBox = buildReplyBox(actions, "card", () => air.fit());
+  const lines = stack(116, 16, who, title, replyBox.el, row);
   const el = h("div", { class: "view" }, card("green", lines));
   const air = airy(lines, onResize);
   return {
@@ -743,6 +746,7 @@ function buildFinished(actions: ViewActions, onResize: () => void): ViewHost {
       clear(who);
       // A third-party agent's pill has no session behind it: its name, its last step, and OK.
       const claude = State.focusTask?.id === CLAUDE_ID;
+      replyBox.sync(claude ? State.session : null);
       // A reply given while subagents still run is told on this card too, as
       // what it is: the session has replied, and is not finished.
       const replied = claude ? repliedWords(State.session) : null;

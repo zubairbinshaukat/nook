@@ -46,7 +46,7 @@ pub const HOOK_EXE: &str = "nook-hook.exe";
 pub const HOME_VAR: &str = "USERPROFILE";
 
 /// Keeps spawned helpers from flashing a console window.
-const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+pub const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 // ── Files ─────────────────────────────────────────────────────────────────────
 
