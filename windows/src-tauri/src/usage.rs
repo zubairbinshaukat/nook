@@ -24,6 +24,8 @@ pub const EVENT: &str = "StatusLine";
 /// later than a weekly window could, with room to spare.
 const RESET_PAST_MS: u64 = 60 * 60 * 1000;
 const RESET_AHEAD_MS: u64 = 35 * 24 * 60 * 60 * 1000;
+/// Two reset times this close are of the same window.
+const SAME_WINDOW_MS: u64 = 60 * 1000;
 /// The longest a session id, a model's id or its name may be.
 const MAX_ID: usize = 128;
 const MAX_MODEL_NAME: usize = 64;
@@ -92,6 +94,35 @@ pub fn usage_of(payload: &Value, now: u64) -> Option<Usage> {
     (five_hour.is_some() || seven_day.is_some()).then_some(Usage { five_hour, seven_day, updated_at: now })
 }
 
+/// What a session told of a window, when it is news. Every session tells the
+/// limits as of its own last answer, so an idle one tells old numbers: a window
+/// that resets before the known one is over and is not believed, and within
+/// one window the usage only grows. A known window whose reset has passed
+/// gives way to whatever is told. None when what was told changes nothing.
+fn newer(known: Option<Window>, told: Option<Window>, now: u64) -> Option<Window> {
+    let told = told?;
+    let Some(known) = known.filter(|k| k.resets_at > now) else { return Some(told) };
+    if told.resets_at > known.resets_at.saturating_add(SAME_WINDOW_MS) {
+        return Some(told);
+    }
+    let same = told.resets_at.saturating_add(SAME_WINDOW_MS) >= known.resets_at;
+    (same && told.used_percent >= known.used_percent).then_some(told)
+}
+
+/// What is known once a session has told its limits: window by window, so one
+/// that a session leaves out, or tells late, does not take away what another
+/// session said. It is as new as the last time something told was believed.
+pub fn merged(known: Option<Usage>, told: Usage) -> Usage {
+    let Some(known) = known else { return told };
+    let now = told.updated_at;
+    let (five_hour, seven_day) = (newer(known.five_hour, told.five_hour, now), newer(known.seven_day, told.seven_day, now));
+    Usage {
+        five_hour: five_hour.or(known.five_hour),
+        seven_day: seven_day.or(known.seven_day),
+        updated_at: if five_hour.is_some() || seven_day.is_some() { now } else { known.updated_at },
+    }
+}
+
 /// A short single line, or nothing.
 fn short(value: Option<&Value>, max: usize) -> Option<String> {
     let text = value?.as_str()?.trim();
@@ -120,8 +151,14 @@ pub fn model_of(payload: &Value) -> Option<SessionModel> {
 /// model is told to the island. It is not a hook event, and never reaches the
 /// island's sessions as one. The log says that it happened, not what it said.
 pub fn receive(app: &AppHandle, payload: &Value) {
-    if let Some(usage) = usage_of(payload, now_ms()) {
-        *app.state::<Latest>().0.lock().unwrap() = Some(usage);
+    if let Some(told) = usage_of(payload, now_ms()) {
+        let usage = {
+            let state = app.state::<Latest>();
+            let mut latest = state.0.lock().unwrap();
+            let usage = merged(*latest, told);
+            *latest = Some(usage);
+            usage
+        };
         log::line("usage updated");
         let _ = app.emit_to(WINDOW_LABEL, "usage", usage);
     }
@@ -219,6 +256,28 @@ mod tests {
         // No limits at all.
         assert_eq!(usage_of(&json!({ "hook_event_name": "StatusLine" }), NOW), None);
         assert_eq!(usage_of(&event(json!("none")), NOW), None);
+    }
+
+    #[test]
+    fn an_idle_sessions_old_numbers_do_not_replace_newer_ones() {
+        let win = |used: f64, resets_in_h: u64| Some(Window { used_percent: used, resets_at: NOW + resets_in_h * 3_600_000 });
+        let known = Usage { five_hour: win(40.0, 3), seven_day: win(20.0, 96), updated_at: NOW - 1000 };
+        let told = |five_hour, seven_day| merged(Some(known), Usage { five_hour, seven_day, updated_at: NOW });
+        // Nothing known yet: what is told is it.
+        assert_eq!(merged(None, known), known);
+        // The same windows, further on: believed, and as new as now.
+        assert_eq!(told(win(45.0, 3), win(21.0, 96)), Usage { five_hour: win(45.0, 3), seven_day: win(21.0, 96), updated_at: NOW });
+        // A window left out stays as it was known.
+        assert_eq!(told(None, win(21.0, 96)).five_hour, win(40.0, 3));
+        assert_eq!(told(win(45.0, 3), None).seven_day, win(20.0, 96));
+        // An idle session: less used in the same window, or a window that is already over. Nothing changes.
+        assert_eq!(told(win(12.0, 3), win(20.0, 96)).five_hour, win(40.0, 3));
+        assert_eq!(told(Some(Window { used_percent: 90.0, resets_at: NOW - 60_000 }), None), known);
+        // The next window has started: it is the one, whatever it has used.
+        assert_eq!(told(win(2.0, 5), None).five_hour, win(2.0, 5));
+        // A known window whose reset has passed gives way to anything.
+        let over = Usage { five_hour: Some(Window { used_percent: 80.0, resets_at: NOW - 1 }), seven_day: None, updated_at: NOW - 1000 };
+        assert_eq!(merged(Some(over), Usage { five_hour: win(1.0, 5), seven_day: None, updated_at: NOW }).five_hour, win(1.0, 5));
     }
 
     #[test]
