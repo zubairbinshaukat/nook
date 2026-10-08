@@ -43,7 +43,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400..650&display=swap">
-<link rel="stylesheet" href="/assets/css/site.css?v=5">
+<link rel="stylesheet" href="/assets/css/site.css?v=6">
 <link rel="stylesheet" href="/assets/css/lightbox.css?v=1">
 <script>
 (function(){var r=document.documentElement;r.classList.add('js');try{var t=localStorage.getItem('nook-theme');if(t==='light'||t==='dark')r.setAttribute('data-theme',t)}catch(e){}})();
@@ -75,6 +75,7 @@
         <li><a href="/guides/first-run/">First run</a></li>
         <li><a href="/guides/claude-code-hooks/">Hooks</a></li>
         <li><a href="/guides/cursor/" aria-current="page">Cursor</a></li>
+        <li><a href="/guides/codex/">Codex</a></li>
         <li><a href="/guides/shelf-widgets/">Shelf</a></li>
         <li><a href="/guides/troubleshooting/">Troubleshooting</a></li>
         <li><a href="/guides/faq/">FAQ</a></li>
@@ -83,7 +84,7 @@
     <div class="nav-tools">
       <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch theme"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-moon"/></svg></button>
       <button class="icon-btn nav-menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-menu" aria-label="Menu"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-menu"/></svg></button>
-      <a class="btn btn-primary nav-cta" href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a>
+      <a class="btn btn-primary nav-cta" href="https://github.com/zubairbinshaukat/nook/releases/latest" data-download target="_blank" rel="noopener noreferrer">Download</a>
     </div>
   </div>
 </header>
@@ -107,19 +108,19 @@
 <ul>
 <li><strong>Status only.</strong> You see what a Cursor agent is doing. You <strong>cannot approve or answer</strong> from the island; permissions and questions stay in Cursor.</li>
 <li><strong>Marks.</strong> Claude Code sessions wear the Claude sparkle, Cursor sessions wear the Cursor cube, so you can tell them apart at a glance.</li>
-<li><strong>Filter chips.</strong> The session list has <strong>All</strong>, <strong>Claude Code</strong> and <strong>Cursor</strong> chips to narrow it down.</li>
+<li><strong>Filter chips.</strong> The session list has <strong>All</strong>, <strong>Claude Code</strong>, <strong>Codex</strong> and <strong>Cursor</strong> chips to narrow it down. (<a href="/guides/codex/">Codex</a> sessions are new in the unreleased build too.)</li>
 <li><strong>Folded island.</strong> When the island is folded to a pill, each session is a small dot. Cursor dots have a hole in the middle, so they differ from Claude Code dots.</li>
 </ul>
 <figure class="shot" data-shot="cursor-session-list"><img class="shot-img" src="/assets/img/shots/cursor-session-list.webp" width="634" height="243" alt="The island's session list with Claude Code and Cursor rows, the filter chips and the sparkle and cube marks." loading="lazy" decoding="async"><figcaption>The island on Home with a Cursor session next to Claude Code ones, each with its own mark.</figcaption></figure>
 
 <h2 id="setup">Set it up</h2>
 <ol>
-<li>Open Nook&rsquo;s <strong>Settings</strong> and go to the <strong>Cursor</strong> block.</li>
-<li>Click <strong>Install</strong>. Nook shows a <strong>preview</strong> of the exact diff and the path of the <strong>dated backup</strong> it will take.</li>
+<li>Open Nook&rsquo;s <strong>Settings</strong>, go to <strong>Connect</strong> and find the <strong>Cursor</strong> section.</li>
+<li>Under <strong>Sessions</strong>, click <strong>Connect&hellip;</strong>. Nook shows a <strong>preview</strong> of the exact diff and the path of the <strong>dated backup</strong> it will take.</li>
 <li>Click to confirm. Nothing is written until you do. Nook writes <code>~/.cursor/hooks.json</code> (that is, <code>%USERPROFILE%\.cursor\hooks.json</code>).</li>
 <li><strong>Restart Cursor</strong> so it reads the new hooks.</li>
 </ol>
-<p>It follows the same rules as the Claude Code hooks: see <a href="/guides/claude-code-hooks/#safe-install">how the install stays safe</a>. The Cursor block can also remove its entries again, with the same preview, backup and click.</p>
+<p>It follows the same rules as the Claude Code hooks: see <a href="/guides/claude-code-hooks/#safe-install">how the install stays safe</a>. The Cursor section can also remove its entries again, with the same preview, backup and click.</p>
 
 <figure class="shot shot-frame" data-shot="settings-cursor"><div class="shot-pair"><img class="shot-img shot-dark" src="/assets/img/shots/settings-cursor-dark.webp" width="912" height="824" alt="Nook Settings on Connect with the Cursor entry set up and its details open." loading="lazy" decoding="async"><img class="shot-img shot-light" src="/assets/img/shots/settings-cursor-light.webp" width="912" height="824" alt="Nook Settings on Connect with the Cursor entry set up and its details open." loading="lazy" decoding="async"></div><figcaption>Settings, Connect, with Cursor set up.</figcaption></figure>
 <figure class="shot" data-shot="cursor-hooks-panel"><img class="shot-img" src="/assets/img/shots/cursor-hooks-panel.webp" width="761" height="692" alt="Cursor's hooks settings showing Nook's entries after the install." loading="lazy" decoding="async"><figcaption>Cursor's Hooks view with Nook's entries. The Windows user name in the paths is blurred.</figcaption></figure>
@@ -127,7 +128,7 @@
 <ul>
 <li>It listens only to <strong>observational events</strong>: things that already happened or are happening.</li>
 <li>It <strong>never allows, denies or delays</strong> anything in Cursor. The relay always exits immediately, so Cursor never waits for Nook.</li>
-<li>It uses no network and no telemetry, like the rest of Nook.</li>
+<li>It adds no telemetry and no network use of its own.</li>
 </ul>
 
 <h2 id="claude-in-cursor">Claude Code inside Cursor&rsquo;s terminal</h2>
@@ -139,14 +140,14 @@
 <tr><th></th><th>Claude Code (incl. in Cursor&rsquo;s terminal)</th><th>Cursor&rsquo;s own agent</th></tr>
 <tr><td>Shown in Nook</td><td>Yes (0.1.0)</td><td>Yes (new in 0.2.0)</td></tr>
 <tr><td>Approve and answer from the island</td><td>Yes, same as any session</td><td>No: status only</td></tr>
-<tr><td>Set up with</td><td>Settings, Connect, Claude Code, Connect</td><td>Settings, Connect, Cursor, Connect (then restart Cursor)</td></tr>
+<tr><td>Set up with</td><td>Settings, Connect, Claude Code, Sessions and approvals, Connect&hellip;</td><td>Settings, Connect, Cursor, Sessions, Connect&hellip; (then restart Cursor)</td></tr>
 <tr><td>Mark</td><td>Claude sparkle</td><td>Cursor cube</td></tr>
 </table>
-<p>Disclaimer: Nook is an independent project, not affiliated with or endorsed by Cursor or Anysphere. Cursor is a trademark of its owner.</p>
+<p>Disclaimer: Nook is an independent project, not affiliated with or endorsed by Cursor or Anysphere. Cursor is a trademark of its owner. Replying from the island is not offered for Cursor sessions.</p>
 
     </article>
   </div>
-  <nav class="pager" aria-label="More guides"><a class="pager-a pager-prev" href="/guides/shelf-widgets/" rel="prev"><span>Previous</span><b>Shelf widgets</b></a><a class="pager-a pager-next" href="/guides/troubleshooting/" rel="next"><span>Next</span><b>Troubleshooting Nook</b></a></nav>
+  <nav class="pager" aria-label="More guides"><a class="pager-a pager-prev" href="/guides/shelf-widgets/" rel="prev"><span>Previous</span><b>Shelf widgets</b></a><a class="pager-a pager-next" href="/guides/codex/" rel="next"><span>Next</span><b>Codex and Nook</b></a></nav>
   <aside class="card doc-feedback" aria-label="Feedback"><h2>Was this helpful?</h2><p>If something here is wrong, unclear or out of date, tell us. A short issue is enough.</p><div class="cta-row"><a class="btn btn-ghost" href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer"><svg class="i" aria-hidden="true"><use href="#i-github"/></svg>Report a problem</a><a class="btn btn-ghost" href="/guides/">All guides</a></div></aside>
 </div>
 </main>
@@ -165,7 +166,7 @@
         </div>
       </div>
       <nav class="footer-col" aria-label="Product"><h2>Product</h2><ul>
-        <li><a href="/#how">How it works</a></li><li><a href="/#features">Features</a></li><li><a href="/#privacy">Privacy</a></li><li><a href="/#gullu">Meet Gullu</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a></li></ul></nav>
+        <li><a href="/#how">How it works</a></li><li><a href="/#features">Features</a></li><li><a href="/#privacy">Privacy</a></li><li><a href="/#gullu">Meet Gullu</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases/latest" data-download target="_blank" rel="noopener noreferrer">Download</a></li></ul></nav>
       <nav class="footer-col" aria-label="Guides"><h2>Guides</h2><ul>
         <li><a href="/guides/">All guides</a></li><li><a href="/guides/install/">Install Nook</a></li><li><a href="/guides/first-run/">First run</a></li><li><a href="/guides/troubleshooting/">Troubleshooting</a></li><li><a href="/guides/faq/">FAQ</a></li></ul></nav>
       <nav class="footer-col" aria-label="Project"><h2>Project</h2><ul>
@@ -187,7 +188,7 @@
 <a class="btn btn-ghost to-top" href="#top" data-to-top aria-label="Back to top"><svg class="i" aria-hidden="true"><use href="#i-up"/></svg></a>
 
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.20/dist/lenis.min.js" defer></script>
-<script src="/assets/js/site.js?v=3" defer></script>
+<script src="/assets/js/site.js?v=4" defer></script>
 <script src="/assets/js/lightbox.js?v=1" defer></script>
 </body>
 </html>

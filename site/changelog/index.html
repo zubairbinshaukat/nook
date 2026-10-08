@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Nook Changelog: Release Notes and What Is Planned</title>
-<meta name="description" content="Release notes for Nook, the free Dynamic Island for Claude Code on Windows: versions 0.2.1, 0.2.0 and 0.1.0, with Cursor sessions, docking and the agents list, and plans.">
+<meta name="description" content="Release notes for Nook, the free Dynamic Island for Claude Code on Windows: versions 0.2.1, 0.2.0 and 0.1.0, with Cursor sessions, docking and the agents list, what is coming next (Codex, replies from the island, an opt-in update check) and plans.">
 <link rel="canonical" href="https://nook.zubyr.dev/changelog/">
 <link rel="alternate" hreflang="x-default" href="https://nook.zubyr.dev/changelog/">
 <link rel="alternate" hreflang="en" href="https://nook.zubyr.dev/changelog/">
@@ -18,7 +18,7 @@
 <meta property="og:site_name" content="Nook">
 <meta property="og:locale" content="en_US">
 <meta property="og:title" content="Nook Changelog: Release Notes and What Is Planned">
-<meta property="og:description" content="Release notes for Nook, the free Dynamic Island for Claude Code on Windows: versions 0.2.1, 0.2.0 and 0.1.0, with Cursor sessions, docking and the agents list, and plans.">
+<meta property="og:description" content="Release notes for Nook, the free Dynamic Island for Claude Code on Windows: versions 0.2.1, 0.2.0 and 0.1.0, with Cursor sessions, docking and the agents list, what is coming next (Codex, replies from the island, an opt-in update check) and plans.">
 <meta property="og:url" content="https://nook.zubyr.dev/changelog/">
 <meta property="og:image" content="https://nook.zubyr.dev/assets/img/og.png">
 <meta property="og:image:type" content="image/png">
@@ -29,7 +29,7 @@
 <meta name="twitter:site" content="@zubyrdev">
 <meta name="twitter:creator" content="@zubyrdev">
 <meta name="twitter:title" content="Nook Changelog: Release Notes and What Is Planned">
-<meta name="twitter:description" content="Release notes for Nook, the free Dynamic Island for Claude Code on Windows: versions 0.2.1, 0.2.0 and 0.1.0, with Cursor sessions, docking and the agents list, and plans.">
+<meta name="twitter:description" content="Release notes for Nook, the free Dynamic Island for Claude Code on Windows: versions 0.2.1, 0.2.0 and 0.1.0, with Cursor sessions, docking and the agents list, what is coming next (Codex, replies from the island, an opt-in update check) and plans.">
 <meta name="twitter:image" content="https://nook.zubyr.dev/assets/img/og.png">
 <meta name="twitter:image:alt" content="Nook, a Dynamic Island for Windows, showing Claude Code agents">
 <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
@@ -43,11 +43,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400..650&display=swap">
-<link rel="stylesheet" href="/assets/css/site.css?v=4">
+<link rel="stylesheet" href="/assets/css/site.css?v=6">
 <script>
 (function(){var r=document.documentElement;r.classList.add('js');try{var t=localStorage.getItem('nook-theme');if(t==='light'||t==='dark')r.setAttribute('data-theme',t)}catch(e){}})();
 </script>
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://nook.zubyr.dev/#website","url":"https://nook.zubyr.dev/","name":"Nook","inLanguage":"en","publisher":{"@id":"https://nook.zubyr.dev/#author"}},{"@type":"Person","@id":"https://nook.zubyr.dev/#author","name":"Zubair Bin Shaukat","url":"https://zubyr.dev","sameAs":["https://zubyr.dev","https://github.com/zubairbinshaukat","https://www.linkedin.com/in/zubairbinshaukat","https://x.com/zubyrdev"]},{"@type":"WebPage","@id":"https://nook.zubyr.dev/changelog/#webpage","url":"https://nook.zubyr.dev/changelog/","name":"Nook Changelog: Release Notes and What Is Planned","description":"Release notes for Nook, the free Dynamic Island for Claude Code on Windows: versions 0.2.1, 0.2.0 and 0.1.0, with Cursor sessions, docking and the agents list, and plans.","inLanguage":"en","isPartOf":{"@id":"https://nook.zubyr.dev/#website"},"dateModified":"2026-10-06"},{"@type":"BreadcrumbList","@id":"https://nook.zubyr.dev/changelog/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Nook","item":"https://nook.zubyr.dev/"},{"@type":"ListItem","position":2,"name":"Changelog","item":"https://nook.zubyr.dev/changelog/"}]}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://nook.zubyr.dev/#website","url":"https://nook.zubyr.dev/","name":"Nook","inLanguage":"en","publisher":{"@id":"https://nook.zubyr.dev/#author"}},{"@type":"Person","@id":"https://nook.zubyr.dev/#author","name":"Zubair Bin Shaukat","url":"https://zubyr.dev","sameAs":["https://zubyr.dev","https://github.com/zubairbinshaukat","https://www.linkedin.com/in/zubairbinshaukat","https://x.com/zubyrdev"]},{"@type":"WebPage","@id":"https://nook.zubyr.dev/changelog/#webpage","url":"https://nook.zubyr.dev/changelog/","name":"Nook Changelog: Release Notes and What Is Planned","description":"Release notes for Nook, the free Dynamic Island for Claude Code on Windows: versions 0.2.1, 0.2.0 and 0.1.0, with Cursor sessions, docking and the agents list, what is coming next (Codex, replies from the island, an opt-in update check) and plans.","inLanguage":"en","isPartOf":{"@id":"https://nook.zubyr.dev/#website"},"dateModified":"2026-10-08"},{"@type":"BreadcrumbList","@id":"https://nook.zubyr.dev/changelog/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Nook","item":"https://nook.zubyr.dev/"},{"@type":"ListItem","position":2,"name":"Changelog","item":"https://nook.zubyr.dev/changelog/"}]}]}</script>
 </head>
 <body id="top">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -80,7 +80,7 @@
     <div class="nav-tools">
       <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch theme"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-moon"/></svg></button>
       <button class="icon-btn nav-menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-menu" aria-label="Menu"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-menu"/></svg></button>
-      <a class="btn btn-primary nav-cta" href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a>
+      <a class="btn btn-primary nav-cta" href="https://github.com/zubairbinshaukat/nook/releases/latest" data-download target="_blank" rel="noopener noreferrer">Download</a>
     </div>
   </div>
 </header>
@@ -91,13 +91,21 @@
   <header class="doc-head">
     <p class="eyebrow">Release notes</p>
     <h1>Changelog</h1>
-    <p class="lede">What shipped in each release, and what is planned next. Planned items are intentions, not promises, and carry no dates.</p>
-    <p class="doc-meta">Last updated <time datetime="2026-10-06">2026-10-06</time> &middot; Nook 0.2.1 &middot; <a href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer">Was this helpful? Report a problem</a></p>
+    <p class="lede">What shipped in each release, what is coming in the next one, and what is planned next. Planned items are intentions, not promises, and carry no dates.</p>
+    <p class="doc-meta">Last updated <time datetime="2026-10-08">2026-10-08</time> &middot; Nook 0.2.1 &middot; <a href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer">Was this helpful? Report a problem</a></p>
   </header>
   <div class="doc-grid">
-    <aside class="doc-side"><nav class="toc" aria-label="On this page"><p class="toc-h">On this page</p><ol><li><a href="#v0-2-1">0.2.1 — The installer in Nook&rsquo;s artwork</a></li><li><a href="#v0-2-0">0.2.0 — Cursor, docking and the agents list</a></li><li><a href="#v0-1-0">0.1.0 — first release</a></li><li><a href="#planned">Planned</a></li></ol></nav></aside>
+    <aside class="doc-side"><nav class="toc" aria-label="On this page"><p class="toc-h">On this page</p><ol><li><a href="#unreleased">Unreleased</a></li><li><a href="#v0-2-1">0.2.1 — The installer in Nook&rsquo;s artwork</a></li><li><a href="#v0-2-0">0.2.0 — Cursor, docking and the agents list</a></li><li><a href="#v0-1-0">0.1.0 — first release</a></li><li><a href="#planned">Planned</a></li></ol></nav></aside>
     <article class="prose doc-body">
 
+<h2 id="unreleased">Unreleased</h2>
+<ul>
+<li><strong>Codex sessions</strong> are shown in the island too, with Allow and Deny for what Codex asks permission for. Hooks are installed from Settings, Connect, Codex, Sessions and approvals, into <code>~/.codex/hooks.json</code>, with a diff, a dated backup and a click; Codex runs them once you have trusted them with <code>/hooks</code>. A <strong>Show Codex sessions</strong> switch turns them off. The session list has a Codex filter chip. Codex&rsquo;s usage limits are not shown. See <a href="/guides/codex/">Codex and Nook</a>.</li>
+<li><strong>Reply from the island.</strong> When a Claude Code or Codex session&rsquo;s turn is over, a reply box appears on the finished card and under the journal of the session panel (Enter sends, Shift+Enter makes a new line). Nook delivers the reply in the window the session runs in: it brings a terminal forward, types the reply and presses Enter, or, for the Claude Code panel of VS Code or Cursor, opens the session with the reply in its prompt box for you to send. The box is only there while Nook can find that window, so it is not offered for Cursor&rsquo;s own agent sessions, for Claude Code in an editor&rsquo;s built-in terminal, for the Claude desktop app, or on Linux.</li>
+<li><strong>Update check, off by default.</strong> Settings, About, Updates has a switch, <strong>Check for updates every day</strong>, and a <strong>Check now</strong> button. When a newer version is out, Settings and the island&rsquo;s header say so and <strong>Get it&hellip;</strong> starts the installer download in your browser. It is the only time Nook uses the internet: it asks GitHub for the latest release and sends nothing about you or your computer. Nook itself downloads and installs nothing.</li>
+<li><strong>Settings, Connect, grouped by tool</strong>: Claude Code (Sessions and approvals, Usage limits, Reply layout), Cursor and Codex, each with its mark.</li>
+<li><strong>Usage limits</strong> no longer disappear or go back to older numbers when several Claude Code sessions are open: each window keeps its newest report.</li>
+</ul>
 <h2 id="v0-2-1">0.2.1 &mdash; The installer in Nook&rsquo;s artwork</h2>
 <ul>
 <li><strong>The uninstaller and the installer pages</strong> now use the Nook icon and artwork: the uninstall window, its header logo and the welcome and finish pages no longer show the default installer art. In 0.2.0 only the installer file&rsquo;s own icon was Nook&rsquo;s.</li>
@@ -165,7 +173,7 @@
         </div>
       </div>
       <nav class="footer-col" aria-label="Product"><h2>Product</h2><ul>
-        <li><a href="/#how">How it works</a></li><li><a href="/#features">Features</a></li><li><a href="/#privacy">Privacy</a></li><li><a href="/#gullu">Meet Gullu</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a></li></ul></nav>
+        <li><a href="/#how">How it works</a></li><li><a href="/#features">Features</a></li><li><a href="/#privacy">Privacy</a></li><li><a href="/#gullu">Meet Gullu</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases/latest" data-download target="_blank" rel="noopener noreferrer">Download</a></li></ul></nav>
       <nav class="footer-col" aria-label="Guides"><h2>Guides</h2><ul>
         <li><a href="/guides/">All guides</a></li><li><a href="/guides/install/">Install Nook</a></li><li><a href="/guides/first-run/">First run</a></li><li><a href="/guides/troubleshooting/">Troubleshooting</a></li><li><a href="/guides/faq/">FAQ</a></li></ul></nav>
       <nav class="footer-col" aria-label="Project"><h2>Project</h2><ul>
@@ -187,6 +195,6 @@
 <a class="btn btn-ghost to-top" href="#top" data-to-top aria-label="Back to top"><svg class="i" aria-hidden="true"><use href="#i-up"/></svg></a>
 
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.20/dist/lenis.min.js" defer></script>
-<script src="/assets/js/site.js?v=3" defer></script>
+<script src="/assets/js/site.js?v=4" defer></script>
 </body>
 </html>

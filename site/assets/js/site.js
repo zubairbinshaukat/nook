@@ -159,3 +159,121 @@
   openHash();
   window.addEventListener('hashchange', openHash);
 })();
+
+/* ---------- direct download: Download buttons (a[data-download]) start the installer, then explain SmartScreen ----------
+   Without JS, without fetch or <dialog>, or with a modifier key, the plain link to the release page works as before.
+   The only network request is one GET to GitHub's API for the latest release; nothing is sent about the visitor. */
+(function () {
+  'use strict';
+  var d = document;
+  var API = 'https://api.github.com/repos/zubairbinshaukat/nook/releases/latest';
+  var PAGE = 'https://github.com/zubairbinshaukat/nook/releases/latest';
+  var PREFIX = 'https://github.com/zubairbinshaukat/nook/releases/download/';
+  var NAME = /^Nook-Windows-[\d.]+-setup\.exe$/;
+  var buttons = Array.prototype.slice.call(d.querySelectorAll('a[data-download]'));
+  if (!buttons.length || typeof window.fetch !== 'function' || typeof window.AbortController !== 'function') return;
+  if (typeof window.HTMLDialogElement !== 'function' || typeof window.HTMLDialogElement.prototype.showModal !== 'function') return;
+
+  var dlg = null, parts = null, busy = false, opener = null;
+
+  function el(tag, cls, text) {
+    var n = d.createElement(tag);
+    if (cls) n.className = cls;
+    if (text) n.textContent = text;
+    return n;
+  }
+
+  function build() {
+    dlg = el('dialog', 'dl-modal');
+    dlg.setAttribute('aria-labelledby', 'dl-title');
+    var body = el('div', 'dl-body');
+    var title = el('h2'); title.id = 'dl-title';
+    var lead = el('p', 'dl-lead');
+    var warn = el('p', 'dl-warn');
+    warn.appendChild(d.createTextNode('Windows SmartScreen will warn about it, because the installer is not code-signed yet. Choose '));
+    warn.appendChild(el('strong', '', 'More info'));
+    warn.appendChild(d.createTextNode(', then '));
+    warn.appendChild(el('strong', '', 'Run anyway'));
+    warn.appendChild(d.createTextNode('.'));
+    var fig = el('figure', 'dl-shot');
+    var img = el('img', 'dl-img');
+    img.src = '/assets/img/shots/install-smartscreen.webp';
+    img.width = 960; img.height = 640; img.loading = 'lazy'; img.decoding = 'async';
+    img.alt = 'The Windows SmartScreen dialog "Windows protected your PC" with More info expanded and the Run anyway button visible.';
+    img.addEventListener('error', function () { fig.hidden = true; });
+    fig.appendChild(img);
+    var verify = el('p', 'dl-verify');
+    var va = el('a', '', 'How to verify the download'); va.href = '/guides/install/#verify';
+    verify.appendChild(va);
+    var acts = el('div', 'dl-actions');
+    var gh = el('a', 'btn btn-ghost', 'Download didn’t start? Get it from GitHub');
+    gh.href = PAGE; gh.target = '_blank'; gh.rel = 'noopener noreferrer';
+    var close = el('button', 'btn btn-primary', 'Close'); close.type = 'button';
+    acts.appendChild(gh); acts.appendChild(close);
+    [title, lead, warn, fig, verify, acts].forEach(function (n) { body.appendChild(n); });
+    dlg.appendChild(body);
+    d.body.appendChild(dlg);
+    close.addEventListener('click', function () { dlg.close(); });
+    /* a click on the backdrop lands on the dialog itself (the padding lives in .dl-body) */
+    dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+    dlg.addEventListener('close', function () {
+      var o = opener; opener = null;
+      if (o && o.focus) { try { o.focus(); } catch (e) {} }
+    });
+    parts = { title: title, lead: lead };
+  }
+
+  function show(res) {
+    if (!dlg) build();
+    parts.title.textContent = res.url ? 'Your download has started' : 'Get the installer from GitHub';
+    var lead = parts.lead;
+    while (lead.firstChild) lead.removeChild(lead.firstChild);
+    var file = res.name || 'Nook-Windows-<version>-setup.exe';
+    if (res.url) {
+      lead.appendChild(d.createTextNode('Look for '));
+      lead.appendChild(el('code', '', file));
+      lead.appendChild(d.createTextNode(' in your Downloads folder.'));
+    } else {
+      lead.appendChild(d.createTextNode('The release page is open in a new tab. Pick the file that ends in '));
+      lead.appendChild(el('code', '', '-setup.exe'));
+      lead.appendChild(d.createTextNode(' (' + file + '), not the source code.'));
+    }
+    if (!dlg.open) dlg.showModal();
+  }
+
+  /* resolves to {url, name}, or {} when the request fails, times out, is rate limited or finds no installer */
+  function latest() {
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, 6000);
+    return fetch(API, { headers: { Accept: 'application/vnd.github+json' }, signal: ctl.signal })
+      .then(function (r) { if (!r.ok) throw new Error('http'); return r.json(); })
+      .then(function (j) {
+        var assets = (j && j.assets) || [];
+        for (var i = 0; i < assets.length; i++) {
+          var a = assets[i];
+          if (a && typeof a.name === 'string' && NAME.test(a.name) && typeof a.browser_download_url === 'string' &&
+              a.browser_download_url.indexOf(PREFIX) === 0) return { url: a.browser_download_url, name: a.name };
+        }
+        return {};
+      })
+      .catch(function () { return {}; })
+      .then(function (r) { clearTimeout(timer); return r; });
+  }
+
+  function onClick(e) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    if (busy) return;
+    busy = true;
+    var btn = e.currentTarget;
+    latest().then(function (res) {
+      if (!dlg || !dlg.open) opener = btn;
+      if (res.url) { window.location.href = res.url; }
+      else { try { window.open(PAGE, '_blank', 'noopener,noreferrer'); } catch (err) {} }
+      show(res);
+      busy = false;
+    });
+  }
+
+  buttons.forEach(function (b) { b.addEventListener('click', onClick); });
+})();

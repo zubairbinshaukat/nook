@@ -1,8 +1,8 @@
 # Nook
 
-> Nook is a free, open-source Dynamic Island for Claude Code agents on Windows 10 and 11. It shows every running Claude Code session at the top of your screen, with approvals and answers from the island. It is 100% local: no network calls, no telemetry, no account. Version 0.2.1, MIT-licensed, by Zubair Bin Shaukat. Not affiliated with Anthropic.
+> Nook is a free, open-source Dynamic Island for Claude Code agents on Windows 10 and 11. It shows every running Claude Code session at the top of your screen, with approvals and answers from the island. It runs locally: no telemetry, no account, and no network use except an update check that is off until you switch it on. Version 0.2.1, MIT-licensed, by Zubair Bin Shaukat. Not affiliated with Anthropic.
 
-Nook listens to Claude Code through its hooks and a small local relay (nook-hook.exe) over a named pipe. It never approves anything without a click and never blocks Claude Code. It also shows Cursor agent sessions next to Claude Code ones, status only (new in 0.2.0).
+Nook listens to Claude Code through its hooks and a small local relay (nook-hook.exe) over a named pipe. It never approves anything without a click and never blocks Claude Code. It also shows Cursor agent sessions next to Claude Code ones, status only (new in 0.2.0). The next release also shows Codex sessions (with Allow and Deny) and lets you reply to a finished Claude Code or Codex session from the island.
 
 ## Guides
 
@@ -11,6 +11,7 @@ Nook listens to Claude Code through its hooks and a small local relay (nook-hook
 - [How Nook talks to Claude Code](https://nook.zubyr.dev/guides/claude-code-hooks/): Hooks, the nook-hook relay and the named pipe: what is written to settings.json and what is never done.
 - [Shelf widgets](https://nook.zubyr.dev/guides/shelf-widgets/): To-do, Timer, Reminders, Media, Mirror and Projects: what each does and what it keeps.
 - [Cursor and Nook](https://nook.zubyr.dev/guides/cursor/): Cursor agent sessions next to Claude Code ones, status only, and how to turn them on.
+- [Codex and Nook](https://nook.zubyr.dev/guides/codex/): Codex sessions next to Claude Code ones, Allow and Deny, replying from the island, and how to turn them on.
 - [Troubleshooting Nook](https://nook.zubyr.dev/guides/troubleshooting/): SmartScreen, antivirus, a missing island, no sessions, shortcuts, camera and how to file a useful issue.
 - [Nook FAQ](https://nook.zubyr.dev/guides/faq/): Plain answers on privacy, safety, hooks, signing, platforms and who makes Nook.
 
@@ -18,9 +19,9 @@ Nook listens to Claude Code through its hooks and a small local relay (nook-hook
 
 - [Nook for Windows (home)](https://nook.zubyr.dev/): What Nook is, how it works, features, privacy and install in three steps.
 - [All guides](https://nook.zubyr.dev/guides/): Index of every guide.
-- [Privacy policy](https://nook.zubyr.dev/privacy/): No network, no telemetry, what is stored locally and where.
-- [Terms of use](https://nook.zubyr.dev/terms/): MIT license, as is, no affiliation with Anthropic or Cursor.
-- [Changelog](https://nook.zubyr.dev/changelog/): Release notes for 0.2.1, 0.2.0 and 0.1.0, and what is planned.
+- [Privacy policy](https://nook.zubyr.dev/privacy/): No telemetry, no tracking, the opt-in update check, what is stored locally and where.
+- [Terms of use](https://nook.zubyr.dev/terms/): MIT license, as is, no affiliation with Anthropic, OpenAI or Cursor.
+- [Changelog](https://nook.zubyr.dev/changelog/): Release notes for 0.2.1, 0.2.0 and 0.1.0, what is coming next (Codex sessions, replies from the island, an opt-in update check) and what is planned.
 - [Download](https://github.com/zubairbinshaukat/nook/releases/latest): Latest release on GitHub.
 - [Source code](https://github.com/zubairbinshaukat/nook): Open-source repository.
 

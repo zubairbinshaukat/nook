@@ -90,6 +90,24 @@
     "alt": "Nook docked to the left edge of the screen as a tall panel."
   },
   {
+    "id": "finished-reply",
+    "variant": "dark",
+    "file": "finished-reply-dark.webp",
+    "width": 720,
+    "height": 248,
+    "bytes": 16056,
+    "alt": "A finished session card in the island with a reply box under the message, reading Reply to Claude Code with a send arrow, above the Read reply and Open Claude buttons."
+  },
+  {
+    "id": "finished-reply",
+    "variant": "light",
+    "file": "finished-reply-light.webp",
+    "width": 720,
+    "height": 248,
+    "bytes": 15714,
+    "alt": "A finished session card in the island with a reply box under the message, reading Reply to Claude Code with a send arrow, above the Read reply and Open Claude buttons."
+  },
+  {
     "id": "folded",
     "variant": "dark",
     "file": "folded-dark.webp",
@@ -315,13 +333,31 @@
     "alt": "A session page listing its subagents under the parent session, each with its own state."
   },
   {
+    "id": "session-reply",
+    "variant": "dark",
+    "file": "session-reply-dark.webp",
+    "width": 800,
+    "height": 360,
+    "bytes": 22660,
+    "alt": "A session page at rest: the journal of what Claude Code did, and the reply box under it."
+  },
+  {
+    "id": "session-reply",
+    "variant": "light",
+    "file": "session-reply-light.webp",
+    "width": 800,
+    "height": 360,
+    "bytes": 21936,
+    "alt": "A session page at rest: the journal of what Claude Code did, and the reply box under it."
+  },
+  {
     "id": "settings-about",
     "variant": "dark",
     "file": "settings-about-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 51528,
-    "alt": "Nook Settings, About and privacy page: the version, where Nook keeps its files and the privacy summary."
+    "bytes": 52008,
+    "alt": "Nook Settings, About and privacy page: the version, the Updates group with the daily check switched off and a Check now button, and the privacy summary."
   },
   {
     "id": "settings-about",
@@ -329,8 +365,26 @@
     "file": "settings-about-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 54672,
-    "alt": "Nook Settings, About and privacy page: the version, where Nook keeps its files and the privacy summary."
+    "bytes": 54488,
+    "alt": "Nook Settings, About and privacy page: the version, the Updates group with the daily check switched off and a Check now button, and the privacy summary."
+  },
+  {
+    "id": "settings-codex",
+    "variant": "dark",
+    "file": "settings-codex-dark.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 45760,
+    "alt": "Nook Settings searched for Codex: the Codex entry is connected, its details are open with the note to trust the hooks with /hooks, and the Show Codex sessions switch is on."
+  },
+  {
+    "id": "settings-codex",
+    "variant": "light",
+    "file": "settings-codex-light.webp",
+    "width": 912,
+    "height": 824,
+    "bytes": 48818,
+    "alt": "Nook Settings searched for Codex: the Codex entry is connected, its details are open with the note to trust the hooks with /hooks, and the Show Codex sessions switch is on."
   },
   {
     "id": "settings-connect",
@@ -338,8 +392,8 @@
     "file": "settings-connect-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 50886,
-    "alt": "Nook Settings on Connect: the Claude Code card says Not connected, with a Connect button."
+    "bytes": 45030,
+    "alt": "Nook Settings on Connect: under Claude Code, Sessions and approvals says Not connected, with a Connect button."
   },
   {
     "id": "settings-connect",
@@ -347,8 +401,8 @@
     "file": "settings-connect-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 54532,
-    "alt": "Nook Settings on Connect: the Claude Code card says Not connected, with a Connect button."
+    "bytes": 48154,
+    "alt": "Nook Settings on Connect: under Claude Code, Sessions and approvals says Not connected, with a Connect button."
   },
   {
     "id": "settings-cursor",
@@ -356,7 +410,7 @@
     "file": "settings-cursor-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 51396,
+    "bytes": 45308,
     "alt": "Nook Settings on Connect with the Cursor entry set up and its details open."
   },
   {
@@ -365,7 +419,7 @@
     "file": "settings-cursor-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 54502,
+    "bytes": 48292,
     "alt": "Nook Settings on Connect with the Cursor entry set up and its details open."
   },
   {
@@ -374,7 +428,7 @@
     "file": "settings-hooks-diff-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 69560,
+    "bytes": 66564,
     "alt": "The preview of the change to settings.json, with added lines in green, the backup file name and a confirm button."
   },
   {
@@ -383,7 +437,7 @@
     "file": "settings-hooks-diff-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 72076,
+    "bytes": 67628,
     "alt": "The preview of the change to settings.json, with added lines in green, the backup file name and a confirm button."
   },
   {
@@ -482,7 +536,7 @@
     "file": "settings-usage-diff-dark.webp",
     "width": 912,
     "height": 824,
-    "bytes": 57970,
+    "bytes": 51812,
     "alt": "The preview of the status line entry Nook would add to settings.json, with a confirm button."
   },
   {
@@ -491,7 +545,7 @@
     "file": "settings-usage-diff-light.webp",
     "width": 912,
     "height": 824,
-    "bytes": 61112,
+    "bytes": 54468,
     "alt": "The preview of the status line entry Nook would add to settings.json, with a confirm button."
   },
   {

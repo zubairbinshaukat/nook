@@ -1,8 +1,8 @@
 # Nook
 
-> Nook is a free, open-source Dynamic Island for Claude Code agents on Windows 10 and 11. It shows every running Claude Code session at the top of the screen and lets you approve permissions and answer questions with a click. 100% local: no network calls, no telemetry, no account.
+> Nook is a free, open-source Dynamic Island for Claude Code agents on Windows 10 and 11. It shows every running Claude Code session at the top of the screen and lets you approve permissions and answer questions with a click. Runs locally: no telemetry, no account, and no network use except an update check that is off until you switch it on.
 
-This file contains the full text of the Nook website (https://nook.zubyr.dev/) in Markdown, so a model can read the whole site in one fetch. It mirrors the pages; if they differ, the pages and the repository (https://github.com/zubairbinshaukat/nook) are authoritative. Site last updated 2026-10-06. Index of pages: https://nook.zubyr.dev/llms.txt
+This file contains the full text of the Nook website (https://nook.zubyr.dev/) in Markdown, so a model can read the whole site in one fetch. It mirrors the pages; if they differ, the pages and the repository (https://github.com/zubairbinshaukat/nook) are authoritative. Site last updated 2026-10-08. Index of pages: https://nook.zubyr.dev/llms.txt
 
 ---
 
@@ -10,7 +10,7 @@ This file contains the full text of the Nook website (https://nook.zubyr.dev/) i
 
 URL: https://nook.zubyr.dev/
 
-Nook for Windows is a free, open-source Dynamic Island for Claude Code agents. It sits at the top of your screen and shows every running Claude Code session across your projects. See who is working, who is done and who needs you, then approve or answer with a click. 100% local. Windows 10 and 11. Version 0.2.1. Free and open source (MIT). Download: https://github.com/zubairbinshaukat/nook/releases/latest
+Nook for Windows is a free, open-source Dynamic Island for Claude Code agents. It sits at the top of your screen and shows every running Claude Code session across your projects. See who is working, who is done and who needs you, then approve or answer with a click. Runs locally. Windows 10 and 11. Version 0.2.1. Free and open source (MIT). Download: https://github.com/zubairbinshaukat/nook/releases/latest
 
 ## How it works
 
@@ -33,11 +33,11 @@ Flow: Claude Code -> nook-hook -> local pipe -> Nook island.
 - **Go to the session that needs you.** One shortcut jumps to the session waiting on you.
 - **Keyboard shortcuts.** Defaults, all changeable in Settings: Ctrl+Alt+Space expands or shrinks the panel; Ctrl+Shift+Space opens the panel at normal size; Ctrl+Alt+Enter goes to the session that needs you.
 
-New in 0.2.0: Cursor agent sessions appear next to Claude Code ones, status only (no approving or answering from the island). Set up in Settings > Cursor > Install.
+New in 0.2.0: Cursor agent sessions appear next to Claude Code ones, status only (no approving or answering from the island). Coming in the next release: Codex sessions with Allow and Deny, and a reply box on a finished Claude Code or Codex session. Set up in Settings > Connect.
 
 ## Privacy and trust
 
-- **No network, no telemetry.** No network calls, no analytics, no account. Events travel only from Claude Code to Nook, on your own PC.
+- **No telemetry, no tracking.** No analytics, no account. Events travel only from Claude Code to Nook, on your own PC. The one thing that uses the internet is an optional update check, off until you switch it on.
 - **Never without a click.** Nook never approves anything for you. If nobody answers in time, Claude Code simply asks in the terminal as usual.
 - **Never blocks Claude Code.** The relay gives Nook 300 ms and exits cleanly if it is closed, slow or crashed.
 - **Safe settings changes.** Nook shows the exact diff and takes a dated backup before it touches ~/.claude/settings.json. Only after your click.
@@ -66,11 +66,11 @@ Get-FileHash .\Nook-Windows-0.2.1-setup.exe -Algorithm SHA256
 
 ### Is Nook free and safe?
 
-Nook is free and open source (MIT-licensed code), so anyone can read exactly what it does. It runs 100% locally: no network calls, no telemetry and no account.
+Nook is free and open source (MIT-licensed code), so anyone can read exactly what it does. It runs locally: no telemetry, no account, and no network use except an update check that is off until you switch it on.
 
 ### Does Nook send my code or prompts anywhere?
 
-No. Events go from Claude Code’s hooks to a small local relay and then to Nook, all on your own computer. Nook makes no network calls and has no telemetry.
+No. Events go from Claude Code’s hooks to a small local relay and then to Nook, all on your own computer. Nook has no telemetry and sends nothing about you; the only time it uses the internet is the optional update check you switch on yourself, which asks GitHub for the latest release.
 
 ### Will Nook approve things for me or get in Claude Code’s way?
 
@@ -94,7 +94,7 @@ Nook 0.2.1 is built for Windows 10 and 11. It follows Claude Code through Claude
 
 ### Does Nook support Cursor or other agents?
 
-Yes. Nook shows Cursor agent sessions next to Claude Code ones, status only: you can see what a Cursor agent is doing, but you cannot approve or answer from the island. Turn it on in Settings, Cursor, Install (preview, dated backup, click). New in 0.2.0. Claude Code running inside Cursor’s terminal works as a normal Claude Code session.
+Yes. Nook shows Codex and Cursor agent sessions next to Claude Code ones. For Codex you can allow or deny permission requests from the island; Cursor is status only, so you cannot approve or answer there. Turn each on in Settings, Connect (preview, dated backup, click); for Codex, trust the new hooks once with /hooks in Codex. Cursor is new in 0.2.0; Codex is new in the next release. Claude Code running inside Cursor’s terminal works as a normal Claude Code session.
 
 ### Does it slow down my PC?
 
@@ -494,7 +494,6 @@ Disclaimer: Nook is an independent project, not affiliated with or endorsed by C
 
 ---
 
-# Troubleshooting Nook
 
 URL: https://nook.zubyr.dev/guides/troubleshooting/
 Last updated: 2026-10-06
@@ -689,11 +688,11 @@ Short, honest answers. For step-by-step help see the guides, and for fixes see t
 
 ## Is Nook free and safe?
 
-Nook is free and open source (MIT-licensed code), so anyone can read exactly what it does. It runs 100% locally: no network calls, no telemetry and no account.
+Nook is free and open source (MIT-licensed code), so anyone can read exactly what it does. It runs locally: no telemetry, no account, and no network use except an update check that is off until you switch it on.
 
 ## Does Nook send my code or prompts anywhere?
 
-No. Events go from Claude Code’s hooks to a small local relay and then to Nook, all on your own computer. Nook makes no network calls and has no telemetry.
+No. Events go from Claude Code’s hooks to a small local relay and then to Nook, all on your own computer. Nook has no telemetry and sends nothing about you; the only time it uses the internet is the optional update check you switch on yourself, which asks GitHub for the latest release.
 
 ## Will Nook approve things for me or get in Claude Code’s way?
 
@@ -717,7 +716,7 @@ Nook 0.2.1 is built for Windows 10 and 11. It follows Claude Code through Claude
 
 ## Does Nook support Cursor or other agents?
 
-Yes. Nook shows Cursor agent sessions next to Claude Code ones, status only: you can see what a Cursor agent is doing, but you cannot approve or answer from the island. Turn it on in Settings, Cursor, Install (preview, dated backup, click). New in 0.2.0. Claude Code running inside Cursor’s terminal works as a normal Claude Code session.
+Yes. Nook shows Codex and Cursor agent sessions next to Claude Code ones. For Codex you can allow or deny permission requests from the island; Cursor is status only, so you cannot approve or answer there. Turn each on in Settings, Connect (preview, dated backup, click); for Codex, trust the new hooks once with /hooks in Codex. Cursor is new in 0.2.0; Codex is new in the next release. Claude Code running inside Cursor’s terminal works as a normal Claude Code session.
 
 ## Does it slow down my PC?
 
@@ -762,11 +761,11 @@ Open an issue on GitHub at https://github.com/zubairbinshaukat/nook/issues/new w
 URL: https://nook.zubyr.dev/privacy/
 Effective 2026-10-04, last updated 2026-10-06
 
-Short version: Nook makes no network connections, collects nothing about you, and keeps everything on your own PC. Effective 2026-10-04.
+Short version: Nook collects nothing about you and keeps everything on your own PC. Its only use of the internet is an update check that is off until you switch it on. Effective 2026-10-08.
 
 ## The short version
 
-- Nook makes **no network connections**. Not the app, not the relay.
+- Nook makes **no network connections of its own**, with **one exception that you control**: an update check that is off by default. The relay never uses the network.
 - There is **no telemetry**, no analytics, no crash reporting, no account and no sign-in.
 - Everything Nook keeps is on **your own computer**.
 - Nook sets **no cookies**, and neither does this website.
@@ -789,10 +788,13 @@ You can delete these at any time. The uninstaller removes the relay and the log;
 
 ## Files of yours that Nook edits
 
-Only when you ask, and only after a preview and a click, Nook edits `%USERPROFILE%\.claude\settings.json` (to install or remove its hooks and the optional usage status line) and, if you choose the optional reply format, `CLAUDE.md`, and, if you turn on Cursor sessions, `~/.cursor/hooks.json`. Each edit takes a dated backup first and touches only Nook’s own entries. See [How Nook talks to Claude Code](https://nook.zubyr.dev/guides/claude-code-hooks/).
+Only when you ask, and only after a preview and a click, Nook edits `%USERPROFILE%\.claude\settings.json` (to install or remove its hooks and the optional usage status line) and, if you choose the optional reply format, `CLAUDE.md`, and, if you turn on Cursor or Codex sessions, `~/.cursor/hooks.json` or `~/.codex/hooks.json`. Each edit takes a dated backup first and touches only Nook’s own entries. See [How Nook talks to Claude Code](https://nook.zubyr.dev/guides/claude-code-hooks/).
+
+## The update check
+
+Nook never looks for a new version on its own. **Settings, About, Updates** has a switch, **Check for updates every day**, which is **off by default**, and a **Check now** button. Only when you switch it on or press the button does Nook ask GitHub’s API for the latest release of `zubairbinshaukat/nook`. The request carries a `Nook/<version>` user-agent and nothing else about you or your computer; GitHub, like any server, sees your IP address. If a newer version is out, Settings and the island’s header say so, and **Get it…** starts the installer download from GitHub in your browser. Nook itself downloads and installs nothing. This is the only time the app uses the internet. On this website, pressing a **Download** button asks GitHub’s API for the latest release and downloads the installer from GitHub.
 
 ## Camera (Mirror)
-
 The Mirror widget uses your camera only while Mirror is open. It stops the moment Mirror closes, the island folds or hides, or you leave the Shelf. Nothing is recorded, no audio is used, nothing is saved and nothing is sent anywhere. Windows asks for camera permission, and you can withdraw it in Windows Settings at any time.
 
 ## Third parties
@@ -836,7 +838,7 @@ The software is provided “as is”, without warranty of any kind, express or i
 
 ## No affiliation, trademarks
 
-Nook is an independent open-source project. It is **not affiliated with, endorsed by or sponsored by Anthropic, Cursor (Anysphere) or Microsoft**, or by the author of Coucou. “Claude” and “Claude Code” are trademarks of Anthropic. “Cursor” and “Windows” are trademarks of their owners. They are used here only to say what Nook works with.
+Nook is an independent open-source project. It is **not affiliated with, endorsed by or sponsored by Anthropic, OpenAI, Cursor (Anysphere) or Microsoft**, or by the author of Coucou. “Claude” and “Claude Code” are trademarks of Anthropic. “Cursor” and “Windows” are trademarks of their owners. They are used here only to say what Nook works with.
 
 ## This website
 
@@ -854,6 +856,14 @@ URL: https://nook.zubyr.dev/changelog/
 Effective 2026-10-04, last updated 2026-10-06
 
 What shipped in each release, and what is planned next. Planned items are intentions, not promises, and carry no dates.
+
+## Unreleased
+
+- **Codex sessions** are shown in the island too, with Allow and Deny for what Codex asks permission for. Hooks are installed from Settings, Connect, Codex, Sessions and approvals, into `~/.codex/hooks.json`, with a diff, a dated backup and a click; Codex runs them once you have trusted them with `/hooks`. Codex’s usage limits are not shown. See [Codex and Nook](https://nook.zubyr.dev/guides/codex/).
+- **Reply from the island.** When a Claude Code or Codex session’s turn is over, a reply box appears on the finished card and under the session panel’s journal. Nook delivers the reply in the window the session runs in: it brings a terminal forward, types the reply and presses Enter, or, for the Claude Code panel of VS Code or Cursor, opens the session with the reply in its prompt box for you to send. The box is only there while Nook can find that window, so it is not offered for Cursor’s own agent sessions, for Claude Code in an editor’s built-in terminal, for the Claude desktop app, or on Linux.
+- **Update check, off by default.** Settings, About, Updates: **Check for updates every day** and **Check now**. It is the only time Nook uses the internet and sends nothing about you or your computer.
+- **Settings, Connect, grouped by tool**: Claude Code (Sessions and approvals, Usage limits, Reply layout), Cursor and Codex. The session list also has a Codex filter chip.
+- **Usage limits** no longer disappear when several Claude Code sessions are open.
 
 ## 0.2.1 — The installer in Nook’s artwork
 

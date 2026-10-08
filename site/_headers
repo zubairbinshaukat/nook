@@ -4,10 +4,11 @@
 # CSP notes: the only inline script is the tiny theme bootstrap in <head>, allowed by hash
 # (sha256-AIPMsabccB96nOgg4nF80X0+sx3CbN0XVIQ6NXU327o=). If you edit that script in any page, recompute the hash.
 # 'unsafe-inline' for styles is needed for the style="" attributes on the landing page.
-# External hosts used: fonts.googleapis.com + fonts.gstatic.com (typefaces), cdn.jsdelivr.net (Lenis smooth scroll).
+# External hosts used: fonts.googleapis.com + fonts.gstatic.com (typefaces), cdn.jsdelivr.net (Lenis smooth scroll),
+# api.github.com (connect-src: the Download buttons ask GitHub for the latest release, then start the installer download).
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-AIPMsabccB96nOgg4nF80X0+sx3CbN0XVIQ6NXU327o=' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; media-src 'none'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-AIPMsabccB96nOgg4nF80X0+sx3CbN0XVIQ6NXU327o=' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; media-src 'none'; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()

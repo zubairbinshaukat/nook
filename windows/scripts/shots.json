@@ -198,6 +198,41 @@
       "notes": "A session with its subagents."
     },
     {
+      "id": "finished-reply",
+      "kind": "auto",
+      "page": "stage",
+      "params": "view=finished",
+      "crop": {
+        "selector": "#island",
+        "pad": 40
+      },
+      "used-in": [
+        "guides/first-run#reply",
+        "guides/codex#reply",
+        "README.md"
+      ],
+      "out": "finished-reply",
+      "alt": "A finished session card in the island with a reply box under the message, reading Reply to Claude Code with a send arrow, above the Read reply and Open Claude buttons.",
+      "notes": "The finished card with the reply box."
+    },
+    {
+      "id": "session-reply",
+      "kind": "auto",
+      "page": "stage",
+      "params": "view=session&idle=1",
+      "crop": {
+        "selector": "#island",
+        "pad": 40
+      },
+      "used-in": [
+        "guides/first-run#reply",
+        "guides/faq"
+      ],
+      "out": "session-reply",
+      "alt": "A session page at rest: the journal of what Claude Code did, and the reply box under it.",
+      "notes": "The session panel at rest with the reply box under the journal."
+    },
+    {
       "id": "shelf",
       "kind": "auto",
       "page": "stage",
@@ -224,7 +259,7 @@
         "guides/first-run"
       ],
       "out": "settings-connect",
-      "alt": "Nook Settings on Connect: the Claude Code card says Not connected, with a Connect button.",
+      "alt": "Nook Settings on Connect: under Claude Code, Sessions and approvals says Not connected, with a Connect button.",
       "notes": "Connect page before the hooks are installed."
     },
     {
@@ -269,6 +304,20 @@
       "out": "settings-cursor",
       "alt": "Nook Settings on Connect with the Cursor entry set up and its details open.",
       "notes": "Connect page with Cursor connected."
+    },
+    {
+      "id": "settings-codex",
+      "kind": "auto",
+      "page": "settings",
+      "size": "800x680",
+      "frame": true,
+      "params": "section=connect&codex=installed&details=codex&q=codex",
+      "used-in": [
+        "guides/codex#setup"
+      ],
+      "out": "settings-codex",
+      "alt": "Nook Settings searched for Codex: the Codex entry is connected, its details are open with the note to trust the hooks with /hooks, and the Show Codex sessions switch is on.",
+      "notes": "Settings searched for Codex (the Codex block is at the bottom of Connect), connected, details open."
     },
     {
       "id": "settings-island",
@@ -348,10 +397,11 @@
       "frame": true,
       "params": "section=about",
       "used-in": [
-        "guides/troubleshooting#collect-logs"
+        "guides/troubleshooting#collect-logs",
+        "privacy#update-check"
       ],
       "out": "settings-about",
-      "alt": "Nook Settings, About and privacy page: the version, where Nook keeps its files and the privacy summary.",
+      "alt": "Nook Settings, About and privacy page: the version, the Updates group with the daily check switched off and a Check now button, and the privacy summary.",
       "notes": "About and privacy."
     },
     {
@@ -375,7 +425,8 @@
       "variants": [],
       "used-in": [
         "guides/install",
-        "guides/troubleshooting#smartscreen"
+        "guides/troubleshooting#smartscreen",
+        "the download dialog (assets/js/site.js)"
       ],
       "out": "install-smartscreen",
       "alt": "The Windows SmartScreen dialog 'Windows protected your PC' with More info expanded and the Run anyway button visible.",

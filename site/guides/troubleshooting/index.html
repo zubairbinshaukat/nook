@@ -43,7 +43,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400..650&display=swap">
-<link rel="stylesheet" href="/assets/css/site.css?v=5">
+<link rel="stylesheet" href="/assets/css/site.css?v=6">
 <link rel="stylesheet" href="/assets/css/lightbox.css?v=1">
 <script>
 (function(){var r=document.documentElement;r.classList.add('js');try{var t=localStorage.getItem('nook-theme');if(t==='light'||t==='dark')r.setAttribute('data-theme',t)}catch(e){}})();
@@ -75,6 +75,7 @@
         <li><a href="/guides/first-run/">First run</a></li>
         <li><a href="/guides/claude-code-hooks/">Hooks</a></li>
         <li><a href="/guides/cursor/">Cursor</a></li>
+        <li><a href="/guides/codex/">Codex</a></li>
         <li><a href="/guides/shelf-widgets/">Shelf</a></li>
         <li><a href="/guides/troubleshooting/" aria-current="page">Troubleshooting</a></li>
         <li><a href="/guides/faq/">FAQ</a></li>
@@ -83,7 +84,7 @@
     <div class="nav-tools">
       <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch theme"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-moon"/></svg></button>
       <button class="icon-btn nav-menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-menu" aria-label="Menu"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-menu"/></svg></button>
-      <a class="btn btn-primary nav-cta" href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a>
+      <a class="btn btn-primary nav-cta" href="https://github.com/zubairbinshaukat/nook/releases/latest" data-download target="_blank" rel="noopener noreferrer">Download</a>
     </div>
   </div>
 </header>
@@ -113,7 +114,7 @@
 
 <figure class="shot" data-shot="tray-menu"><img class="shot-img" src="/assets/img/shots/tray-menu.webp" width="248" height="265" alt="The Nook icon in the Windows notification area with its context menu open." loading="lazy" decoding="async"><figcaption>The Nook tray menu: Open Nook, Hide island, Show agents list, Settings, Pause and Quit.</figcaption></figure>
 <h2 id="no-sessions">No sessions show up</h2>
-<dl class="fix"><div><dt>Symptom</dt><dd>Claude Code is running but the island is empty.</dd></div><div><dt>Cause</dt><dd>Usually one of: the hooks are not installed; the session started before the hooks were installed; old shell-form hooks fail in PowerShell; or the relay is missing.</dd></div><div><dt>Fix</dt><dd><ol><li><strong>Install the hooks:</strong> Settings &rarr; Connect should say <em>Connected</em> on the Claude Code card. If it says <em>Not connected</em>, click <strong>Connect&hellip;</strong>.</li><li><strong>Restart the session.</strong> Hooks are read when a session starts, so a session that was already open will not report until you open a new one.</li><li><strong>PowerShell ParserError.</strong> If Claude Code reports a hook error such as <code>Unexpected token 'Stop'</code>, the hooks were written in an old shell form that only works in Git Bash. Open Settings &rarr; Connect and click <strong>Connect again&hellip;</strong> (or <strong>Update&hellip;</strong>) to rewrite them in the exec form. See <a href="/guides/claude-code-hooks/#what-is-written">why</a>.</li><li><strong>Relay missing.</strong> If Settings says <em>Relay missing</em>, restart Nook; it copies <code>nook-hook.exe</code> to <code>%LOCALAPPDATA%\Nook\bin</code> at launch. Antivirus may have removed it (see <a href="#antivirus">above</a>).</li><li><strong>Status line only:</strong> a relay path that contains a space or special character is refused for the usage status line, because Claude Code reads that command through a shell. Hooks themselves are fine with spaces. The status line needs a path made of letters, digits and <code>_ - . / :</code>, so a user folder with a space can block it.</li></ol></dd></div></dl>
+<dl class="fix"><div><dt>Symptom</dt><dd>Claude Code is running but the island is empty.</dd></div><div><dt>Cause</dt><dd>Usually one of: the hooks are not installed; the session started before the hooks were installed; old shell-form hooks fail in PowerShell; or the relay is missing.</dd></div><div><dt>Fix</dt><dd><ol><li><strong>Install the hooks:</strong> Settings &rarr; Connect should say <em>Connected</em> under <strong>Claude Code</strong>, in <strong>Sessions and approvals</strong>. If it says <em>Not connected</em>, click <strong>Connect&hellip;</strong>.</li><li><strong>Restart the session.</strong> Hooks are read when a session starts, so a session that was already open will not report until you open a new one.</li><li><strong>PowerShell ParserError.</strong> If Claude Code reports a hook error such as <code>Unexpected token 'Stop'</code>, the hooks were written in an old shell form that only works in Git Bash. Open Settings &rarr; Connect and click <strong>Connect again&hellip;</strong> (or <strong>Update&hellip;</strong>) to rewrite them in the exec form. See <a href="/guides/claude-code-hooks/#what-is-written">why</a>.</li><li><strong>Relay missing.</strong> If Settings says <em>Relay missing</em>, restart Nook; it copies <code>nook-hook.exe</code> to <code>%LOCALAPPDATA%\Nook\bin</code> at launch. Antivirus may have removed it (see <a href="#antivirus">above</a>).</li><li><strong>Status line only:</strong> a relay path that contains a space or special character is refused for the usage status line, because Claude Code reads that command through a shell. Hooks themselves are fine with spaces. The status line needs a path made of letters, digits and <code>_ - . / :</code>, so a user folder with a space can block it.</li></ol></dd></div></dl>
 
 <h2 id="hooks-nothing">Hooks are installed but nothing happens</h2>
 <dl class="fix"><div><dt>Symptom</dt><dd>Settings says Connected, you started a new session, and still nothing appears.</dd></div><div><dt>Cause</dt><dd>The relay may not be reaching Nook, may be failing to start, or Claude Code may be reading a different settings file than the one Nook edited.</dd></div><div><dt>Fix</dt><dd><ol><li>Open the log, which records event names and decisions: <code>%LOCALAPPDATA%\Nook\nook.log</code>.</li><li>From the terminal where the session runs, run the diagnostic. It prints JSON and proves the relay starts: <div class="code-block"><code id="ts-where">& "$env:LOCALAPPDATA\Nook\bin\nook-hook.exe" --where</code><button class="copy-btn" type="button" data-copy="ts-where">Copy</button></div></li><li>Make sure Nook itself is running (tray icon) and not paused.</li><li>Check that <code>%USERPROFILE%\.claude\settings.json</code> contains entries whose command contains <code>nook-hook</code>.</li><li>If Nook runs elevated (as administrator) and Claude Code does not, or the other way round, the relay usually refuses the connection because the integrity levels differ. Run both normally.</li></ol></dd></div></dl>
@@ -122,7 +123,7 @@
 <dl class="fix"><div><dt>Symptom</dt><dd>A request shows in the island but Allow or the answer does nothing, or a question never appears there.</dd></div><div><dt>Cause</dt><dd>Claude Code versions differ in which prompts they send through hooks. Some questions or permission types may not reach Nook, and the request times out after about two minutes.</dd></div><div><dt>Fix</dt><dd><p>Answer in the terminal: the same question is always shown there too. If it keeps happening, update Claude Code, and open an issue with your Claude Code version (<code>claude --version</code>) and the kind of prompt it was.</p></dd></div></dl>
 
 <h2 id="usage-missing">Usage limits are missing or stale</h2>
-<dl class="fix"><div><dt>Symptom</dt><dd>The usage meters are empty, show an old number, or read 0%.</dd></div><div><dt>Cause</dt><dd>Limits come from Claude Code’s status line, so they only appear if the usage status line is installed, only on subscription plans, and only update while a session runs. They are “as of the last Claude Code activity”. After a window resets, Nook shows 0% until Claude Code reports again.</dd></div><div><dt>Fix</dt><dd><ol><li>In <strong>Settings &rarr; Connect</strong>, turn on <strong>Usage limits</strong>.</li><li>Run a session; the numbers update when Claude Code reports them. Numbers older than about two hours are shown as old.</li><li>Using an API key instead of a subscription plan usually means there are no limits to show.</li><li>If another tool owns your status line, Nook chains it; if the numbers are still missing, open an issue.</li></ol></dd></div></dl>
+<dl class="fix"><div><dt>Symptom</dt><dd>The usage meters are empty, show an old number, or read 0%.</dd></div><div><dt>Cause</dt><dd>Limits come from Claude Code’s status line, so they only appear if the usage status line is installed, only on subscription plans, and only update while a session runs. They are “as of the last Claude Code activity”. After a window resets, Nook shows 0% until Claude Code reports again.</dd></div><div><dt>Fix</dt><dd><ol><li>In <strong>Settings &rarr; Connect</strong>, under <strong>Claude Code</strong>, turn on <strong>Usage limits</strong>.</li><li>Run a session; the numbers update when Claude Code reports them. Numbers older than about two hours are shown as old.</li><li>Using an API key instead of a subscription plan usually means there are no limits to show.</li><li>If another tool owns your status line, Nook chains it; if the numbers are still missing, open an issue.</li></ol></dd></div></dl>
 
 <h2 id="high-cpu">High CPU use</h2>
 <dl class="fix"><div><dt>Symptom</dt><dd>Nook shows up high in Task Manager.</dd></div><div><dt>Cause</dt><dd>Nook is a small app that mostly waits for events. Sustained high use usually comes from animation on a very busy desktop, a Shelf widget left open (Media is polled about once a second while it is on screen), or a bug.</dd></div><div><dt>Fix</dt><dd><ol><li>Fold the island and close any expanded widget, then watch Task Manager again.</li><li>In <strong>Settings &rarr; Look and colours</strong>, set <em>Reduce motion</em> to <em>On</em> and switch off <em>Playful Gullu</em>.</li><li>Check that the usage in the island’s CPU readout is not simply your own agents working.</li><li>If it stays high with everything folded, open an issue with the log and your Windows and graphics driver versions.</li></ol></dd></div></dl>
@@ -168,7 +169,7 @@
 
     </article>
   </div>
-  <nav class="pager" aria-label="More guides"><a class="pager-a pager-prev" href="/guides/cursor/" rel="prev"><span>Previous</span><b>Cursor and Nook</b></a><a class="pager-a pager-next" href="/guides/faq/" rel="next"><span>Next</span><b>Nook FAQ</b></a></nav>
+  <nav class="pager" aria-label="More guides"><a class="pager-a pager-prev" href="/guides/codex/" rel="prev"><span>Previous</span><b>Codex and Nook</b></a><a class="pager-a pager-next" href="/guides/faq/" rel="next"><span>Next</span><b>Nook FAQ</b></a></nav>
   <aside class="card doc-feedback" aria-label="Feedback"><h2>Was this helpful?</h2><p>If something here is wrong, unclear or out of date, tell us. A short issue is enough.</p><div class="cta-row"><a class="btn btn-ghost" href="https://github.com/zubairbinshaukat/nook/issues/new" target="_blank" rel="noopener noreferrer"><svg class="i" aria-hidden="true"><use href="#i-github"/></svg>Report a problem</a><a class="btn btn-ghost" href="/guides/">All guides</a></div></aside>
 </div>
 </main>
@@ -187,7 +188,7 @@
         </div>
       </div>
       <nav class="footer-col" aria-label="Product"><h2>Product</h2><ul>
-        <li><a href="/#how">How it works</a></li><li><a href="/#features">Features</a></li><li><a href="/#privacy">Privacy</a></li><li><a href="/#gullu">Meet Gullu</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a></li></ul></nav>
+        <li><a href="/#how">How it works</a></li><li><a href="/#features">Features</a></li><li><a href="/#privacy">Privacy</a></li><li><a href="/#gullu">Meet Gullu</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases/latest" data-download target="_blank" rel="noopener noreferrer">Download</a></li></ul></nav>
       <nav class="footer-col" aria-label="Guides"><h2>Guides</h2><ul>
         <li><a href="/guides/">All guides</a></li><li><a href="/guides/install/">Install Nook</a></li><li><a href="/guides/first-run/">First run</a></li><li><a href="/guides/troubleshooting/">Troubleshooting</a></li><li><a href="/guides/faq/">FAQ</a></li></ul></nav>
       <nav class="footer-col" aria-label="Project"><h2>Project</h2><ul>
@@ -209,7 +210,7 @@
 <a class="btn btn-ghost to-top" href="#top" data-to-top aria-label="Back to top"><svg class="i" aria-hidden="true"><use href="#i-up"/></svg></a>
 
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.20/dist/lenis.min.js" defer></script>
-<script src="/assets/js/site.js?v=3" defer></script>
+<script src="/assets/js/site.js?v=4" defer></script>
 <script src="/assets/js/lightbox.js?v=1" defer></script>
 </body>
 </html>

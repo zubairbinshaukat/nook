@@ -43,7 +43,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Inter:wght@400..650&display=swap">
-<link rel="stylesheet" href="/assets/css/site.css?v=5">
+<link rel="stylesheet" href="/assets/css/site.css?v=6">
 <link rel="stylesheet" href="/assets/css/lightbox.css?v=1">
 <script>
 (function(){var r=document.documentElement;r.classList.add('js');try{var t=localStorage.getItem('nook-theme');if(t==='light'||t==='dark')r.setAttribute('data-theme',t)}catch(e){}})();
@@ -75,6 +75,7 @@
         <li><a href="/guides/first-run/">First run</a></li>
         <li><a href="/guides/claude-code-hooks/" aria-current="page">Hooks</a></li>
         <li><a href="/guides/cursor/">Cursor</a></li>
+        <li><a href="/guides/codex/">Codex</a></li>
         <li><a href="/guides/shelf-widgets/">Shelf</a></li>
         <li><a href="/guides/troubleshooting/">Troubleshooting</a></li>
         <li><a href="/guides/faq/">FAQ</a></li>
@@ -83,7 +84,7 @@
     <div class="nav-tools">
       <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch theme"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-moon"/></svg></button>
       <button class="icon-btn nav-menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="site-menu" aria-label="Menu"><svg class="i" width="18" height="18" aria-hidden="true"><use href="#i-menu"/></svg></button>
-      <a class="btn btn-primary nav-cta" href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a>
+      <a class="btn btn-primary nav-cta" href="https://github.com/zubairbinshaukat/nook/releases/latest" data-download target="_blank" rel="noopener noreferrer">Download</a>
     </div>
   </div>
 </header>
@@ -146,7 +147,7 @@
 
 <figure class="shot shot-frame" data-shot="settings-hooks-diff"><div class="shot-pair"><img class="shot-img shot-dark" src="/assets/img/shots/settings-hooks-diff-dark.webp" width="912" height="824" alt="The preview of the change to settings.json, with added lines in green, the backup file name and a confirm button." loading="lazy" decoding="async"><img class="shot-img shot-light" src="/assets/img/shots/settings-hooks-diff-light.webp" width="912" height="824" alt="The preview of the change to settings.json, with added lines in green, the backup file name and a confirm button." loading="lazy" decoding="async"></div><figcaption>Every change is previewed as a diff, with the backup, before you confirm.</figcaption></figure>
 <h2 id="remove">How to remove the hooks</h2>
-<p>Open <strong>Settings &rarr; Connect</strong> and click <strong>Disconnect&hellip;</strong> on the Claude Code card. It follows the same preview, backup and click, and removes Nook&rsquo;s entries only. Do this <em>before</em> uninstalling the app, because the uninstaller deliberately does not edit <code>settings.json</code>. If the relay is gone, a leftover entry usually costs nothing beyond a dead path, but removing it keeps the file tidy. You can also restore a <code>.bak</code> file by hand.</p>
+<p>Open <strong>Settings &rarr; Connect</strong> and click <strong>Disconnect&hellip;</strong> under <strong>Claude Code</strong>, in <strong>Sessions and approvals</strong>. It follows the same preview, backup and click, and removes Nook&rsquo;s entries only. Do this <em>before</em> uninstalling the app, because the uninstaller deliberately does not edit <code>settings.json</code>. If the relay is gone, a leftover entry usually costs nothing beyond a dead path, but removing it keeps the file tidy. You can also restore a <code>.bak</code> file by hand.</p>
 
 <h2 id="never">What the relay never does</h2>
 <ul>
@@ -157,7 +158,7 @@
 <p>To show what an event is about, the relay reads a little context (the tail of the session&rsquo;s transcript for its title and last message, the file an edit targets, command output). That goes only to the app over the local pipe and stays in memory. The log records event names and decisions, never content.</p>
 
 <h2 id="status-line">The optional usage status line</h2>
-<p>Claude Code hands its status line command a JSON that includes the 5-hour and weekly limits. Turning on <strong>Usage limits</strong> in Settings, Connect, sets the <code>statusLine</code> key in <code>settings.json</code> so that command is <code>nook-hook statusline</code>. It follows the same preview, backup and click.</p>
+<p>Claude Code hands its status line command a JSON that includes the 5-hour and weekly limits. Turning on <strong>Usage limits</strong> in Settings, Connect, Claude Code, sets the <code>statusLine</code> key in <code>settings.json</code> so that command is <code>nook-hook statusline</code>. It follows the same preview, backup and click.</p>
 <ul>
 <li><strong>Chaining.</strong> If you already have a status line, its whole setting is stored, encoded, after <code>--previous</code> in the new command. The relay runs it on every call and prints what it prints, so it keeps showing. Uninstalling puts it back exactly as it was. With none, uninstalling removes the key.</li>
 <li><strong>No quoting.</strong> <code>statusLine</code> has no <code>args</code>, so the command is read by a shell (Git Bash or PowerShell on Windows), and the two quote differently. Nook therefore writes a command with nothing to quote. A relay path that contains a space or a special character is refused rather than guessed at. See <a href="/guides/troubleshooting/#no-sessions">troubleshooting</a>.</li>
@@ -191,7 +192,7 @@
         </div>
       </div>
       <nav class="footer-col" aria-label="Product"><h2>Product</h2><ul>
-        <li><a href="/#how">How it works</a></li><li><a href="/#features">Features</a></li><li><a href="/#privacy">Privacy</a></li><li><a href="/#gullu">Meet Gullu</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases/latest" target="_blank" rel="noopener noreferrer">Download</a></li></ul></nav>
+        <li><a href="/#how">How it works</a></li><li><a href="/#features">Features</a></li><li><a href="/#privacy">Privacy</a></li><li><a href="/#gullu">Meet Gullu</a></li><li><a href="https://github.com/zubairbinshaukat/nook/releases/latest" data-download target="_blank" rel="noopener noreferrer">Download</a></li></ul></nav>
       <nav class="footer-col" aria-label="Guides"><h2>Guides</h2><ul>
         <li><a href="/guides/">All guides</a></li><li><a href="/guides/install/">Install Nook</a></li><li><a href="/guides/first-run/">First run</a></li><li><a href="/guides/troubleshooting/">Troubleshooting</a></li><li><a href="/guides/faq/">FAQ</a></li></ul></nav>
       <nav class="footer-col" aria-label="Project"><h2>Project</h2><ul>
@@ -213,7 +214,7 @@
 <a class="btn btn-ghost to-top" href="#top" data-to-top aria-label="Back to top"><svg class="i" aria-hidden="true"><use href="#i-up"/></svg></a>
 
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.20/dist/lenis.min.js" defer></script>
-<script src="/assets/js/site.js?v=3" defer></script>
+<script src="/assets/js/site.js?v=4" defer></script>
 <script src="/assets/js/lightbox.js?v=1" defer></script>
 </body>
 </html>
