@@ -15,11 +15,14 @@
 // then reads the event name from the JSON on stdin.
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Manager};
 use crate::{platform, settings};
+
+static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 /// Every event the island reacts to, with the hook timeout written to settings.json.
 /// PermissionRequest waits for a human, so it gets the decision timeout + 10 s.
@@ -421,6 +424,18 @@ pub(crate) fn preview_file(path: &Path, change: impl Fn(&Path, Option<&[u8]>) ->
 /// `fingerprint` is the one the preview was computed from: a file that
 /// changed in between is refused, and left alone.
 pub(crate) fn write_file(path: &Path, fingerprint: &str, change: impl Fn(&Path, Option<&[u8]>) -> Result<FileChange, String>) -> Result<String, String> {
+    write_file_with_after_backup(path, fingerprint, change, || {})
+}
+
+/// The callback exercises the real post-backup fingerprint check in tests.
+/// Applies the change and rechecks the source after the backup is complete.
+/// `after_backup` is a test seam for edits made during backup creation.
+fn write_file_with_after_backup(
+    path: &Path,
+    fingerprint: &str,
+    change: impl Fn(&Path, Option<&[u8]>) -> Result<FileChange, String>,
+    after_backup: impl FnOnce(),
+) -> Result<String, String> {
     let dir = path.parent().unwrap_or(Path::new("."));
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
 
@@ -437,9 +452,20 @@ pub(crate) fn write_file(path: &Path, fingerprint: &str, change: impl Fn(&Path, 
     // Worked out before the backup too: a change that cannot be made leaves no trace.
     let next = change(path, current.as_deref())?;
 
-    let backup = backup_of(path);
-    if path.exists() {
-        std::fs::copy(path, &backup).map_err(|e| format!("backup failed: {e}"))?;
+    let backup = if let Some(original) = current.as_deref() {
+        Some(create_backup(path, original)?)
+    } else {
+        None
+    };
+    after_backup();
+
+    // Detect an edit made while the backup was being written. A small race
+    // remains between this check and rename; writes are not lock-protected.
+    if fingerprint_of(path) != fingerprint {
+        return Err(format!(
+            "{} changed during apply. The backup was kept and no replacement was written.",
+            path.display()
+        ));
     }
 
     // A dotfiles setup often makes the file a symlink: write to the file it
@@ -449,17 +475,35 @@ pub(crate) fn write_file(path: &Path, fingerprint: &str, change: impl Fn(&Path, 
 
     // Write beside the target and rename over it: a crash or a full disk leaves
     // the original intact rather than half a file.
-    let name = path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
-    let temp = path.with_file_name(format!("{name}.nook-{}", std::process::id()));
-    if let Err(err) = write_like(&temp, path, &next.bytes) {
-        let _ = std::fs::remove_file(&temp);
-        return Err(format!("write failed: {err}"));
-    }
+    let temp = create_temp(path, &next.bytes).map_err(|err| format!("write failed: {err}"))?;
     if let Err(err) = std::fs::rename(&temp, path) {
         let _ = std::fs::remove_file(&temp);
         return Err(format!("write failed: {err}"));
     }
-    Ok(backup.to_string_lossy().to_string())
+    Ok(backup.unwrap_or_else(|| backup_of(path)).to_string_lossy().to_string())
+}
+
+/// Creates a dated backup without replacing an existing backup.
+fn create_backup(path: &Path, bytes: &[u8]) -> Result<PathBuf, String> {
+    create_backup_at(path, bytes, &stamp())
+}
+
+/// Uses a supplied timestamp so backup-name collision handling is deterministic in tests.
+fn create_backup_at(path: &Path, bytes: &[u8], timestamp: &str) -> Result<PathBuf, String> {
+    let name = path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
+    for suffix in 0..10_000u32 {
+        let candidate = if suffix == 0 {
+            path.with_file_name(format!("{name}.bak-{timestamp}"))
+        } else {
+            path.with_file_name(format!("{name}.bak-{timestamp}-{suffix}"))
+        };
+        match write_new_file(&candidate, Some(path), bytes) {
+            Ok(()) => return Ok(candidate),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(format!("backup failed: {error}")),
+        }
+    }
+    Err(format!("backup failed: no unused backup name for {}", path.display()))
 }
 
 /// Writes `bytes` to `temp`, which is about to replace `original`.
@@ -468,24 +512,81 @@ pub(crate) fn write_file(path: &Path, fingerprint: &str, change: impl Fn(&Path, 
 /// API keys in its `env` block: the new file is created readable by us only,
 /// then given the original's permissions, so the rename never widens them.
 fn write_like(temp: &Path, original: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    write_new_file(temp, Some(original), bytes)
+}
+
+/// Exclusively creates and durably writes a file, retaining the source mode on Unix.
+/// Remove only a file this call created if writing, syncing, or setting permissions fails.
+fn write_new_file(path: &Path, original: Option<&Path>, bytes: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
+    write_new_file_with(path, original, |file| {
+        file.write_all(bytes)
+    })
+}
+
+/// Shared exclusive writer; injected writer lets tests simulate partial-write failures.
+fn write_new_file_with(
+    path: &Path,
+    original: Option<&Path>,
+    write: impl FnOnce(&mut std::fs::File) -> std::io::Result<()>,
+) -> std::io::Result<()> {
     let mut options = std::fs::OpenOptions::new();
-    options.write(true).create(true).truncate(true);
+    options.write(true).create_new(true);
     #[cfg(unix)]
     std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
-    let mut file = options.open(temp)?;
-    file.write_all(bytes)?;
+    let mut file = options.open(path)?;
+    if let Err(err) = write(&mut file) {
+        drop(file);
+        let _ = std::fs::remove_file(path);
+        return Err(err);
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mode = std::fs::metadata(original)
-            .map(|m| m.permissions().mode() & 0o777)
+        let mode = original
+            .and_then(|source| std::fs::metadata(source).ok())
+            .map(|metadata| metadata.permissions().mode() & 0o777)
             .unwrap_or(0o600);
-        file.set_permissions(std::fs::Permissions::from_mode(mode))?;
+        if let Err(err) = file.set_permissions(std::fs::Permissions::from_mode(mode)) {
+            drop(file);
+            let _ = std::fs::remove_file(path);
+            return Err(err);
+        }
     }
     #[cfg(not(unix))]
     let _ = original;
+    if let Err(err) = file.sync_all() {
+        drop(file);
+        let _ = std::fs::remove_file(path);
+        return Err(err);
+    }
     Ok(())
+}
+
+fn create_temp(path: &Path, bytes: &[u8]) -> std::io::Result<PathBuf> {
+    let name = path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
+    create_temp_with(path, bytes, |attempt| {
+        let counter = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+        path.with_file_name(format!("{name}.nook-{}-{counter}-{attempt}", std::process::id()))
+    })
+}
+
+/// Tries successive candidates after `AlreadyExists`; other errors are returned as-is.
+fn create_temp_with(
+    path: &Path,
+    bytes: &[u8],
+    mut candidate: impl FnMut(usize) -> PathBuf,
+) -> std::io::Result<PathBuf> {
+    let mut last_collision = None;
+    for attempt in 0..128 {
+        let temp = candidate(attempt);
+        match write_like(&temp, path, bytes) {
+            Ok(()) => return Ok(temp),
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => last_collision = Some(err),
+            Err(err) => return Err(err),
+        }
+    }
+    Err(last_collision.unwrap_or_else(|| std::io::Error::other("too many temporary file name collisions")))
 }
 
 /// Copies the relay (nook-hook.exe / nook-hook) into the local data dir's
@@ -651,6 +752,161 @@ mod tests {
     use super::*;
 
     const WHERE: &str = "settings.json";
+
+    struct Fixture(PathBuf);
+
+    impl Fixture {
+        fn new() -> Self {
+            static NEXT: AtomicU64 = AtomicU64::new(0);
+            let path = std::env::temp_dir().join(format!(
+                "nook-hooks-fixture-{}-{}",
+                std::process::id(),
+                NEXT.fetch_add(1, Ordering::Relaxed)
+            ));
+            std::fs::create_dir_all(&path).unwrap();
+            Self(path)
+        }
+
+        fn file(&self) -> PathBuf {
+            self.0.join("settings.json")
+        }
+    }
+
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn replace_with(bytes: Vec<u8>) -> impl Fn(&Path, Option<&[u8]>) -> Result<FileChange, String> {
+        move |_, current| Ok(FileChange {
+            before: String::from_utf8_lossy(current.unwrap_or_default()).into_owned(),
+            after: String::from_utf8_lossy(&bytes).into_owned(),
+            bytes: bytes.clone(),
+        })
+    }
+
+    #[test]
+    fn backup_name_collision_preserves_existing_backup_and_uses_free_suffix() {
+        let fixture = Fixture::new();
+        let path = fixture.file();
+        std::fs::write(&path, b"original").unwrap();
+        let timestamp = "20000101-000000";
+        let first = path.with_file_name(format!("settings.json.bak-{timestamp}"));
+        std::fs::write(&first, b"pre-existing backup").unwrap();
+
+        let backup = create_backup_at(&path, b"original", timestamp).unwrap();
+        assert_eq!(backup, path.with_file_name(format!("settings.json.bak-{timestamp}-1")));
+        assert_eq!(std::fs::read(&first).unwrap(), b"pre-existing backup");
+        assert_eq!(std::fs::read(&backup).unwrap(), b"original");
+    }
+
+    #[test]
+    fn backup_keeps_exact_original_bytes_including_bom() {
+        let fixture = Fixture::new();
+        let path = fixture.file();
+        let original = b"\xef\xbb\xbf{\"model\":\"opus\"}";
+        std::fs::write(&path, original).unwrap();
+        let backup = write_file(&path, &fingerprint(original), replace_with(b"{}".to_vec())).unwrap();
+        assert_eq!(std::fs::read(backup).unwrap(), original);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn backup_preserves_restricted_source_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let fixture = Fixture::new();
+        let path = fixture.file();
+        for mode in [0o600, 0o640] {
+            std::fs::write(&path, b"secret settings").unwrap();
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode)).unwrap();
+
+            let backup = create_backup_at(&path, b"secret settings", "20000101-000000").unwrap();
+            let backup_mode = std::fs::metadata(backup).unwrap().permissions().mode() & 0o777;
+            assert_eq!(backup_mode, mode, "backup mode must exactly match {mode:o}");
+            assert_eq!(backup_mode & !mode, 0, "backup must not gain permissions beyond {mode:o}");
+            std::fs::remove_file(&path).unwrap();
+        }
+    }
+
+    #[test]
+    fn temp_already_exists_retries_without_changing_foreign_temp() {
+        let fixture = Fixture::new();
+        let path = fixture.file();
+        let first_temp = fixture.0.join("temp-first");
+        let second_temp = fixture.0.join("temp-second");
+        std::fs::write(&first_temp, b"foreign temp").unwrap();
+        let attempts = std::cell::Cell::new(0);
+
+        let temp = create_temp_with(&path, b"written bytes", |attempt| {
+            attempts.set(attempts.get() + 1);
+            if attempt == 0 { first_temp.clone() } else { second_temp.clone() }
+        }).unwrap();
+        assert_eq!(temp, second_temp);
+        assert_eq!(attempts.get(), 2, "AlreadyExists must trigger a second candidate");
+        assert_eq!(std::fs::read(&first_temp).unwrap(), b"foreign temp");
+        assert_eq!(std::fs::read(&second_temp).unwrap(), b"written bytes");
+    }
+
+    #[test]
+    fn write_like_removes_its_partial_temp_after_write_failure() {
+        let fixture = Fixture::new();
+        let original = fixture.0.join("original");
+        let temp = fixture.0.join("temp");
+        std::fs::write(&original, b"original").unwrap();
+        let err = write_new_file_with(&temp, Some(&original), |file| {
+            use std::io::Write;
+            file.write_all(b"partial")?;
+            Err(std::io::Error::other("injected write failure"))
+        })
+        .unwrap_err();
+        assert!(!temp.exists());
+        assert_eq!(std::fs::read(&original).unwrap(), b"original");
+        assert_eq!(err.kind(), std::io::ErrorKind::Other);
+    }
+
+    #[test]
+    fn invalid_json_and_stale_preview_leave_configuration_untouched() {
+        let fixture = Fixture::new();
+        let path = fixture.file();
+        let invalid = b"{ broken";
+        std::fs::write(&path, invalid).unwrap();
+        assert!(preview_file(&path, json_change(|value| Ok(merged(value)))).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), invalid);
+
+        let original = br#"{"model":"opus","hooks":{"PreToolUse":[{"hooks":[{"command":"other-tool"}]}]}}"#;
+        std::fs::write(&path, original).unwrap();
+        let plan = preview_file(&path, json_change(|value| Ok(merged(value)))).unwrap();
+        let changed = br#"{"model":"changed"}"#;
+        std::fs::write(&path, changed).unwrap();
+        assert!(write_file(&path, &plan.fingerprint, json_change(|value| Ok(merged(value)))).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), changed);
+    }
+
+    #[test]
+    fn configuration_changed_after_backup_is_not_replaced() {
+        let fixture = Fixture::new();
+        let path = fixture.file();
+        let original = b"original";
+        std::fs::write(&path, original).unwrap();
+        let err = write_file_with_after_backup(
+            &path,
+            &fingerprint(original),
+            replace_with(b"our update".to_vec()),
+            || std::fs::write(&path, b"concurrent edit").unwrap(),
+        )
+        .unwrap_err();
+        assert!(err.contains("changed during apply"));
+        assert_eq!(std::fs::read(&path).unwrap(), b"concurrent edit");
+        let backups: Vec<_> = std::fs::read_dir(&fixture.0)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().contains(".bak-"))
+            .collect();
+        assert_eq!(backups.len(), 1);
+        assert_eq!(std::fs::read(backups[0].path()).unwrap(), original);
+    }
 
     #[test]
     fn a_utf8_bom_is_stripped_not_treated_as_corruption() {
