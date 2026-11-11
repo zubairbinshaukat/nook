@@ -1,9 +1,10 @@
 name: Release
 
 # Builds the Windows installer from a `v*` tag (or by hand) and attaches it to
-# the GitHub release together with SHA256SUMS.txt. No secrets are used: the
-# only credential is the workflow's own token, and only the release job gets
-# write access to the repository.
+# the GitHub release together with SHA256SUMS.txt. Only the release job gets
+# write access to this repository. The scoop job then points nook.json in the
+# Scoop bucket (zubairbinshaukat/scoop-bucket) at the new release; it is the one
+# place a secret is used (SCOOP_BUCKET_TOKEN), and it skips when that is not set.
 #
 # The build is not code-signed yet. Planned: the SignPath Foundation's free
 # programme, once the project qualifies (see README, "Code signing policy").
@@ -126,3 +127,44 @@ jobs:
             gh release create "${{ github.ref_name }}" --title "Nook $v" --notes "$notes" --verify-tag
           fi
           gh release upload "${{ github.ref_name }}" out/Nook-Windows-"$v"-setup.exe out/nook.exe out/nook-hook.exe out/SHA256SUMS.txt --clobber
+
+  # `scoop install nook` (bucket "zubyr"): the manifest takes nook.exe and
+  # nook-hook.exe straight from the release, with the hashes from SHA256SUMS.txt.
+  scoop:
+    needs: [build, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Nook-Windows
+          path: out
+
+      - name: Update nook.json in the Scoop bucket
+        env:
+          TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          V: ${{ needs.build.outputs.version }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::SCOOP_BUCKET_TOKEN is not set, so the Scoop manifest was not updated."
+            exit 0
+          fi
+          app=$(awk '$2 == "nook.exe" { print $1 }' out/SHA256SUMS.txt)
+          hook=$(awk '$2 == "nook-hook.exe" { print $1 }' out/SHA256SUMS.txt)
+          if [ -z "$app" ] || [ -z "$hook" ]; then echo "SHA256SUMS.txt lacks nook.exe or nook-hook.exe"; exit 1; fi
+
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/zubairbinshaukat/scoop-bucket" bucket
+          cd bucket
+          base="https://github.com/zubairbinshaukat/nook/releases/download/v$V"
+          jq --indent 4 --arg v "$V" --arg base "$base" --arg app "$app" --arg hook "$hook" '
+            .version = $v
+            | .architecture."64bit".url = [$base + "/nook.exe", $base + "/nook-hook.exe"]
+            | .architecture."64bit".hash = [$app, $hook]
+          ' bucket/nook.json > nook.json.new
+          mv nook.json.new bucket/nook.json
+
+          if git diff --quiet; then echo "nook.json already at $V"; exit 0; fi
+          git -c user.name="github-actions[bot]" -c user.email="41898283+github-actions[bot]@users.noreply.github.com" \
+            commit -am "chore(scoop): update nook to v$V"
+          git push
