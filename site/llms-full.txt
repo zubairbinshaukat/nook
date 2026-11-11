@@ -62,6 +62,12 @@ Check the download (optional, recommended): compare the hash with the one for th
 Get-FileHash .\Nook-Windows-0.2.2-setup.exe -Algorithm SHA256
 ```
 
+Prefer Scoop? One line installs Nook, with no installer and no SmartScreen prompt. Then do step 3. Update later with `scoop update nook`.
+
+```powershell
+scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket; scoop install nook
+```
+
 ## Landing page FAQ
 
 ### Is Nook free and safe?
@@ -143,6 +149,21 @@ Get the files from the [latest release on GitHub](https://github.com/zubairbinsh
 - `SHA256SUMS.txt`, the SHA-256 hash of the installer and of the two programs inside it (`nook.exe` and `nook-hook.exe`).
 
 Only download Nook from the official release page linked above. You can also build it from source; the [README](https://github.com/zubairbinshaukat/nook#build-from-source) lists the tools you need.
+
+## Install with Scoop
+
+If you use [Scoop](https://scoop.sh), one line in PowerShell installs Nook. You do not need the installer, and SmartScreen does not ask:
+
+```powershell
+scoop bucket add zubyr https://github.com/zubairbinshaukat/scoop-bucket; scoop install nook
+```
+
+Scoop downloads `nook.exe` and `nook-hook.exe` from the same GitHub release and checks each file against its SHA-256 hash before it installs anything, so you can skip the verify step. Then:
+
+- **Start Nook** from the Start menu, in the **Scoop Apps** folder. Scoop does not start it for you.
+- **Install the hooks** as in step 6 above.
+- **Update** with `scoop update nook`. If Nook says a new version is available, use this command instead of the installer it offers, or you will have two copies.
+- **Uninstall** with `scoop uninstall nook`, after you remove the hooks (see Uninstall).
 
 ## Verify the download
 
