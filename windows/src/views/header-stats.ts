@@ -38,7 +38,9 @@ export function buildHeaderStats(): { el: HTMLElement; draw(): void } {
   const ram = item("ram", "RAM", LUCIDE.memoryStick, false);
   const five = item("5h", "5h", LUCIDE.timer, true);
   const seven = item("7d", "7d", LUCIDE.calendarDays, true);
-  const el = h("div", { class: "hstats" }, h("div", { class: "hs-row" }, cpu.el, gpu.el, ram.el, five.el, seven.el));
+  const codexFive = item("codex-5h", "Codex 5h", LUCIDE.timer, true);
+  const codexSeven = item("codex-7d", "Codex 7d", LUCIDE.calendarDays, true);
+  const el = h("div", { class: "hstats" }, h("div", { class: "hs-row" }, cpu.el, gpu.el, ram.el, five.el, seven.el, codexFive.el, codexSeven.el));
   // What each cell was last written for: nothing is touched when that has not changed.
   const keys = new Map<Item, string>();
 
@@ -66,7 +68,8 @@ export function buildHeaderStats(): { el: HTMLElement; draw(): void } {
     it.el.classList.toggle("dim", win.state !== "fresh");
     it.fill.style.width = `${win.percent}%`;
     it.fill.style.setProperty("--used", String(win.percent / 100));
-    it.el.title = `${name}: ${win.percent}% used${win.countdown ? ` · ${win.countdown}` : ""}. ${USAGE_SOURCE_WORDS}`;
+    const source = name.startsWith("Codex") ? "Read from Codex's local App Server; Codex may contact OpenAI." : USAGE_SOURCE_WORDS;
+    it.el.title = `${name}: ${win.percent}% used${win.countdown ? ` · ${win.countdown}` : ""}. ${source}`;
   }
 
   return {
@@ -80,6 +83,10 @@ export function buildHeaderStats(): { el: HTMLElement; draw(): void } {
       const u = State.usage;
       usage(five, "Claude usage, 5 hours", usageShown(u?.fiveHour, u?.updatedAt ?? now, now));
       usage(seven, "Claude usage, 7 days", usageShown(u?.sevenDay, u?.updatedAt ?? now, now));
+      const codex = State.settings.codexQuotaEnabled ? State.codexQuota : null;
+      const codexFresh = codex?.updatedAt != null && now - codex.updatedAt <= 10 * 60_000 && !codex.stale;
+      usage(codexFive, "Codex usage, 5 hours", usageShown(codexFresh ? codex.quotas?.fiveHour : null, codex?.updatedAt ?? now, now));
+      usage(codexSeven, "Codex usage, 7 days", usageShown(codexFresh ? codex.quotas?.sevenDay : null, codex?.updatedAt ?? now, now));
     },
   };
 }

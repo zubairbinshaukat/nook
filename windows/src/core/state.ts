@@ -628,6 +628,8 @@ export interface Settings {
   showCursorSessions: boolean;
   /** Settings → Codex: Codex's sessions are shown beside Claude Code's. */
   showCodexSessions: boolean;
+  /** Settings → Codex: allow launching a short-lived local Codex App Server to read its usage limits. */
+  codexQuotaEnabled: boolean;
   /** Settings → About: once a day, ask GitHub whether a newer Nook is out. Off unless the user switches it on. */
   checkUpdates: boolean;
 }
@@ -682,6 +684,15 @@ export interface Usage {
   fiveHour: UsageWindow | null;
   sevenDay: UsageWindow | null;
   updatedAt: number;
+}
+
+export interface CodexQuotaSnapshot {
+  generation: number;
+  quotas: { fiveHour: (UsageWindow & { windowDurationMins: number }) | null; sevenDay: (UsageWindow & { windowDurationMins: number }) | null } | null;
+  updatedAt: number | null;
+  stale: boolean;
+  available: boolean;
+  failureReason: string | null;
 }
 
 /**
@@ -799,6 +810,33 @@ export function readUsage(value: unknown): Usage | null {
   return usage.fiveHour || usage.sevenDay ? usage : null;
 }
 
+export function readCodexQuota(value: unknown): CodexQuotaSnapshot | null {
+  if (!value || typeof value !== "object") return null;
+  const snapshot = value as Record<string, unknown>;
+  if (typeof snapshot.available !== "boolean" || typeof snapshot.stale !== "boolean") return null;
+  const quotasValue = snapshot.quotas;
+  const readQuotaWindow = (candidate: unknown): (UsageWindow & { windowDurationMins: number }) | null => {
+    const win = readWindow(candidate);
+    if (!win || !candidate || typeof candidate !== "object") return null;
+    const duration = (candidate as Record<string, unknown>).windowDurationMins;
+    return finite(duration) && duration > 0 ? { ...win, windowDurationMins: duration } : null;
+  };
+  let quotas: CodexQuotaSnapshot["quotas"] = null;
+  if (quotasValue && typeof quotasValue === "object") {
+    const record = quotasValue as Record<string, unknown>;
+    quotas = { fiveHour: readQuotaWindow(record.fiveHour), sevenDay: readQuotaWindow(record.sevenDay) };
+    if (!quotas.fiveHour && !quotas.sevenDay) return null;
+  }
+  return {
+    generation: finite(snapshot.generation) ? snapshot.generation : 0,
+    quotas,
+    updatedAt: finite(snapshot.updatedAt) ? snapshot.updatedAt : null,
+    stale: snapshot.stale,
+    available: snapshot.available,
+    failureReason: typeof snapshot.failureReason === "string" ? snapshot.failureReason : null,
+  };
+}
+
 /**
  * The global shortcuts out of the box. Neither is Ctrl+Alt with a letter: on
  * many keyboard layouts Ctrl+Alt is AltGr, which types a character with one.
@@ -850,6 +888,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hideInFullscreen: true,
   showCursorSessions: true,
   showCodexSessions: true,
+  codexQuotaEnabled: false,
   checkUpdates: false,
 };
 
@@ -891,6 +930,8 @@ class AppState {
   metrics: Metrics | null = null;
   /** Claude's usage limits; null while none has ever arrived. */
   usage: Usage | null = null;
+  /** Codex quota data is absent unless the opt-in read succeeded. */
+  codexQuota: CodexQuotaSnapshot | null = null;
   /**
    * Whether usage limits are switched on in Settings (Claude Code's status
    * line relays them): null while nothing has said. Only words the reason
@@ -925,6 +966,11 @@ class AppState {
   /** Claude's usage limits came, or — null — none is known. */
   setUsage(usage: Usage | null) {
     this.usage = usage;
+    for (const fn of this.gaugeListeners) fn();
+  }
+
+  setCodexQuota(snapshot: CodexQuotaSnapshot | null) {
+    this.codexQuota = snapshot?.available && !snapshot.stale ? snapshot : null;
     for (const fn of this.gaugeListeners) fn();
   }
 

@@ -616,6 +616,11 @@ body {
 
 @container (max-width: 419px) {
   .hs-7d { display: none; }
+  .hs-codex-7d { display: none; }
+}
+
+@container (max-width: 520px) {
+  .hs-codex-5h, .hs-codex-7d { display: none; }
 }
 
 @container (max-width: 334px) {

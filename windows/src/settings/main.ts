@@ -1178,11 +1178,15 @@ function connectSection(): Kid[] {
 function codexGroup(): HTMLElement {
   const show = toggle(settings.showCodexSessions, "Show Codex sessions", (on) => change({ showCodexSessions: on }));
   followers.push(() => show.set(settings.showCodexSessions));
+  const quota = toggle(settings.codexQuotaEnabled, "Read Codex usage limits", (on) => change({ codexQuotaEnabled: on }));
+  followers.push(() => quota.set(settings.codexQuotaEnabled));
   return toolPart("codex", "Its sessions, and Allow or Deny for what it asks permission for.",
     connectGroup("codex", "Sessions and approvals", CODEX_DOES, "codex openai cli hooks.json agent sessions permissions approve allow deny connect"),
     group(null,
       row("Show Codex sessions", "Codex's sessions appear in the island with a Codex mark. Off, they are not followed at all, and Codex asks for permission in its own window.", show.el,
-        "codex show hide sessions openai")));
+        "codex show hide sessions openai"),
+      row("Read Codex usage limits", "Allow Nook to launch Codex locally to read usage limits. Codex may contact OpenAI.", quota.el,
+        "codex quota 5 hour 7 day limits usage")));
 }
 
 /** Cursor beside Claude Code: its hooks (status only), and whether its sessions are shown. */
