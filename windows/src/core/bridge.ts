@@ -222,6 +222,7 @@ export const Bridge = {
   // ── Claude's usage limits (step 2, system side) ───────────────────────────
   /** The latest usage Claude Code reported to its status line, or null when none has come yet. */
   usageLast: () => call<UsagePayload>("usage_last"),
+  codexQuotaLast: () => call<CodexQuotaSnapshot>("codex_quota_last"),
   /** Whether the relay is Claude Code's status line command, which is how the numbers arrive. */
   usageStatus: () => call<UsageStatus>("usage_status"),
   /** Diff of the `statusLine` key to show before anything is written. `install: false` previews removal. */
@@ -323,6 +324,15 @@ export interface UsagePayload {
   updatedAt: number;
 }
 
+export interface CodexQuotaSnapshot {
+  generation: number;
+  quotas: { fiveHour: (UsageWindow & { windowDurationMins: number }) | null; sevenDay: (UsageWindow & { windowDurationMins: number }) | null } | null;
+  updatedAt: number | null;
+  stale: boolean;
+  available: boolean;
+  failureReason: string | null;
+}
+
 /** The `session_model` event: the model a session runs on, from its status line. */
 export interface SessionModelPayload {
   sessionId: string;
@@ -346,6 +356,7 @@ export interface UsageStatus {
 export type SystemEvent =
   | { name: "metrics"; payload: MetricsPayload }
   | { name: "usage"; payload: UsagePayload }
+  | { name: "codex-quota"; payload: CodexQuotaSnapshot }
   | { name: "session_model"; payload: SessionModelPayload };
 // ── end of the step 2 block ───────────────────────────────────────────────────
 

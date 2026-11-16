@@ -337,6 +337,15 @@ async fn handle(app: AppHandle, mut pipe: impl Relay) {
         .unwrap_or_default()
         .to_string();
 
+    if payload.get("nook_tool").and_then(Value::as_str) == Some("codex") {
+        app.state::<crate::codex_quota::Provider>().note_event(
+            &event,
+            payload.get("session_id").and_then(Value::as_str),
+            payload.get("turn_id").and_then(Value::as_str),
+            payload.get("agent_id").and_then(Value::as_str),
+        );
+    }
+
     // Claude Code's status line, not a hook: the usage limits and the session's
     // model (usage.rs). It names no session to the island's session handling,
     // and nothing is noted of where it ran.

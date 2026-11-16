@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Bridge, IS_TAURI, onEvent, type PanelSize } from "./core/bridge";
 import { Reply } from "./core/reply";
 import { Sound } from "./core/sound";
-import { State, readMetrics, readUsage, type Settings } from "./core/state";
+import { State, readCodexQuota, readMetrics, readUsage, type Settings } from "./core/state";
 import { Update } from "./core/update";
 import { startAgentsFeed } from "./agents/feed";
 import { Island } from "./island/island";
@@ -73,6 +73,10 @@ async function main() {
     const usage = readUsage(last);
     if (usage) State.setUsage(usage);
   });
+  await onEvent<unknown>("codex-quota", (payload) => State.setCodexQuota(readCodexQuota(payload)));
+  if (State.settings.codexQuotaEnabled) {
+    void ask("codex_quota_last").then((snapshot) => State.setCodexQuota(readCodexQuota(snapshot)));
+  }
   void readUsageInstalled();
   // A reply typed in the island: which command lines can take one, and when a run of ours is over.
   await onEvent<unknown>("reply_ended", (payload) => Reply.ended(payload));
@@ -135,7 +139,12 @@ async function main() {
   // The settings window writes preferences; apply them here without a restart.
   const agentsFeed = startAgentsFeed();
   await onEvent<Settings>("settings-changed", (s) => {
+    const wasCodexQuotaEnabled = State.settings.codexQuotaEnabled;
     State.settings = { ...State.settings, ...s };
+    if (!State.settings.codexQuotaEnabled) State.setCodexQuota(null);
+    else if (!wasCodexQuotaEnabled) {
+      void ask("codex_quota_last").then((snapshot) => State.setCodexQuota(readCodexQuota(snapshot)));
+    }
     island.applySettings();
     // The agents list may have just been turned on: it is sent the rows.
     agentsFeed.poke();

@@ -4,6 +4,7 @@ mod about;
 mod agents;
 #[cfg_attr(not(windows), allow(dead_code))]
 mod codex_hooks;
+mod codex_quota;
 mod cursor_hooks;
 mod dock;
 mod fullscreen;
@@ -89,7 +90,7 @@ fn boot(app: AppHandle, window: tauri::Window, shared: State<Shared>) -> BootInf
 
 #[tauri::command]
 fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
-    let (screen_changed, autostart_changed, theme_changed, agents_changed, settings) = {
+    let (screen_changed, autostart_changed, theme_changed, agents_changed, codex_quota_changed, settings) = {
         let mut current = shared.settings.lock().unwrap();
         let screen_changed = current.screen != settings.screen;
         let autostart_changed = current.autostart != settings.autostart;
@@ -121,8 +122,9 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
         let screen_changed = screen_changed || current.dock != settings.dock;
         let theme_changed = current.theme != settings.theme;
         let agents_changed = current.show_agents_list != settings.show_agents_list;
+        let codex_quota_changed = current.codex_quota_enabled != settings.codex_quota_enabled;
         *current = settings.clone();
-        (screen_changed, autostart_changed, theme_changed, agents_changed, settings)
+        (screen_changed, autostart_changed, theme_changed, agents_changed, codex_quota_changed, settings)
     };
     if let Err(err) = settings::save(&settings) {
         eprintln!("[nook] could not save settings: {err}");
@@ -148,6 +150,9 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
     // once it knows the setting is on.
     if agents_changed {
         agents::set_enabled(&app, settings.show_agents_list);
+    }
+    if codex_quota_changed {
+        app.state::<codex_quota::Provider>().set_enabled(settings.codex_quota_enabled);
     }
 }
 
@@ -487,6 +492,12 @@ fn usage_last(app: AppHandle) -> Option<usage::Usage> {
     usage::last(&app)
 }
 
+/// Return only the in-memory Codex quota snapshot. This command never starts a read.
+#[tauri::command]
+fn codex_quota_last(provider: State<'_, codex_quota::Provider>) -> codex_quota::Snapshot {
+    provider.last_snapshot()
+}
+
 /// Whether the relay is Claude Code's status line command, which is how the
 /// usage limits reach Nook.
 #[tauri::command]
@@ -781,6 +792,7 @@ pub fn run() {
         .manage(Pending::default())
         .manage(Sessions::default())
         .manage(usage::Latest::default())
+        .manage(codex_quota::Provider::default())
         .manage(shelf::Store::default())
         .manage(reply::Runs::default())
         .invoke_handler(tauri::generate_handler![
@@ -805,6 +817,7 @@ pub fn run() {
             codex_preview,
             codex_apply,
             usage_last,
+            codex_quota_last,
             usage_status,
             usage_preview,
             usage_apply,
@@ -874,6 +887,8 @@ pub fn run() {
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());
             metrics::spawn(handle.clone(), gate.clone());
+            app.state::<codex_quota::Provider>().set_enabled(loaded.codex_quota_enabled);
+            codex_quota::start(handle.clone());
 
             log::line(format!("--- Nook {} started ---", env!("CARGO_PKG_VERSION")));
             hooks::ensure_hook_exe(&handle);

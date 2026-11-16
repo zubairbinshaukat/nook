@@ -98,6 +98,9 @@ pub struct Settings {
     /// Settings → Codex: Codex's sessions are shown beside Claude Code's.
     #[serde(default = "default_true")]
     pub show_codex_sessions: bool,
+    /// Settings → Codex: start a short-lived local App Server only when a quota read is requested.
+    #[serde(default)]
+    pub codex_quota_enabled: bool,
     /// Settings → About: Nook asks GitHub for its latest release once a day
     /// (update.rs). Off until the user switches it on: it is the one thing that
     /// uses the network.
@@ -299,6 +302,7 @@ impl Default for Settings {
             hide_in_fullscreen: true,
             show_cursor_sessions: true,
             show_codex_sessions: true,
+            codex_quota_enabled: false,
             check_updates: false,
         }
     }
@@ -619,5 +623,12 @@ mod tests {
         let back: Settings = serde_json::from_str(&json).unwrap();
         assert_eq!(back.expand_shortcut, "Ctrl+Shift+KeyK");
         assert!(!back.expand_shortcut_enabled);
+    }
+
+    #[test]
+    fn codex_quota_access_is_off_by_default_and_old_settings_load_disabled() {
+        let old: Settings = serde_json::from_str(r#"{"showCodexSessions":true}"#).unwrap();
+        assert!(!old.codex_quota_enabled);
+        assert!(!Settings::default().codex_quota_enabled);
     }
 }
