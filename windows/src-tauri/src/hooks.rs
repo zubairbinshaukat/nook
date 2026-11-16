@@ -208,7 +208,10 @@ fn installed_and_legacy(settings: &Value) -> (bool, bool, Vec<String>) {
         return (
             false,
             false,
-            HOOK_EVENTS.iter().map(|(event, _)| (*event).to_string()).collect(),
+            HOOK_EVENTS
+                .iter()
+                .map(|(event, _)| (*event).to_string())
+                .collect(),
         );
     };
     let installed = HOOK_EVENTS.iter().all(|(event, _)| {

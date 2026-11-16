@@ -198,7 +198,10 @@ fn status_of(existing: &Value, relay: &str) -> (bool, bool, Vec<String>) {
         return (
             false,
             false,
-            EVENTS.iter().map(|(event, _)| (*event).to_string()).collect(),
+            EVENTS
+                .iter()
+                .map(|(event, _)| (*event).to_string())
+                .collect(),
         );
     };
     let ours = |event: &str| hooks.get(event).and_then(Value::as_array).map(|groups| ours_in(groups)).unwrap_or_default();
