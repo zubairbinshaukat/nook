@@ -88,7 +88,7 @@ The last two are plain screenshots of the real app.
 | **Approve from the island** | Permission requests and questions are answered from the island, for Claude Code and Codex. Edits show a real diff. Nothing is approved without your click. |
 | **Reply from the island** | When a Claude Code or Codex session's turn is over, type a reply on its card. Nook types it into the session's own window (a terminal), or opens the session in VS Code or Cursor with the reply in its prompt box. Not offered for Cursor's own agent sessions. |
 | **Claude Code, Codex and Cursor** | Codex's and Cursor's agent sessions appear next to Claude Code's, each with its own mark. Codex gets Allow and Deny; Cursor is status only. |
-| **Usage limits** | Your 5-hour and 7-day Claude limits, from Claude Code's own status line, with no network call. Codex's limits are not shown. |
+| **Usage limits** | Your 5-hour and 7-day Claude limits, from Claude Code's own status line, with no network call. Codex's limits too, if you switch on **Read Codex usage limits** (off by default; Nook runs Codex to read them, and Codex asks OpenAI). |
 | **Resources** | CPU, GPU and RAM in the header of every screen. |
 | **Gullu** | Nook's little buddy wears the status of your sessions and reacts to the pointer. |
 | **The Shelf** | Small widgets: To-do, Timer, Reminders, Media, Mirror, Projects. Swipe between Home and Shelf. |
@@ -114,7 +114,7 @@ on as if Nook were not installed. Nook never blocks an agent.
 2. Check the download:
 
    ```powershell
-   Get-FileHash .\Nook-Windows-0.2.2-setup.exe -Algorithm SHA256
+   Get-FileHash .\Nook-Windows-0.2.3-setup.exe -Algorithm SHA256
    ```
 
    The hash must match the installer's line in `SHA256SUMS.txt`.
@@ -144,8 +144,15 @@ Settings → **Connect** → **Codex** → **Sessions and approvals** → **Conn
 for permission through Nook: a request waits for your Allow or Deny in the
 island, and with Nook closed Codex asks in its own window as it always does.
 Codex runs new hooks only once you have trusted them: start Codex and review
-them once with `/hooks`. Codex's usage limits are not shown. There is a
-**Show Codex sessions** switch in Settings.
+them once with `/hooks`. There is a **Show Codex sessions** switch in Settings.
+
+**Read Codex usage limits** (Settings → Connect → Codex, off by default) shows
+Codex's 5-hour and 7-day limits in the header. While a Codex session is
+working, at most every 3 minutes, Nook starts the Codex app's own CLI
+(`codex app-server`) for a few seconds, asks it for the limits over its
+standard input and output, and closes it. Codex gets them from OpenAI; Nook
+itself connects to nothing. It needs the Codex app for Windows; if the read
+fails, the limits are simply hidden.
 
 ## Cursor
 
@@ -210,7 +217,9 @@ files, and the layout of the code. Contributions are welcome: see
 - No telemetry and no tracking. No network use at all, except the update check
   you switch on yourself in Settings → About (or run with **Check now**): it asks
   GitHub for the latest release and sends nothing about you or your machine. The
-  relay makes no network calls.
+  relay makes no network calls. If you switch on **Read Codex usage limits**,
+  Nook runs Codex on your PC to read them, and Codex asks OpenAI for them as it
+  does when you use it.
 - It never blocks Claude Code: if Nook is closed or slow, the relay exits and
   Claude Code asks in the terminal as usual.
 - It never approves anything without a click.

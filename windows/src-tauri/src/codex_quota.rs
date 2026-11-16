@@ -26,12 +26,6 @@ const EVENT_COOLDOWN: Duration = Duration::from_secs(3 * 60);
 const INACTIVITY_LEASE: Duration = Duration::from_secs(10 * 60);
 /// Keep recently expired turns long enough to associate late terminal/tool hooks.
 const EXPIRED_TURN_TTL: Duration = Duration::from_secs(20 * 60);
-/// Test helper: after a window resets the server may need a moment to roll it over.
-#[cfg(test)]
-const RESET_GRACE: Duration = Duration::from_secs(5);
-/// The least delay in reset-scheduler unit tests.
-#[cfg(test)]
-const MIN_WAKE: Duration = Duration::from_secs(1);
 
 const SNAPSHOT_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(8);
@@ -96,12 +90,6 @@ struct Cache {
     snapshot: Option<Snapshot>,
     fetched_at: Option<Instant>,
     failures: u32,
-    /// Test-only simulation of the former retry policy.
-    #[cfg(test)]
-    quick_retry: bool,
-    /// Test-only simulation of a follow-up read after a reset.
-    #[cfg(test)]
-    chase: bool,
     /// What the last read was logged as, so that only a change is written.
     last_note: String,
 }
@@ -109,49 +97,6 @@ struct Cache {
 /// 1, 2, 4 … minutes after consecutive failures, never more than half an hour.
 fn backoff(failures: u32) -> Duration {
     Duration::from_secs((60u64.saturating_mul(1u64 << failures.min(5))).min(30 * 60))
-}
-
-/// Some window in the snapshot has already reset: what it says is of a window that is over.
-#[cfg(test)]
-fn has_expired_window(snapshot: &Snapshot, now: u64) -> bool {
-    snapshot.quotas.as_ref().is_some_and(|quotas| {
-        [quotas.five_hour, quotas.seven_day]
-            .into_iter()
-            .flatten()
-            .any(|window| window.resets_at <= now)
-    })
-}
-
-/// Test-only reset-aware wait model. The production scheduler launches reads
-/// only for lifecycle events and never schedules a read from reset times.
-#[cfg(test)]
-fn reset_wait(
-    snapshot: Option<&Snapshot>,
-    now: u64,
-    since_read: Option<Duration>,
-    spacing: Duration,
-) -> Duration {
-    let Some(quotas) = snapshot.and_then(|snapshot| snapshot.quotas.as_ref()) else {
-        return MIN_REFRESH;
-    };
-    // When the spacing between two reads next allows one.
-    let spacing_left = since_read.map_or(Duration::ZERO, |since| spacing.saturating_sub(since));
-    let resets: Vec<u64> = [quotas.five_hour, quotas.seven_day]
-        .into_iter()
-        .flatten()
-        .map(|window| window.resets_at)
-        .collect();
-    if resets.iter().any(|at| *at <= now) {
-        return spacing_left.max(MIN_WAKE);
-    }
-    match resets.into_iter().min() {
-        Some(at) => Duration::from_millis(at - now)
-            .saturating_add(RESET_GRACE)
-            .max(spacing_left)
-            .max(MIN_WAKE)
-            .min(MIN_REFRESH),
-        None => MIN_REFRESH,
-    }
 }
 
 #[derive(Default)]
@@ -515,26 +460,19 @@ enum ScheduleAction {
 
 fn schedule_action(activity: &mut Activity, now: Instant) -> ScheduleAction {
     activity.expire(now);
-    let has_work = activity.pending || activity.final_pending;
-    if !has_work {
+    // Only a hook event asks for a read: with nothing asked, the loop sleeps
+    // until the next one (no timer, so an idle Codex is never polled).
+    if !activity.pending && !activity.final_pending {
         return ScheduleAction::Idle;
     }
     let spacing_left = activity.last_read.map_or(Duration::ZERO, |at| {
         EVENT_COOLDOWN.saturating_sub(now.saturating_duration_since(at))
     });
     if spacing_left.is_zero() {
-        return ScheduleAction::Refresh;
+        ScheduleAction::Refresh
+    } else {
+        ScheduleAction::Wait(spacing_left)
     }
-    if spacing_left > Duration::ZERO {
-        return ScheduleAction::Wait(spacing_left);
-    }
-    let until_lease = activity
-        .sessions
-        .values()
-        .map(|turn| INACTIVITY_LEASE.saturating_sub(now.saturating_duration_since(turn.last_event)))
-        .min()
-        .unwrap_or(INACTIVITY_LEASE);
-    ScheduleAction::Wait(until_lease.max(Duration::from_millis(1)))
 }
 
 fn record_read_result(
@@ -1169,24 +1107,6 @@ impl Provider {
             })
     }
 
-    /// Test-only reset-aware wait model; production does not poll.
-    #[cfg(test)]
-    pub fn next_wait(&self) -> Duration {
-        let cache = self.cache.lock().unwrap();
-        if cache.quick_retry || cache.chase {
-            return backoff(cache.failures);
-        }
-        let since_read = cache
-            .fetched_at
-            .map(|at| Instant::now().saturating_duration_since(at));
-        reset_wait(
-            cache.snapshot.as_ref(),
-            now_ms(),
-            since_read,
-            backoff(cache.failures),
-        )
-    }
-
     #[cfg(test)]
     async fn read_with_at<F>(&self, now: Instant, fetch_result: F) -> Snapshot
     where
@@ -1217,15 +1137,6 @@ impl Provider {
         {
             let cache = self.cache.lock().unwrap();
             let backoff = backoff(cache.failures);
-            #[cfg(test)]
-            let sooner = cache.quick_retry
-                || cache.chase
-                || cache
-                    .snapshot
-                    .as_ref()
-                    .is_some_and(|snapshot| has_expired_window(snapshot, now_ms()));
-            #[cfg(not(test))]
-            let sooner = false;
             let hold = if event_refresh {
                 // The lifecycle scheduler enforces the event cooldown. After a failure,
                 // the local backoff only gates a later distinct event; it never schedules one.
@@ -1234,8 +1145,6 @@ impl Provider {
                 } else {
                     Duration::ZERO
                 }
-            } else if sooner {
-                backoff
             } else {
                 MIN_REFRESH.max(backoff)
             };
@@ -1262,21 +1171,6 @@ impl Provider {
         }
         match result {
             Ok(quotas) => {
-                // A window that was there and is not now: asked again once, soon.
-                #[cfg(test)]
-                let lost = cache
-                    .snapshot
-                    .as_ref()
-                    .and_then(|old| old.quotas.as_ref())
-                    .is_some_and(|old| {
-                        (old.five_hour.is_some() && quotas.five_hour.is_none())
-                            || (old.seven_day.is_some() && quotas.seven_day.is_none())
-                    });
-                #[cfg(test)]
-                {
-                    cache.chase = lost && !cache.chase;
-                    cache.quick_retry = false;
-                }
                 let yes_no = |window: &Option<Window>| if window.is_some() { "yes" } else { "no" };
                 let note = format!(
                     "read ok, 5h={} 7d={}",
@@ -1302,11 +1196,6 @@ impl Provider {
             }
             Err(reason) => {
                 cache.failures = cache.failures.saturating_add(1);
-                #[cfg(test)]
-                {
-                    cache.quick_retry = false;
-                    cache.chase = false;
-                }
                 let note = format!("read failed, {reason:?}");
                 if cache.last_note != note {
                     crate::log::line(format!("codex quota: {note}"));
@@ -2304,168 +2193,6 @@ mod tests {
     }
 
     #[test]
-    fn the_refresh_loop_wakes_just_after_a_reset_instead_of_sleeping_the_full_interval() {
-        let now = now_ms();
-        let spacing = backoff(0);
-        let long_ago = Some(Duration::from_secs(3_600));
-        let near = |snap: &Snapshot| reset_wait(Some(snap), now, long_ago, spacing);
-        // A five-hour reset three minutes away: read three minutes and a grace after, not ten minutes from now.
-        let soon = held(Some(3 * 60_000), Some(4 * 86_400_000), 0.0);
-        assert_eq!(near(&soon), Duration::from_secs(3 * 60) + RESET_GRACE);
-        // Either window counts, the nearer one wins.
-        let seven_first = held(Some(3 * 3_600_000), Some(90_000), 0.0);
-        assert_eq!(near(&seven_first), Duration::from_secs(90) + RESET_GRACE);
-        // Resets far away: the usual interval — no polling is added.
-        assert_eq!(
-            near(&held(Some(3 * 3_600_000), Some(4 * 86_400_000), 0.0)),
-            MIN_REFRESH
-        );
-        // Nothing to wait for: no windows, or no snapshot.
-        assert_eq!(near(&held(None, None, 0.0)), MIN_REFRESH);
-        assert_eq!(reset_wait(None, now, None, spacing), MIN_REFRESH);
-    }
-
-    /// The reset-aware wait, from the moment a read has just been made (`since_read` = 0) and a window
-    /// resets `reset_in` later: when may the next read be made?
-    fn wait_for_reset_in(reset_in: Duration, since_read: Duration) -> Duration {
-        let now = now_ms();
-        let snapshot = held(Some(reset_in.as_millis() as i64), Some(4 * 86_400_000), 0.0);
-        reset_wait(Some(&snapshot), now, Some(since_read), backoff(0))
-    }
-
-    #[test]
-    fn a_reset_soon_after_a_read_waits_for_the_spacing_not_for_ten_minutes() {
-        let spacing = Duration::from_secs(60);
-        // Reset 10 s after the read: reset + 5 s is only 15 s, but the spacing allows a read at 60 s — not before, not 10 min later.
-        assert_eq!(
-            wait_for_reset_in(Duration::from_secs(10), Duration::ZERO),
-            spacing
-        );
-        // Reset 55 s after the read: reset + grace is exactly the spacing.
-        assert_eq!(
-            wait_for_reset_in(Duration::from_secs(55), Duration::ZERO),
-            spacing
-        );
-        // Reset 56 s after: the reset is the later of the two.
-        assert_eq!(
-            wait_for_reset_in(Duration::from_secs(56), Duration::ZERO),
-            Duration::from_secs(61)
-        );
-        // More than a minute after the read: spacing is long over, only the reset counts.
-        assert_eq!(
-            wait_for_reset_in(Duration::from_secs(120), Duration::ZERO),
-            Duration::from_secs(125)
-        );
-        // The sleep counts from now, and the read was made 20 s ago: 40 s of the spacing are left.
-        assert_eq!(
-            wait_for_reset_in(Duration::from_secs(10), Duration::from_secs(20)),
-            Duration::from_secs(40)
-        );
-        // Never the usual interval for a reset this close.
-        for secs in [1, 10, 30, 55, 56, 90, 300] {
-            assert!(
-                wait_for_reset_in(Duration::from_secs(secs), Duration::ZERO) < MIN_REFRESH,
-                "{secs}s"
-            );
-        }
-    }
-
-    #[test]
-    fn a_reset_that_has_passed_while_the_spacing_still_holds_is_read_the_moment_it_ends() {
-        let now = now_ms();
-        let spacing = backoff(0);
-        let over = held(Some(-2_000), Some(4 * 86_400_000), 40.0);
-        let wait =
-            |since: u64| reset_wait(Some(&over), now, Some(Duration::from_secs(since)), spacing);
-        // The read that found the reset gated was 20 s ago: 40 s more, not ten minutes.
-        assert_eq!(wait(20), Duration::from_secs(40));
-        assert_eq!(wait(59), Duration::from_secs(1));
-        // The read was this very instant: the full spacing.
-        assert_eq!(wait(0), spacing);
-        // Spacing already over: as soon as it can be — a second, never zero (no busy loop).
-        assert_eq!(wait(60), MIN_WAKE);
-        assert_eq!(wait(61), MIN_WAKE);
-        // With failures the spacing is the backoff, and it is the one respected.
-        assert_eq!(
-            reset_wait(Some(&over), now, Some(Duration::from_secs(60)), backoff(2)),
-            Duration::from_secs(180)
-        );
-        // No snapshot to speak of: the usual interval.
-        assert_eq!(
-            reset_wait(
-                Some(&held(None, None, 0.0)),
-                now,
-                Some(Duration::ZERO),
-                spacing
-            ),
-            MIN_REFRESH
-        );
-    }
-
-    #[test]
-    fn a_wake_after_sleep_or_a_late_timer_reads_at_once() {
-        let now = now_ms();
-        // The machine slept through the reset: hours past it, hours since the last read.
-        let slept = held(Some(-3 * 3_600_000), Some(-60_000), 40.0);
-        let wait = reset_wait(
-            Some(&slept),
-            now,
-            Some(Duration::from_secs(3 * 3_600)),
-            backoff(0),
-        );
-        assert_eq!(
-            wait, MIN_WAKE,
-            "read as soon as the loop runs, with a one-second floor"
-        );
-        // Never a zero wait, whatever the inputs: the loop cannot spin.
-        for since in [None, Some(Duration::ZERO), Some(Duration::from_secs(3_600))] {
-            assert!(reset_wait(Some(&slept), now, since, backoff(0)) >= MIN_WAKE);
-        }
-    }
-
-    #[test]
-    fn the_spacing_gated_reset_read_is_retried_at_the_earliest_time_and_brings_the_zero() {
-        runtime().block_on(async {
-            // The five-hour window reset, but the last read was only 20 s ago.
-            let provider = provider_holding(
-                held(Some(-2_000), Some(4 * 86_400_000), 40.0),
-                Duration::from_secs(20),
-            );
-            let calls = std::sync::Arc::new(AtomicUsize::new(0));
-            let counted = |calls: &std::sync::Arc<AtomicUsize>| {
-                let calls = calls.clone();
-                async move {
-                    calls.fetch_add(1, Ordering::SeqCst);
-                    Ok(fresh_quotas(0.0))
-                }
-            };
-            // The read at reset + 5 s is refused by the spacing gate: the cached snapshot comes back, no request.
-            let gated = provider.read_with_at(Instant::now(), counted(&calls)).await;
-            assert_eq!(calls.load(Ordering::SeqCst), 0, "spacing-gated");
-            assert!(
-                gated.quotas.unwrap().five_hour.is_none(),
-                "the over window is not shown"
-            );
-            // The scheduler does not fall back to ten minutes: about 40 s of the spacing are left.
-            let wait = provider.next_wait();
-            assert!(
-                wait > Duration::from_secs(38) && wait <= Duration::from_secs(40),
-                "{wait:?}"
-            );
-            // At that time the read is made — and it is the new window: a real 0%.
-            let after = provider
-                .read_with_at(Instant::now() + wait, counted(&calls))
-                .await;
-            assert_eq!(calls.load(Ordering::SeqCst), 1);
-            let five = after.quotas.unwrap().five_hour.unwrap();
-            assert_eq!(five.used_percent, 0.0);
-            assert!(after.available && !after.stale);
-            // And it is over: the loop is back on the usual interval, not hammering.
-            assert_eq!(provider.next_wait(), MIN_REFRESH);
-        });
-    }
-
-    #[test]
     fn a_failed_read_is_unavailable_and_requires_another_lifecycle_event() {
         runtime().block_on(async {
             let t = Instant::now();
@@ -2502,35 +2229,9 @@ mod tests {
             );
         });
     }
-    #[test]
-    fn a_window_that_has_reset_is_read_again_before_the_usual_interval() {
-        runtime().block_on(async {
-            let calls = std::sync::Arc::new(AtomicUsize::new(0));
-            // The five-hour window reset a minute ago; the last read was two minutes ago.
-            let provider = provider_holding(
-                held(Some(-60_000), Some(4 * 86_400_000), 40.0),
-                Duration::from_secs(120),
-            );
-            let seen = calls.clone();
-            let snapshot = provider
-                .read_with_at(Instant::now(), async move {
-                    seen.fetch_add(1, Ordering::SeqCst);
-                    Ok(fresh_quotas(0.0))
-                })
-                .await;
-            assert_eq!(
-                calls.load(Ordering::SeqCst),
-                1,
-                "read, though the ten minutes are not up"
-            );
-            let five = snapshot.quotas.unwrap().five_hour.unwrap();
-            assert_eq!(five.used_percent, 0.0, "a real zero, from the server");
-            assert!(snapshot.available && !snapshot.stale);
-        });
-    }
 
     #[test]
-    fn without_a_reset_the_usual_interval_still_holds_and_the_backoff_floor_holds_after_one() {
+    fn a_recent_read_is_served_from_the_cache() {
         runtime().block_on(async {
             let calls = std::sync::Arc::new(AtomicUsize::new(0));
             let counted = |calls: &std::sync::Arc<AtomicUsize>| {
@@ -2548,15 +2249,6 @@ mod tests {
             let cached = live.read_with_at(Instant::now(), counted(&calls)).await;
             assert_eq!(calls.load(Ordering::SeqCst), 0);
             assert_eq!(cached.quotas.unwrap().five_hour.unwrap().used_percent, 40.0);
-            // A reset, but the last read was ten seconds ago: the minute's floor still keeps requests apart.
-            let just_read = provider_holding(
-                held(Some(-1_000), Some(4 * 86_400_000), 40.0),
-                Duration::from_secs(10),
-            );
-            just_read
-                .read_with_at(Instant::now(), counted(&calls))
-                .await;
-            assert_eq!(calls.load(Ordering::SeqCst), 0);
         });
     }
 
@@ -2570,34 +2262,6 @@ mod tests {
                 .await;
             assert_eq!(failed.failure_reason, Some(FailureReason::Timeout));
             assert!(!failed.available && !failed.stale && failed.quotas.is_none());
-            assert!(!provider.cache.lock().unwrap().quick_retry);
-        });
-    }
-
-    #[test]
-    fn a_failure_that_needs_the_user_keeps_the_usual_interval() {
-        runtime().block_on(async {
-            for reason in [FailureReason::CliUnavailable, FailureReason::Unauthorized] {
-                let provider = Provider::default();
-                provider.set_enabled(true);
-                provider
-                    .read_with_at(Instant::now(), async move { Err(reason) })
-                    .await;
-                assert_eq!(
-                    provider.next_wait(),
-                    MIN_REFRESH,
-                    "{reason:?}: the usual interval, not the backoff"
-                );
-                let calls = std::sync::Arc::new(AtomicUsize::new(0));
-                let seen = calls.clone();
-                provider
-                    .read_with_at(Instant::now() + Duration::from_secs(121), async move {
-                        seen.fetch_add(1, Ordering::SeqCst);
-                        Ok(fresh_quotas(0.0))
-                    })
-                    .await;
-                assert_eq!(calls.load(Ordering::SeqCst), 0, "{reason:?}: not hammered");
-            }
         });
     }
 
@@ -2616,53 +2280,6 @@ mod tests {
             assert!(
                 failed.quotas.is_none(),
                 "a failed read clears previously known values"
-            );
-        });
-    }
-
-    #[test]
-    fn a_window_missing_after_its_reset_is_asked_for_once_more_soon_and_no_more() {
-        runtime().block_on(async {
-            // The five-hour window reset; the answer, a few seconds later, still has only the weekly one.
-            let provider = provider_holding(
-                held(Some(-5_000), Some(4 * 86_400_000), 40.0),
-                Duration::from_secs(120),
-            );
-            let only_weekly = || async {
-                let mut quotas = fresh_quotas(0.0);
-                quotas.five_hour = None;
-                Ok(quotas)
-            };
-            let first = provider.read_with_at(Instant::now(), only_weekly()).await;
-            assert!(first.quotas.as_ref().unwrap().five_hour.is_none());
-            assert!(
-                first.quotas.as_ref().unwrap().seven_day.is_some(),
-                "the weekly window is independent of it"
-            );
-            assert_eq!(
-                provider.next_wait(),
-                Duration::from_secs(60),
-                "one follow-up soon"
-            );
-            // The follow-up gets the rolled-over window.
-            let second = provider
-                .read_with_at(Instant::now() + Duration::from_secs(61), async {
-                    Ok(fresh_quotas(0.0))
-                })
-                .await;
-            assert_eq!(second.quotas.unwrap().five_hour.unwrap().used_percent, 0.0);
-            assert_eq!(provider.next_wait(), MIN_REFRESH);
-            // If it is still missing, the follow-up is the last: no loop.
-            let stuck = provider_holding(held(Some(-5_000), None, 40.0), Duration::from_secs(120));
-            stuck.read_with_at(Instant::now(), only_weekly()).await;
-            assert_eq!(stuck.next_wait(), Duration::from_secs(60));
-            stuck
-                .read_with_at(Instant::now() + Duration::from_secs(61), only_weekly())
-                .await;
-            assert_eq!(
-                stuck.next_wait(),
-                MIN_REFRESH,
-                "after the one follow-up it settles"
             );
         });
     }
@@ -2746,8 +2363,8 @@ mod tests {
                 && loading.quotas.is_none()
                 && loading.updated_at.is_none()
         );
-        assert_eq!(provider.next_wait(), MIN_REFRESH);
     }
+
     #[test]
     fn disabling_clears_snapshot_and_discards_an_in_flight_read() {
         runtime().block_on(async {

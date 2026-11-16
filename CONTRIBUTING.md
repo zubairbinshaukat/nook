@@ -27,7 +27,9 @@ All of these must pass with no warnings.
 ## House rules
 
 - No dependencies without a real need.
-- No telemetry and no network calls.
+- No telemetry and no network calls. The only exceptions are off by default and
+  switched on by the user: the update check (`update.rs`) and reading Codex's
+  usage limits through Codex itself (`codex_quota.rs`).
 - Never block Claude Code: if the app does not answer, the relay exits right away.
 - Never approve a permission without an explicit click.
 - Never write `~/.claude/settings.json` without a preview, a dated backup and an

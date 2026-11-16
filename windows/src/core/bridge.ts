@@ -222,7 +222,6 @@ export const Bridge = {
   // ── Claude's usage limits (step 2, system side) ───────────────────────────
   /** The latest usage Claude Code reported to its status line, or null when none has come yet. */
   usageLast: () => call<UsagePayload>("usage_last"),
-  codexQuotaLast: () => call<CodexQuotaSnapshot>("codex_quota_last"),
   /** Whether the relay is Claude Code's status line command, which is how the numbers arrive. */
   usageStatus: () => call<UsageStatus>("usage_status"),
   /** Diff of the `statusLine` key to show before anything is written. `install: false` previews removal. */

@@ -1185,7 +1185,7 @@ function codexGroup(): HTMLElement {
     group(null,
       row("Show Codex sessions", "Codex's sessions appear in the island with a Codex mark. Off, they are not followed at all, and Codex asks for permission in its own window.", show.el,
         "codex show hide sessions openai"),
-      row("Read Codex usage limits", "Allow Nook to launch Codex locally to read usage limits. Codex may contact OpenAI.", quota.el,
+      row("Read Codex usage limits", "Nook runs Codex on this PC to read your 5-hour and 7-day limits, and Codex asks OpenAI for them. Needs the Codex app for Windows.", quota.el,
         "codex quota 5 hour 7 day limits usage")));
 }
 

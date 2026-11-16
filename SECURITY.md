@@ -24,6 +24,12 @@ answer within a few days.
   button), which asks GitHub's API for the latest release and sends nothing
   about you or your machine. The window's content security policy forbids
   everything else. Event text is rendered as text, never as HTML.
+- **Read Codex usage limits** (off by default) makes Nook start Codex's own
+  CLI, `codex app-server`, from the Codex app's install folder only
+  (`%LOCALAPPDATA%\OpenAI\Codex\bin`, never another `codex.exe` on PATH). Nook
+  talks to it over standard input and output, with an 8-second limit, and
+  closes it and anything it started (a Windows job object) after each read.
+  Codex, not Nook, asks OpenAI for the limits.
 - A reply typed in the island is typed into the session's own window with
   synthesized keystrokes, only after Nook has checked that the window is the
   session's (its terminal's visible tab must carry the conversation's title),
