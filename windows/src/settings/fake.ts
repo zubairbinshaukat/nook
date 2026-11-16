@@ -180,7 +180,11 @@ export function fakeBackend(): Backend {
     },
 
     async hooksStatus(): Promise<HookStatus> {
-      return { installed: hooks.installed, legacy: hooks.legacy, settingsPath: SETTINGS_JSON, hookPath: RELAY, hookReady: hooks.ready };
+      return {
+        installed: hooks.installed,
+        missingEvents: hooks.installed ? [] : ["SessionStart", "SessionEnd", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionRequest", "Notification", "Stop", "StopFailure", "SubagentStart", "SubagentStop"],
+        legacy: hooks.legacy, settingsPath: SETTINGS_JSON, hookPath: RELAY, hookReady: hooks.ready,
+      };
     },
     async hooksPreview(install) {
       await wait();
@@ -230,7 +234,8 @@ export function fakeBackend(): Backend {
 
     async codexStatus(): Promise<CodexStatus> {
       return {
-        installed: codex.installed, current: codex.installed, fileExists: codex.installed, codexFound: true,
+        installed: codex.installed, missingEvents: codex.installed ? [] : ["SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse", "Stop"],
+        current: codex.installed, fileExists: codex.installed, codexFound: true,
         hooksPath: CODEX_JSON, hookPath: RELAY, hookReady: true, refused: null, unreadable: null,
       };
     },

@@ -44,6 +44,8 @@ const WAITING: &str = "Waiting for your answer in Nook";
 pub struct CodexStatus {
     /// Every event has an entry of Nook's.
     pub installed: bool,
+    /// Hook events without a Nook entry; a non-empty partial list needs repair.
+    pub missing_events: Vec<String>,
     /// ... and every one is what Nook would write now (the relay has not moved).
     pub current: bool,
     /// hooks.json is there.
@@ -191,14 +193,25 @@ fn uninstalled(existing: &Value) -> Result<Value, String> {
     Ok(Value::Object(root))
 }
 
-fn status_of(existing: &Value, relay: &str) -> (bool, bool) {
-    let Some(hooks) = existing.get("hooks").and_then(Value::as_object) else { return (false, false) };
+fn status_of(existing: &Value, relay: &str) -> (bool, bool, Vec<String>) {
+    let Some(hooks) = existing.get("hooks").and_then(Value::as_object) else {
+        return (
+            false,
+            false,
+            EVENTS.iter().map(|(event, _)| (*event).to_string()).collect(),
+        );
+    };
     let ours = |event: &str| hooks.get(event).and_then(Value::as_array).map(|groups| ours_in(groups)).unwrap_or_default();
     let installed = EVENTS.iter().all(|(event, _)| !ours(event).is_empty());
     let want = command_for(relay);
     let current = installed
         && EVENTS.iter().all(|(event, _)| ours(event).iter().all(|hook| hook.get("command").and_then(Value::as_str) == Some(want.as_str())));
-    (installed, current)
+    let missing = EVENTS
+        .iter()
+        .filter(|(event, _)| ours(event).is_empty())
+        .map(|(event, _)| (*event).to_string())
+        .collect();
+    (installed, current, missing)
 }
 
 pub fn status() -> CodexStatus {
@@ -211,10 +224,11 @@ pub fn status() -> CodexStatus {
         },
         Err(_) => (json!({}), None),
     };
-    let (installed, current) = status_of(&existing, &relay);
+    let (installed, current, missing_events) = status_of(&existing, &relay);
     let hook = settings::hook_exe_path();
     CodexStatus {
         installed,
+        missing_events,
         current,
         file_exists: path.exists(),
         codex_found: path.parent().is_some_and(Path::exists),
@@ -286,7 +300,7 @@ mod tests {
             assert!(out["hooks"][*event][0].get("matcher").is_none());
         }
         assert_eq!(out["hooks"]["PermissionRequest"][0]["hooks"][0]["timeout"], 120);
-        assert_eq!(status_of(&out, RELAY), (true, true));
+        assert_eq!(status_of(&out, RELAY), (true, true, vec![]));
     }
 
     #[test]
@@ -309,10 +323,22 @@ mod tests {
     #[test]
     fn a_moved_relay_is_replaced_not_added() {
         let old = installed(&foreign(), "C:/old/nook-hook.exe").unwrap();
-        assert_eq!(status_of(&old, RELAY), (true, false));
+        assert_eq!(status_of(&old, RELAY), (true, false, vec![]));
         let out = installed(&old, RELAY).unwrap();
         assert_eq!(commands(&out, "Stop").len(), 2);
-        assert_eq!(status_of(&out, RELAY), (true, true));
+        assert_eq!(status_of(&out, RELAY), (true, true, vec![]));
+    }
+
+    #[test]
+    fn status_lists_codex_events_without_a_nook_hook() {
+        let partial = json!({ "hooks": {
+            "SessionStart": [{ "hooks": [{ "type": "command", "command": format!("{RELAY} --agent codex") }] }],
+            "Stop": [{ "hooks": [{ "type": "command", "command": "other-hook" }] }]
+        }});
+        let (installed, _, missing) = status_of(&partial, RELAY);
+        assert!(!installed);
+        assert_eq!(missing.len(), EVENTS.len() - 1);
+        assert!(!missing.contains(&"SessionStart".to_string()));
     }
 
     #[test]
@@ -329,7 +355,9 @@ mod tests {
         let theirs = json!({ "hooks": { "Stop": [{ "hooks": [{ "type": "command", "command": "nook-hook.exe --agent other" }] }] } });
         assert_eq!(uninstalled(&theirs).unwrap(), theirs);
         assert_eq!(commands(&installed(&theirs, RELAY).unwrap(), "Stop").len(), 2);
-        assert_eq!(status_of(&theirs, RELAY), (false, false));
+        assert_eq!(status_of(&theirs, RELAY).0, false);
+        assert_eq!(status_of(&theirs, RELAY).1, false);
+        assert_eq!(status_of(&theirs, RELAY).2.len(), EVENTS.len());
     }
 
     #[test]
