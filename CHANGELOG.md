@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.3
+
+- Codex's 5-hour and 7-day usage limits, beside Claude's in the header, if
+  you switch on "Read Codex usage limits" (Settings → Connect → Codex, off by
+  default). While a Codex session works, at most every 3 minutes, Nook starts
+  the Codex app's own CLI (`codex app-server`) for a few seconds, reads the
+  limits over its standard input and output, and closes it. Codex, not Nook,
+  asks OpenAI for them. No console window, an 8-second limit, no retries; if
+  a read fails, the limits are hidden. Needs the Codex app for Windows.
+  Contributed by Valentyn Fetisov.
+- Safer backups of the files Nook edits (`~/.claude/settings.json` and the
+  others): two changes within the same second no longer share a backup name,
+  so the first backup is never overwritten, and a change is refused if the
+  file was edited by something else while the preview was open. Contributed
+  by Valentyn Fetisov.
+
 ## 0.2.2
 
 - Codex's sessions in the island, with Allow / Deny for what Codex asks

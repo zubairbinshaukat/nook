@@ -10,7 +10,7 @@ This file contains the full text of the Nook website (https://nook.zubyr.dev/) i
 
 URL: https://nook.zubyr.dev/
 
-Nook for Windows is a free, open-source Dynamic Island for Claude Code agents. It sits at the top of your screen and shows every running Claude Code session across your projects. See who is working, who is done and who needs you, then approve or answer with a click. Runs locally. Windows 10 and 11. Version 0.2.2. Free and open source (MIT). Download: https://github.com/zubairbinshaukat/nook/releases/latest
+Nook for Windows is a free, open-source Dynamic Island for Claude Code agents. It sits at the top of your screen and shows every running Claude Code session across your projects. See who is working, who is done and who needs you, then approve or answer with a click. Runs locally. Windows 10 and 11. Version 0.2.3. Free and open source (MIT). Download: https://github.com/zubairbinshaukat/nook/releases/latest
 
 ## How it works
 
@@ -52,14 +52,14 @@ Gullu is Nook's mascot, a fluffy cream character with a small green sprout on it
 
 Windows 10 or 11. WebView2 ships with both.
 
-1. Download `Nook-Windows-0.2.2-setup.exe` from the latest release on GitHub: https://github.com/zubairbinshaukat/nook/releases/latest
+1. Download `Nook-Windows-0.2.3-setup.exe` from the latest release on GitHub: https://github.com/zubairbinshaukat/nook/releases/latest
 2. Run it, then confirm once. The installer is not code-signed yet, so SmartScreen may say "Windows protected your PC". Choose More info, then Run anyway.
 3. Install the hooks: Settings > Claude Code > Install hooks, review the preview, click. Start a Claude Code session and watch the island.
 
 Check the download (optional, recommended): compare the hash with the one for the installer in SHA256SUMS.txt on the release page.
 
 ```powershell
-Get-FileHash .\Nook-Windows-0.2.2-setup.exe -Algorithm SHA256
+Get-FileHash .\Nook-Windows-0.2.3-setup.exe -Algorithm SHA256
 ```
 
 Prefer Scoop? One line installs Nook, with no installer and no SmartScreen prompt. Then do step 3. Update later with `scoop update nook`.
@@ -88,7 +88,7 @@ Only when you ask. Installing hooks shows the exact diff of what will change in 
 
 ### Why does Windows show "Windows protected your PC"?
 
-The installer is not code-signed yet, and SmartScreen does not know new, unsigned programs. If you downloaded it from the official GitHub release, choose More info, then Run anyway. You can verify the download with Get-FileHash .\Nook-Windows-0.2.2-setup.exe -Algorithm SHA256 and compare it with SHA256SUMS.txt, or build Nook from source.
+The installer is not code-signed yet, and SmartScreen does not know new, unsigned programs. If you downloaded it from the official GitHub release, choose More info, then Run anyway. You can verify the download with Get-FileHash .\Nook-Windows-0.2.3-setup.exe -Algorithm SHA256 and compare it with SHA256SUMS.txt, or build Nook from source.
 
 ### My antivirus flagged nook-hook.exe. What now?
 
@@ -96,7 +96,7 @@ That is a typical false positive for small, unsigned programs that other program
 
 ### Which systems and Claude Code setups does it work with?
 
-Nook 0.2.2 is built for Windows 10 and 11. It follows Claude Code through Claude Code’s hooks, so sessions appear whether you start Claude Code in a terminal window or in the integrated terminal of an editor such as VS Code.
+Nook 0.2.3 is built for Windows 10 and 11. It follows Claude Code through Claude Code’s hooks, so sessions appear whether you start Claude Code in a terminal window or in the integrated terminal of an editor such as VS Code.
 
 ### Does Nook support Cursor or other agents?
 
@@ -126,8 +126,8 @@ Nook is a free, open-source Dynamic Island for Claude Code agents. This guide ta
 ## Install in six steps
 
 1. **Check the requirements.** You need Windows 10 or 11 (64-bit), Claude Code, and the WebView2 runtime, which comes with Windows 11 and with current Windows 10.
-2. **Download the installer.** Open the [latest release on GitHub](https://github.com/zubairbinshaukat/nook/releases/latest) and download `Nook-Windows-0.2.2-setup.exe` and `SHA256SUMS.txt`.
-3. **Verify the SHA256 hash.** In PowerShell run `Get-FileHash .\Nook-Windows-0.2.2-setup.exe -Algorithm SHA256` and compare the result with the installer line in `SHA256SUMS.txt`.
+2. **Download the installer.** Open the [latest release on GitHub](https://github.com/zubairbinshaukat/nook/releases/latest) and download `Nook-Windows-0.2.3-setup.exe` and `SHA256SUMS.txt`.
+3. **Verify the SHA256 hash.** In PowerShell run `Get-FileHash .\Nook-Windows-0.2.3-setup.exe -Algorithm SHA256` and compare the result with the installer line in `SHA256SUMS.txt`.
 4. **Run the installer.** Double-click the installer. If Windows shows “Windows protected your PC”, choose **More info**, then **Run anyway**. The installer is not code-signed yet.
 5. **Let Nook start.** The installer works for your user account and needs no administrator rights. When it finishes, Nook starts: look for the thin island at the top of your screen and the Nook icon in the notification area.
 6. **Install the Claude Code hooks.** Open **Settings → Claude Code → Install hooks…**, read the preview, and click. Then start a new Claude Code session.
@@ -145,7 +145,7 @@ The sections below explain each step. If anything goes wrong, see [troubleshooti
 
 Get the files from the [latest release on GitHub](https://github.com/zubairbinshaukat/nook/releases/latest). Download two files:
 
-- `Nook-Windows-0.2.2-setup.exe`, the installer.
+- `Nook-Windows-0.2.3-setup.exe`, the installer.
 - `SHA256SUMS.txt`, the SHA-256 hash of the installer and of the two programs inside it (`nook.exe` and `nook-hook.exe`).
 
 Only download Nook from the official release page linked above. You can also build it from source; the [README](https://github.com/zubairbinshaukat/nook#build-from-source) lists the tools you need.
@@ -170,7 +170,7 @@ Scoop downloads `nook.exe` and `nook-hook.exe` from the same GitHub release and 
 A checksum proves the file you have is the file that was published. Open PowerShell in the folder with the download and run:
 
 ```powershell
-Get-FileHash .\Nook-Windows-0.2.2-setup.exe -Algorithm SHA256
+Get-FileHash .\Nook-Windows-0.2.3-setup.exe -Algorithm SHA256
 ```
 
 The hash PowerShell prints must be the same as the one on the installer’s line in `SHA256SUMS.txt`. Compare them letter by letter, or paste both into a text editor and search for one in the other. If they differ, delete the file and download it again from the release page. The same check works for an installed `nook.exe` or `nook-hook.exe`.
@@ -527,7 +527,7 @@ Each problem below has a symptom, a likely cause and a fix. Where Nook cannot kn
 - **Cause:** The installer is not code-signed yet, and SmartScreen does not know new unsigned programs.
 - **Fix:**
 
-1. Check the download first: `Get-FileHash .\Nook-Windows-0.2.2-setup.exe -Algorithm SHA256`, then compare with `SHA256SUMS.txt` from the release.
+1. Check the download first: `Get-FileHash .\Nook-Windows-0.2.3-setup.exe -Algorithm SHA256`, then compare with `SHA256SUMS.txt` from the release.
 2. Choose **More info**, then **Run anyway**.
 
 Details in the [install guide](https://nook.zubyr.dev/guides/install/#smartscreen). Signing through SignPath is planned.
@@ -689,7 +689,7 @@ Look for the tab with the session’s project name. Running `nook-hook --where` 
 A good issue gets fixed faster. Open one at [github.com/zubairbinshaukat/nook/issues/new](https://github.com/zubairbinshaukat/nook/issues/new) and include:
 
 - What you expected and what happened, with steps to repeat it.
-- Your **Nook version** (Settings → About; this site documents 0.2.2), your **Windows version** (`winver`), and your **Claude Code version** (`claude --version`).
+- Your **Nook version** (Settings → About; this site documents 0.2.3), your **Windows version** (`winver`), and your **Claude Code version** (`claude --version`).
 - The last lines of `%LOCALAPPDATA%\Nook\nook.log`. The log has event names and decisions, never the content of your sessions.
 - If it is about hooks, the output of `nook-hook --where`, and the Nook entries from `settings.json` (only those).
 - A screenshot if the problem is visual.
@@ -725,7 +725,7 @@ Only when you ask. Installing hooks shows the exact diff of what will change in 
 
 ## Why does Windows show "Windows protected your PC"?
 
-The installer is not code-signed yet, and SmartScreen does not know new, unsigned programs. If you downloaded it from the official GitHub release, choose More info, then Run anyway. You can verify the download with Get-FileHash .\Nook-Windows-0.2.2-setup.exe -Algorithm SHA256 and compare it with SHA256SUMS.txt, or build Nook from source.
+The installer is not code-signed yet, and SmartScreen does not know new, unsigned programs. If you downloaded it from the official GitHub release, choose More info, then Run anyway. You can verify the download with Get-FileHash .\Nook-Windows-0.2.3-setup.exe -Algorithm SHA256 and compare it with SHA256SUMS.txt, or build Nook from source.
 
 ## My antivirus flagged nook-hook.exe. What now?
 
@@ -733,7 +733,7 @@ That is a typical false positive for small, unsigned programs that other program
 
 ## Which systems and Claude Code setups does it work with?
 
-Nook 0.2.2 is built for Windows 10 and 11. It follows Claude Code through Claude Code’s hooks, so sessions appear whether you start Claude Code in a terminal window or in the integrated terminal of an editor such as VS Code.
+Nook 0.2.3 is built for Windows 10 and 11. It follows Claude Code through Claude Code’s hooks, so sessions appear whether you start Claude Code in a terminal window or in the integrated terminal of an editor such as VS Code.
 
 ## Does Nook support Cursor or other agents?
 
@@ -765,7 +765,7 @@ No. They come from Claude Code’s status line, so you have to install the usage
 
 ## Does Nook work on macOS or Linux?
 
-The 0.2.2 release is for Windows 10 and 11. The same code can be built for Linux from source. Nook is a fork of Coucou, the project it is based on; look there if you want the original.
+The 0.2.3 release is for Windows 10 and 11. The same code can be built for Linux from source. Nook is a fork of Coucou, the project it is based on; look there if you want the original.
 
 ## Will the installer be code-signed?
 
@@ -782,11 +782,12 @@ Open an issue on GitHub at https://github.com/zubairbinshaukat/nook/issues/new w
 URL: https://nook.zubyr.dev/privacy/
 Effective 2026-10-04, last updated 2026-10-08
 
-Short version: Nook collects nothing about you and keeps everything on your own PC. Its only use of the internet is an update check that is off until you switch it on. Effective 2026-10-08.
+Short version: Nook collects nothing about you and keeps everything on your own PC. Its only use of the internet is an update check that is off until you switch it on (and, if you switch on Codex usage limits, Codex asks OpenAI for them). Effective 2026-11-16.
 
 ## The short version
 
 - Nook makes **no network connections of its own**, with **one exception that you control**: an update check that is off by default. The relay never uses the network.
+- If you switch on **Read Codex usage limits** (off by default), Nook starts Codex on your PC for a few seconds to read your limits, and **Codex asks OpenAI** for them, as it does whenever you use it. Nook keeps only the two percentages and their reset times, in memory.
 - There is **no telemetry**, no analytics, no crash reporting, no account and no sign-in.
 - Everything Nook keeps is on **your own computer**.
 - Nook sets **no cookies**, and neither does this website.
@@ -874,9 +875,14 @@ Questions or problems: [open an issue](https://github.com/zubairbinshaukat/nook/
 # Changelog (Changelog)
 
 URL: https://nook.zubyr.dev/changelog/
-Effective 2026-10-04, last updated 2026-10-08
+Effective 2026-10-04, last updated 2026-11-16
 
 What shipped in each release, and what is planned next. Planned items are intentions, not promises, and carry no dates.
+
+## 0.2.3 — Codex usage limits and safer backups
+
+- **Codex usage limits, if you ask.** Switch on **Read Codex usage limits** in Settings, Connect, Codex (off by default) and the header shows Codex’s 5-hour and 7-day limits beside Claude’s. While a Codex session works, at most every 3 minutes, Nook starts the Codex app’s own CLI for a few seconds, reads the limits and closes it; Codex, not Nook, asks OpenAI for them. No console window, no retries; if a read fails, the limits are hidden. It needs the Codex app for Windows. See [Codex and Nook](https://nook.zubyr.dev/guides/codex/). Contributed by Valentyn Fetisov.
+- **Safer backups.** Two changes to the same settings file within one second no longer share a backup name, so the first backup is never overwritten, and a change is refused if the file was edited by something else while the preview was open. Contributed by Valentyn Fetisov.
 
 ## 0.2.2 — Codex, replies from the island and the update check
 
