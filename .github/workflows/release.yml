@@ -150,8 +150,9 @@ jobs:
             echo "::warning::SCOOP_BUCKET_TOKEN is not set, so the Scoop manifest was not updated."
             exit 0
           fi
-          app=$(awk '$2 == "nook.exe" { print $1 }' out/SHA256SUMS.txt)
-          hook=$(awk '$2 == "nook-hook.exe" { print $1 }' out/SHA256SUMS.txt)
+          # SHA256SUMS.txt is written on Windows, with CRLF line ends: drop the CR first.
+          app=$(tr -d '\r' < out/SHA256SUMS.txt | awk '$2 == "nook.exe" { print $1 }')
+          hook=$(tr -d '\r' < out/SHA256SUMS.txt | awk '$2 == "nook-hook.exe" { print $1 }')
           if [ -z "$app" ] || [ -z "$hook" ]; then echo "SHA256SUMS.txt lacks nook.exe or nook-hook.exe"; exit 1; fi
 
           git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/zubairbinshaukat/scoop-bucket" bucket
