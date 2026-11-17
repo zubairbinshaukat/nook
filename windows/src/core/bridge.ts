@@ -374,6 +374,9 @@ export interface ShortcutStatus {
 
 export interface HookStatus {
   installed: boolean;
+  partial: boolean;
+  /** Events with no Nook hook; a non-empty partial list needs repair. */
+  missingEvents: string[];
   /** Entries left by Coucou are still in settings.json. */
   legacy: boolean;
   settingsPath: string;
@@ -433,6 +436,9 @@ export interface ReplyEnded {
 /** Codex's hooks (~/.codex/hooks.json); its sessions are followed and its permission requests answered. */
 export interface CodexStatus {
   installed: boolean;
+  partial: boolean;
+  /** Events with no Nook hook; a non-empty partial list needs repair. */
+  missingEvents: string[];
   /** Every entry is what Nook would write now: the relay has not moved. */
   current: boolean;
   fileExists: boolean;

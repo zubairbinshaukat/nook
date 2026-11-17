@@ -11,7 +11,7 @@
 //                 (the old claude, general and appearance still land: on
 //                 connect, island and look)
 //        &theme=light|dark|system  &motion=system|on|off
-//        &hooks=installed|none|legacy|both|relay|relay-none|unreadable
+//        &hooks=installed|none|partial|legacy|both|relay|relay-none|unreadable
 //        &usage=none|installed|chained|other
 //        &reply=none|installed|outdated|unmarked|broken|missing
 //        &cursor=installed
@@ -52,6 +52,8 @@ const REPLY_BLOCK = [
 ];
 const REPLY_OLD_LINE = "- Close with what happens next.";
 const EVENTS = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PermissionRequest", "SubagentStart", "SubagentStop", "Stop"];
+const CLAUDE_HOOK_EVENTS = ["SessionStart", "SessionEnd", "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionRequest", "Notification", "Stop", "StopFailure", "SubagentStart", "SubagentStop"];
+const CODEX_HOOK_EVENTS = ["SessionStart", "UserPromptSubmit", "PreToolUse", "PermissionRequest", "PostToolUse", "Stop"];
 
 /** The messages shortcut.rs refuses with. */
 const TAKEN = "Already used by another app — pick another";
@@ -78,12 +80,13 @@ export function fakeBackend(): Backend {
 
   const hooks = {
     installed: hooksCase === "installed" || hooksCase === "relay" || hooksCase === "both",
+    partial: hooksCase === "partial",
     legacy: hooksCase === "legacy" || hooksCase === "both",
     ready: hooksCase !== "relay" && hooksCase !== "relay-none",
     unreadable: hooksCase === "unreadable",
   };
   const cursor = { installed: q.get("cursor") === "installed" };
-  const codex = { installed: q.get("codex") === "installed" };
+  const codex = { installed: q.get("codex") === "installed", partial: q.get("codex") === "partial" };
   let update: UpdateInfo | null = null;
   const usage = { installed: usageCase === "installed" || usageCase === "chained", chained: usageCase === "chained", other: usageCase === "other" };
   /** Stands for the bytes of settings.json: every write changes it. */
@@ -180,7 +183,11 @@ export function fakeBackend(): Backend {
     },
 
     async hooksStatus(): Promise<HookStatus> {
-      return { installed: hooks.installed, legacy: hooks.legacy, settingsPath: SETTINGS_JSON, hookPath: RELAY, hookReady: hooks.ready };
+      return {
+        installed: hooks.installed, partial: hooks.partial,
+        missingEvents: hooks.installed ? [] : hooks.partial ? CLAUDE_HOOK_EVENTS.slice(1) : CLAUDE_HOOK_EVENTS,
+        legacy: hooks.legacy, settingsPath: SETTINGS_JSON, hookPath: RELAY, hookReady: hooks.ready,
+      };
     },
     async hooksPreview(install) {
       await wait();
@@ -190,6 +197,7 @@ export function fakeBackend(): Backend {
       await wait(300);
       const backup = written(fingerprint);
       hooks.installed = install;
+      hooks.partial = false;
       hooks.legacy = false;
       return backup;
     },
@@ -230,7 +238,9 @@ export function fakeBackend(): Backend {
 
     async codexStatus(): Promise<CodexStatus> {
       return {
-        installed: codex.installed, current: codex.installed, fileExists: codex.installed, codexFound: true,
+        installed: codex.installed, partial: codex.partial,
+        missingEvents: codex.installed ? [] : codex.partial ? CODEX_HOOK_EVENTS.slice(1) : CODEX_HOOK_EVENTS,
+        current: codex.installed, fileExists: codex.installed, codexFound: true,
         hooksPath: CODEX_JSON, hookPath: RELAY, hookReady: true, refused: null, unreadable: null,
       };
     },
@@ -244,6 +254,7 @@ export function fakeBackend(): Backend {
       await wait(300);
       const backup = written(fingerprint).replace(SETTINGS_JSON, CODEX_JSON);
       codex.installed = install;
+      codex.partial = false;
       return backup;
     },
 
