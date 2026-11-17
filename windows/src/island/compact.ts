@@ -15,14 +15,15 @@ import {
   COMPACT_PAD, COMPACT_SLOT_GAP, compactLayout, type CompactLayout,
 } from "../core/layout";
 import {
-  State, USAGE_SOURCE_WORDS, compactMetrics, ramPercent, ramWords, usageLevel, usageShown,
-  type CompactMetric, type Metrics, type Usage, type UsageLevel,
+  State, USAGE_OLD_MS, USAGE_SOURCE_WORDS, compactMetrics, ramPercent, ramWords, usageLevel, usageShown,
+  type CodexQuotaSnapshot, type CompactMetric, type Metrics, type Usage, type UsageLevel,
 } from "../core/state";
 import { clear, h } from "../views/dom";
-import { LUCIDE, lucide } from "../views/iconset";
+import { CLAUDE_MARK, CODEX_MARK, LUCIDE, lucide } from "../views/iconset";
 import { wear } from "../views/palette";
 import { DOT_LEGEND, TOOL_NAME } from "../views/tool";
 import { labelText, roster, stateWords, waitingCount, type Entry } from "../views/roster";
+import { availableCompactUsageAgents, createCompactUsageCycle, type UsageAgent } from "./compact-usage-cycle";
 
 /** A cell's icon, and its number's size: the icons of the set, on their 24 px grid. */
 const COMPACT_ICON = 14;
@@ -53,15 +54,19 @@ export interface Reading {
 export interface Gauges {
   metrics: Metrics | null;
   usage: Usage | null;
+  codexQuota?: CodexQuotaSnapshot | null;
+  usageRotationEnabled?: boolean;
+  usageAgent?: UsageAgent | null;
   waiting: number;
   /** The time the usage is read at (Unix ms): now, when not said. */
   now?: number;
 }
 
 const percent = (value: number | null | undefined): string => (value != null ? `${Math.round(value)}%` : "—");
+const isUsageMetric = (kind: CompactMetric) => kind === "usage5h" || kind === "usage7d";
 
 /** What one cell says, from the gauges alone: nothing here looks at the island. */
-export function reading(kind: CompactMetric, { metrics: m, usage, waiting, now = Date.now() }: Gauges): Reading {
+export function reading(kind: CompactMetric, { metrics: m, usage, codexQuota, usageRotationEnabled = false, usageAgent = "claude", waiting, now = Date.now() }: Gauges): Reading {
   switch (kind) {
     case "cpu":
       return { text: percent(m?.cpu) };
@@ -72,13 +77,23 @@ export function reading(kind: CompactMetric, { metrics: m, usage, waiting, now =
       return { text: percent(ramPercent(m)), more: ramWords(m) };
     case "usage5h":
     case "usage7d": {
-      const shown = usageShown(kind === "usage5h" ? usage?.fiveHour : usage?.sevenDay, usage?.updatedAt ?? now, now);
+      const isFiveHour = kind === "usage5h";
+      if (usageRotationEnabled && !usageAgent) return { text: "—", more: "Usage unavailable", dim: true };
+      const window = usageRotationEnabled && usageAgent === "codex"
+        ? (isFiveHour ? codexQuota?.quotas?.fiveHour : codexQuota?.quotas?.sevenDay)
+        : (isFiveHour ? usage?.fiveHour : usage?.sevenDay);
+      const updatedAt = usageRotationEnabled && usageAgent === "codex" ? codexQuota?.updatedAt ?? now : usage?.updatedAt ?? now;
+      const shown = usageShown(window, updatedAt, now);
       if (!shown) return { text: "—" };
+      if (usageRotationEnabled && (shown.state !== "fresh" || (usageRotationEnabled && usageAgent === "codex" && (!codexQuota?.available || codexQuota.stale)))) {
+        return { text: "—", more: `${usageAgent === "codex" ? "Codex" : "Claude Code"} usage unavailable`, dim: true };
+      }
       // Past its reset the old number is not shown: 0 %, dimmed, and the tooltip says why.
       const reset = shown.state === "reset";
+      const provider = usageRotationEnabled ? `${usageAgent === "codex" ? "Codex" : "Claude Code"} · ` : "";
       return {
         text: `${shown.percent}%`,
-        more: [shown.countdown, USAGE_SOURCE_WORDS].filter(Boolean).join(". "),
+        more: [provider.trim(), shown.countdown, !usageRotationEnabled || usageAgent === "claude" ? USAGE_SOURCE_WORDS : ""].filter(Boolean).join(" · "),
         level: reset ? undefined : usageLevel(shown.percent),
         dim: shown.state !== "fresh",
       };
@@ -88,7 +103,14 @@ export function reading(kind: CompactMetric, { metrics: m, usage, waiting, now =
   }
 }
 
-const gauges = (): Gauges => ({ metrics: State.metrics, usage: State.usage, waiting: waitingCount() });
+const gauges = (usageAgent?: UsageAgent | null): Gauges => ({
+  metrics: State.metrics,
+  usage: State.usage,
+  codexQuota: State.codexQuota,
+  usageRotationEnabled: State.settings.usageRotationEnabled,
+  usageAgent,
+  waiting: waitingCount(),
+});
 
 /** A session's dot, as it is drawn. */
 export interface SlotDot {
@@ -160,6 +182,10 @@ export function compactPlan(): CompactPlan {
 
 export interface CompactStrip {
   el: HTMLElement;
+  /** Pauses or resumes the display-only usage timer with island visibility. */
+  setVisible(visible: boolean): void;
+  /** Stops timers and listeners when the island page is torn down. */
+  destroy(): void;
   /** Draws what the plan holds; nothing is rebuilt when it has not changed. */
   sync(plan: CompactPlan): void;
   /**
@@ -193,27 +219,87 @@ export function buildCompact(): CompactStrip {
   let metricsKey = "";
   /** The number of each cell on show, by its kind. */
   const values = new Map<CompactMetric, HTMLElement>();
+  const marks = new Map<CompactMetric, SVGSVGElement>();
+  let visible = State.mode !== "hidden";
+  let usageAgent: UsageAgent | null = "claude";
+  let cycle: ReturnType<typeof createCompactUsageCycle>;
+
+  const availability = (from: Gauges) => availableCompactUsageAgents(
+    [from.usage?.fiveHour, from.usage?.sevenDay]
+      .filter((win): win is NonNullable<typeof win> => !!win)
+      .map((win) => ({ fresh: (from.usage?.updatedAt ?? 0) >= Date.now() - USAGE_OLD_MS, resetsAt: win.resetsAt })),
+    (from.codexQuota?.quotas ? [from.codexQuota.quotas.fiveHour, from.codexQuota.quotas.sevenDay] : [])
+      .filter((win): win is NonNullable<typeof win> => !!win)
+      .map((win) => ({
+        fresh: from.codexQuota?.available === true && from.codexQuota.stale === false && from.codexQuota.updatedAt != null
+          && Date.now() - from.codexQuota.updatedAt <= USAGE_OLD_MS,
+        resetsAt: win.resetsAt,
+      })),
+    Date.now(),
+  );
+
+  function configureCycle() {
+    const base = gauges();
+    cycle.configure(availability(base), State.settings.usageRotationEnabled, visible);
+    usageAgent = cycle.current();
+  }
 
   function writeValues() {
-    const from = gauges();
+    configureCycle();
+    const from = gauges(usageAgent);
     for (const [kind, value] of values) {
       const { text, more, level, dim } = reading(kind, from);
-      const title = more ? `${METRIC[kind].name} — ${more}` : METRIC[kind].name;
+      const provider = from.usageRotationEnabled && isUsageMetric(kind) && from.usageAgent
+        ? `${from.usageAgent === "codex" ? "Codex" : "Claude Code"} ` : "";
+      const title = more ? `${provider}${METRIC[kind].name} — ${more}` : `${provider}${METRIC[kind].name}`;
       const cell = value.parentElement!;
       if (cell.title !== title) cell.title = title;
+      cell.setAttribute("aria-label", title);
       if (value.dataset.level !== (level ?? "")) value.dataset.level = level ?? "";
       value.classList.toggle("dim", dim === true);
+      const mark = marks.get(kind);
+      if (mark && isUsageMetric(kind)) {
+        const source = from.usageRotationEnabled ? from.usageAgent : null;
+        const path = source === "codex" ? CODEX_MARK : source === "claude" ? CLAUDE_MARK : null;
+        if (path && source && mark.dataset.provider !== source) {
+          const replacement = lucide(path, COMPACT_ICON, source === "claude" ? 2.4 : 2);
+          if (source === "claude") replacement.style.color = "#D97757";
+          replacement.dataset.provider = source;
+          mark.replaceWith(replacement);
+          marks.set(kind, replacement);
+        } else if (!path && mark.dataset.provider) {
+          const replacement = lucide(METRIC[kind].icon, COMPACT_ICON);
+          mark.replaceWith(replacement);
+          marks.set(kind, replacement);
+        }
+      }
       if (value.textContent === text) continue;
       value.textContent = text;
       value.classList.toggle("blank", text === "—");
     }
   }
 
+  cycle = createCompactUsageCycle((agent) => {
+    usageAgent = agent;
+    writeValues();
+  });
+
   // A sample of the machine, or new usage: only the numbers change.
-  State.onGauges(writeValues);
+  const stopGauges = State.onGauges(writeValues);
+  const teardown = () => {
+    cycle.destroy();
+    stopGauges();
+    window.removeEventListener("pagehide", teardown);
+  };
+  window.addEventListener("pagehide", teardown, { once: true });
 
   return {
     el,
+    setVisible(isVisible) {
+      visible = isVisible;
+      writeValues();
+    },
+    destroy: teardown,
     sync(plan) {
       const slots = compactSlots(plan, gauges());
       const more = slots.more;
@@ -250,9 +336,11 @@ export function buildCompact(): CompactStrip {
           const def = METRIC[kind];
           const value = h("b");
           values.set(kind, value);
+          const mark = lucide(def.icon, COMPACT_ICON);
+          marks.set(kind, mark);
           metrics.append(h(
             "span", { class: "ci-metric", style: `--w:${def.width}px`, title: def.name },
-            lucide(def.icon, COMPACT_ICON),
+            mark,
             value,
           ));
         }

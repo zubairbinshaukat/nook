@@ -101,6 +101,9 @@ pub struct Settings {
     /// Settings → Codex: start a short-lived local App Server only when a quota read is requested.
     #[serde(default)]
     pub codex_quota_enabled: bool,
+    /// Settings → Island: rotate fresh Claude and Codex usage in the compact island.
+    #[serde(default)]
+    pub usage_rotation_enabled: bool,
     /// Settings → About: Nook asks GitHub for its latest release once a day
     /// (update.rs). Off until the user switches it on: it is the one thing that
     /// uses the network.
@@ -303,6 +306,7 @@ impl Default for Settings {
             show_cursor_sessions: true,
             show_codex_sessions: true,
             codex_quota_enabled: false,
+            usage_rotation_enabled: false,
             check_updates: false,
         }
     }
@@ -630,5 +634,15 @@ mod tests {
         let old: Settings = serde_json::from_str(r#"{"showCodexSessions":true}"#).unwrap();
         assert!(!old.codex_quota_enabled);
         assert!(!Settings::default().codex_quota_enabled);
+    }
+
+    #[test]
+    fn compact_usage_rotation_is_off_by_default_and_old_settings_load_disabled() {
+        let old: Settings = serde_json::from_str(r#"{"codexQuotaEnabled":true}"#).unwrap();
+        assert!(!old.usage_rotation_enabled);
+        assert!(!Settings::default().usage_rotation_enabled);
+        let enabled = Settings { usage_rotation_enabled: true, ..Settings::default() };
+        let restored: Settings = serde_json::from_str(&serde_json::to_string(&enabled).unwrap()).unwrap();
+        assert!(restored.usage_rotation_enabled);
     }
 }

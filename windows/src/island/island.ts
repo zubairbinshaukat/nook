@@ -589,6 +589,7 @@ export class Island {
     if (mode === prev) return;
     this.abortPaging();
     State.mode = mode;
+    this.compact.setVisible(mode !== "hidden");
     if (mode === "expanded") Sound.play("open");
     if (prev === "expanded") {
       Sound.play("close");
