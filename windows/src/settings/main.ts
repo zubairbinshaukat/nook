@@ -734,7 +734,7 @@ function hooksSpec(): Spec {
       facts: [file, relay], again: "Connect again…", remove: "Disconnect…",
     };
   }
-  if (s.missingEvents.length > 0 && s.missingEvents.length < 12) {
+  if (s.partial) {
     return {
       name, tone: "warn", title: "Needs repair",
       text: "Some Claude Code events are missing from Nook's hooks, so sessions may not be fully reported.",
@@ -867,7 +867,7 @@ function codexSpec(): Spec {
       facts: [file, relay], again: "Connect again…", remove: "Disconnect…",
     };
   }
-  if (c.missingEvents.length > 0 && c.missingEvents.length < 6) {
+  if (c.partial) {
     return {
       name, tone: "warn", title: "Needs repair",
       text: "Some Codex events are missing from Nook's hooks, so sessions may not be fully reported.",

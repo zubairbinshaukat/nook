@@ -53,6 +53,8 @@ const LEGACY_MARKER: &str = "coucou-hook";
 #[serde(rename_all = "camelCase")]
 pub struct HookStatus {
     pub installed: bool,
+    /// At least one current Nook hook is present, but not the full set.
+    pub partial: bool,
     /// Hook events without a Nook entry; a non-empty partial list needs repair.
     pub missing_events: Vec<String>,
     /// Entries left by Coucou are still in settings.json; installing replaces them.
@@ -203,15 +205,13 @@ fn entry_is_ours(entry: &Value) -> bool {
 
 /// Whether every event is hooked the current way, and whether any entry left
 /// by Coucou is still there.
-fn installed_and_legacy(settings: &Value) -> (bool, bool, Vec<String>) {
+fn installed_and_legacy(settings: &Value) -> (bool, bool, bool, Vec<String>) {
     let Some(hooks) = settings.get("hooks").and_then(Value::as_object) else {
         return (
             false,
             false,
-            HOOK_EVENTS
-                .iter()
-                .map(|(event, _)| (*event).to_string())
-                .collect(),
+            false,
+            HOOK_EVENTS.iter().map(|(event, _)| (*event).to_string()).collect(),
         );
     };
     let installed = HOOK_EVENTS.iter().all(|(event, _)| {
@@ -224,6 +224,12 @@ fn installed_and_legacy(settings: &Value) -> (bool, bool, Vec<String>) {
         .values()
         .filter_map(Value::as_array)
         .any(|list| list.iter().any(entry_is_legacy));
+    let partial = !installed && HOOK_EVENTS.iter().any(|(event, _)| {
+        hooks
+            .get(*event)
+            .and_then(Value::as_array)
+            .is_some_and(|list| list.iter().any(entry_is_current))
+    });
     let missing = HOOK_EVENTS
         .iter()
         .filter(|(event, _)| {
@@ -234,7 +240,7 @@ fn installed_and_legacy(settings: &Value) -> (bool, bool, Vec<String>) {
         })
         .map(|(event, _)| (*event).to_string())
         .collect();
-    (installed, legacy, missing)
+    (installed, legacy, partial, missing)
 }
 
 /// Settings with Nook's hooks added; everything else is left untouched.
@@ -337,10 +343,11 @@ pub fn status() -> HookStatus {
     // Installed means every event is hooked the current way: an install made in
     // the old shell form, or by Coucou, shows up as "Install hooks…", and its
     // diff shows the entries being rewritten.
-    let (installed, legacy, missing_events) = installed_and_legacy(&current);
+    let (installed, legacy, partial, missing_events) = installed_and_legacy(&current);
     let hook_path = settings::hook_exe_path();
     HookStatus {
         installed,
+        partial,
         missing_events,
         legacy,
         settings_path: settings_path().to_string_lossy().to_string(),
@@ -1061,7 +1068,7 @@ mod tests {
             assert_eq!(kept, others, "{event}: foreign hooks must be left alone");
         }
         assert!(!pretty(after).contains(LEGACY_MARKER));
-        assert_eq!(installed_and_legacy(after), (true, false, vec![]));
+        assert_eq!(installed_and_legacy(after), (true, false, false, vec![]));
     }
 
     #[test]
@@ -1096,31 +1103,36 @@ mod tests {
     fn legacy_entries_alone_are_not_an_install() {
         for exec_form in [true, false] {
             let legacy = legacy_settings(exec_form);
-            assert_eq!(installed_and_legacy(&legacy), (false, true, vec![]));
+            assert_eq!(installed_and_legacy(&legacy), (false, true, false, vec![]));
             let entry = &legacy["hooks"]["Stop"][0];
             assert!(entry_is_ours(entry) && !entry_is_current(entry));
         }
-        assert_eq!(installed_and_legacy(&json!({})).0, false);
-        assert_eq!(installed_and_legacy(&json!({})).1, false);
-        assert_eq!(installed_and_legacy(&json!({})).2.len(), HOOK_EVENTS.len());
+        let (installed, legacy, partial, missing) = installed_and_legacy(&json!({}));
+        assert!(!installed && !legacy && !partial);
+        assert_eq!(missing, HOOK_EVENTS.iter().map(|(event, _)| (*event).to_string()).collect::<Vec<_>>());
         assert_eq!(
             installed_and_legacy(&merged(&json!({}))),
-            (true, false, vec![])
+            (true, false, false, vec![])
         );
         // Another tool's hook is neither.
         assert!(!entry_is_ours(&foreign()) && !entry_is_legacy(&foreign()));
+        let (installed, _, partial, missing) = installed_and_legacy(&json!({ "hooks": { "Stop": [foreign()] } }));
+        assert!(!installed && !partial);
+        assert_eq!(missing, HOOK_EVENTS.iter().map(|(event, _)| (*event).to_string()).collect::<Vec<_>>());
     }
 
     #[test]
     fn status_lists_only_events_without_a_nook_hook() {
         let partial = json!({ "hooks": {
-            "SessionStart": [{ "hooks": [{ "command": "nook-hook.exe SessionStart" }] }],
+            "SessionStart": [{ "hooks": [hook_entry("SessionStart", 10)] }],
             "Stop": [{ "hooks": [{ "command": "other-hook" }] }]
         }});
-        let (installed, _, missing) = installed_and_legacy(&partial);
+        let (installed, _, is_partial, missing) = installed_and_legacy(&partial);
         assert!(!installed);
+        assert!(is_partial);
         assert_eq!(missing.len(), HOOK_EVENTS.len() - 1);
         assert!(!missing.contains(&"SessionStart".to_string()));
+        assert_eq!(missing, HOOK_EVENTS.iter().skip(1).map(|(event, _)| (*event).to_string()).collect::<Vec<_>>());
     }
 
     #[test]
