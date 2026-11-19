@@ -1,4 +1,40 @@
 export type UsageAgent = "claude" | "codex";
+export type CompactUsageReading = { text: string; more?: string; level?: "calm" | "warm" | "hot"; dim?: boolean };
+export type CompactUsageWindow = { usedPercent: number; resetsAt: number };
+export type CompactUsageShown = { percent: number; state: "fresh" | "old" | "reset"; countdown: string };
+
+/** Select and label the usage window without consulting UI or island state. */
+export function compactUsageReading(
+  kind: "usage5h" | "usage7d",
+  usage: { fiveHour: CompactUsageWindow | null; sevenDay: CompactUsageWindow | null; updatedAt: number } | null,
+  codexQuota: { quotas: { fiveHour: CompactUsageWindow | null; sevenDay: CompactUsageWindow | null } | null; updatedAt: number | null; stale: boolean; available: boolean } | null | undefined,
+  rotationEnabled: boolean,
+  agent: UsageAgent | null,
+  shownUsage: (window: CompactUsageWindow | null | undefined, updatedAt: number, now: number) => CompactUsageShown | null,
+  levelFor: (percent: number) => "calm" | "warm" | "hot",
+  sourceWords: string,
+  now: number,
+): CompactUsageReading {
+  if (rotationEnabled && !agent) return { text: "—", more: "Usage unavailable", dim: true };
+  const fiveHour = kind === "usage5h";
+  const window = rotationEnabled && agent === "codex"
+    ? (fiveHour ? codexQuota?.quotas?.fiveHour : codexQuota?.quotas?.sevenDay)
+    : (fiveHour ? usage?.fiveHour : usage?.sevenDay);
+  const updatedAt = rotationEnabled && agent === "codex" ? codexQuota?.updatedAt ?? 0 : usage?.updatedAt ?? 0;
+  const shown = shownUsage(window, updatedAt, now);
+  if (!shown) return { text: "—", ...(rotationEnabled ? { more: `${agent === "codex" ? "Codex" : "Claude Code"} usage unavailable` } : {}) };
+  if (rotationEnabled && (shown.state !== "fresh" || updatedAt <= 0 || (agent === "codex" && (!codexQuota?.available || codexQuota.stale)))) {
+    return { text: "—", more: `${agent === "codex" ? "Codex" : "Claude Code"} usage unavailable`, dim: true };
+  }
+  const reset = shown.state === "reset";
+  const provider = rotationEnabled ? `${agent === "codex" ? "Codex" : "Claude Code"} · ` : "";
+  return {
+    text: `${shown.percent}%`,
+    more: [provider.trim(), shown.countdown, !rotationEnabled || agent === "claude" ? sourceWords : ""].filter(Boolean).join(" · "),
+    level: reset ? undefined : levelFor(shown.percent),
+    dim: shown.state !== "fresh",
+  };
+}
 
 export const COMPACT_USAGE_ROTATION_MS = 5_000;
 const ORDER: readonly UsageAgent[] = ["claude", "codex"];
@@ -18,7 +54,7 @@ export function availableCompactUsageAgents(
 }
 
 export interface CompactUsageCycle {
-  configure(available: readonly UsageAgent[], enabled: boolean, visible: boolean): void;
+  configure(available: readonly UsageAgent[], rotationEnabled: boolean, codexLimitsEnabled: boolean, active: boolean): void;
   current(): UsageAgent | null;
   destroy(): void;
 }
@@ -31,8 +67,9 @@ export function createCompactUsageCycle(
 ): CompactUsageCycle {
   let available: UsageAgent[] = [];
   let agent: UsageAgent | null = "claude";
-  let enabled = false;
-  let visible = false;
+  let rotationEnabled = false;
+  let codexLimitsEnabled = false;
+  let active = false;
   let timer: number | null = null;
   let destroyed = false;
 
@@ -41,7 +78,7 @@ export function createCompactUsageCycle(
     cancel(timer);
     timer = null;
   };
-  const canRotate = () => !destroyed && enabled && visible && available.length === 2;
+  const canRotate = () => !destroyed && rotationEnabled && codexLimitsEnabled && active && available.length === 2;
   const start = () => {
     if (timer != null || !canRotate()) return;
     timer = schedule(() => {
@@ -54,20 +91,21 @@ export function createCompactUsageCycle(
   };
 
   return {
-    configure(next, isEnabled, isVisible) {
+    configure(next, isRotationEnabled, areCodexLimitsEnabled, isActive) {
       if (destroyed) return;
       const normalized = ORDER.filter((candidate) => next.includes(candidate));
       const changedAvailability = normalized.join("|") !== available.join("|");
-      const changedGate = isEnabled !== enabled || isVisible !== visible;
-      if (changedAvailability || (isEnabled && normalized.length === 1)) {
+      const changedGate = isRotationEnabled !== rotationEnabled || areCodexLimitsEnabled !== codexLimitsEnabled || isActive !== active;
+      if (changedAvailability || ((isRotationEnabled || areCodexLimitsEnabled) && normalized.length === 1)) {
         stop();
         available = normalized;
         agent = normalized.length === 1 ? normalized[0]! : normalized.includes(agent as UsageAgent) ? agent : normalized[0] ?? null;
       }
-      enabled = isEnabled;
-      visible = isVisible;
-      if (!enabled) agent = "claude";
-      if (changedGate && (!enabled || !visible)) stop();
+      rotationEnabled = isRotationEnabled;
+      codexLimitsEnabled = areCodexLimitsEnabled;
+      active = isActive;
+      if (!rotationEnabled || !codexLimitsEnabled) agent = "claude";
+      if (changedGate && (!rotationEnabled || !codexLimitsEnabled || !active)) stop();
       start();
     },
     current: () => agent,

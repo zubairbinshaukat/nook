@@ -19,11 +19,11 @@ import {
   type CodexQuotaSnapshot, type CompactMetric, type Metrics, type Usage, type UsageLevel,
 } from "../core/state";
 import { clear, h } from "../views/dom";
-import { CLAUDE_MARK, CODEX_MARK, LUCIDE, lucide } from "../views/iconset";
+import { LUCIDE, lucide } from "../views/iconset";
 import { wear } from "../views/palette";
 import { DOT_LEGEND, TOOL_NAME } from "../views/tool";
 import { labelText, roster, stateWords, waitingCount, type Entry } from "../views/roster";
-import { availableCompactUsageAgents, createCompactUsageCycle, type UsageAgent } from "./compact-usage-cycle";
+import { availableCompactUsageAgents, compactUsageReading, createCompactUsageCycle, type UsageAgent } from "./compact-usage-cycle";
 
 /** A cell's icon, and its number's size: the icons of the set, on their 24 px grid. */
 const COMPACT_ICON = 14;
@@ -77,26 +77,7 @@ export function reading(kind: CompactMetric, { metrics: m, usage, codexQuota, us
       return { text: percent(ramPercent(m)), more: ramWords(m) };
     case "usage5h":
     case "usage7d": {
-      const isFiveHour = kind === "usage5h";
-      if (usageRotationEnabled && !usageAgent) return { text: "—", more: "Usage unavailable", dim: true };
-      const window = usageRotationEnabled && usageAgent === "codex"
-        ? (isFiveHour ? codexQuota?.quotas?.fiveHour : codexQuota?.quotas?.sevenDay)
-        : (isFiveHour ? usage?.fiveHour : usage?.sevenDay);
-      const updatedAt = usageRotationEnabled && usageAgent === "codex" ? codexQuota?.updatedAt ?? now : usage?.updatedAt ?? now;
-      const shown = usageShown(window, updatedAt, now);
-      if (!shown) return { text: "—" };
-      if (usageRotationEnabled && (shown.state !== "fresh" || (usageRotationEnabled && usageAgent === "codex" && (!codexQuota?.available || codexQuota.stale)))) {
-        return { text: "—", more: `${usageAgent === "codex" ? "Codex" : "Claude Code"} usage unavailable`, dim: true };
-      }
-      // Past its reset the old number is not shown: 0 %, dimmed, and the tooltip says why.
-      const reset = shown.state === "reset";
-      const provider = usageRotationEnabled ? `${usageAgent === "codex" ? "Codex" : "Claude Code"} · ` : "";
-      return {
-        text: `${shown.percent}%`,
-        more: [provider.trim(), shown.countdown, !usageRotationEnabled || usageAgent === "claude" ? USAGE_SOURCE_WORDS : ""].filter(Boolean).join(" · "),
-        level: reset ? undefined : usageLevel(shown.percent),
-        dim: shown.state !== "fresh",
-      };
+      return compactUsageReading(kind, usage, codexQuota, usageRotationEnabled, usageAgent, usageShown, usageLevel, USAGE_SOURCE_WORDS, now);
     }
     case "waiting":
       return { text: String(Math.min(99, waiting)) };
@@ -182,8 +163,8 @@ export function compactPlan(): CompactPlan {
 
 export interface CompactStrip {
   el: HTMLElement;
-  /** Pauses or resumes the display-only usage timer with island visibility. */
-  setVisible(visible: boolean): void;
+  /** Pauses or resumes the display-only usage timer with island activity. */
+  setActive(active: boolean): void;
   /** Stops timers and listeners when the island page is torn down. */
   destroy(): void;
   /** Draws what the plan holds; nothing is rebuilt when it has not changed. */
@@ -219,15 +200,16 @@ export function buildCompact(): CompactStrip {
   let metricsKey = "";
   /** The number of each cell on show, by its kind. */
   const values = new Map<CompactMetric, HTMLElement>();
-  const marks = new Map<CompactMetric, SVGSVGElement>();
+  const marks = new Map<CompactMetric, HTMLElement | SVGSVGElement>();
   let visible = State.mode !== "hidden";
+  let hovered = false;
   let usageAgent: UsageAgent | null = "claude";
   let cycle: ReturnType<typeof createCompactUsageCycle>;
 
   const availability = (from: Gauges) => availableCompactUsageAgents(
-    [from.usage?.fiveHour, from.usage?.sevenDay]
+    (from.usage ? [from.usage.fiveHour, from.usage.sevenDay] : [])
       .filter((win): win is NonNullable<typeof win> => !!win)
-      .map((win) => ({ fresh: (from.usage?.updatedAt ?? 0) >= Date.now() - USAGE_OLD_MS, resetsAt: win.resetsAt })),
+      .map((win) => ({ fresh: from.usage!.updatedAt > 0 && Date.now() - from.usage!.updatedAt <= USAGE_OLD_MS, resetsAt: win.resetsAt })),
     (from.codexQuota?.quotas ? [from.codexQuota.quotas.fiveHour, from.codexQuota.quotas.sevenDay] : [])
       .filter((win): win is NonNullable<typeof win> => !!win)
       .map((win) => ({
@@ -240,7 +222,7 @@ export function buildCompact(): CompactStrip {
 
   function configureCycle() {
     const base = gauges();
-    cycle.configure(availability(base), State.settings.usageRotationEnabled, visible);
+    cycle.configure(availability(base), State.settings.usageRotationEnabled, State.settings.codexQuotaEnabled, visible && !hovered && State.mode !== "expanded");
     usageAgent = cycle.current();
   }
 
@@ -249,7 +231,8 @@ export function buildCompact(): CompactStrip {
     const from = gauges(usageAgent);
     for (const [kind, value] of values) {
       const { text, more, level, dim } = reading(kind, from);
-      const provider = from.usageRotationEnabled && isUsageMetric(kind) && from.usageAgent
+      const rotationActive = from.usageRotationEnabled && State.settings.codexQuotaEnabled;
+      const provider = rotationActive && isUsageMetric(kind) && from.usageAgent
         ? `${from.usageAgent === "codex" ? "Codex" : "Claude Code"} ` : "";
       const title = more ? `${provider}${METRIC[kind].name} — ${more}` : `${provider}${METRIC[kind].name}`;
       const cell = value.parentElement!;
@@ -259,19 +242,17 @@ export function buildCompact(): CompactStrip {
       value.classList.toggle("dim", dim === true);
       const mark = marks.get(kind);
       if (mark && isUsageMetric(kind)) {
-        const source = from.usageRotationEnabled ? from.usageAgent : null;
-        const path = source === "codex" ? CODEX_MARK : source === "claude" ? CLAUDE_MARK : null;
-        if (path && source && mark.dataset.provider !== source) {
-          const replacement = lucide(path, COMPACT_ICON, source === "claude" ? 2.4 : 2);
-          if (source === "claude") replacement.style.color = "#D97757";
-          replacement.dataset.provider = source;
-          mark.replaceWith(replacement);
-          marks.set(kind, replacement);
-        } else if (!path && mark.dataset.provider) {
-          const replacement = lucide(METRIC[kind].icon, COMPACT_ICON);
-          mark.replaceWith(replacement);
-          marks.set(kind, replacement);
+        const source = rotationActive ? from.usageAgent : null;
+        const providerLabel = source === "codex" ? "Codex" : source === "claude" ? "Claude" : "";
+        if (mark.textContent !== providerLabel) mark.textContent = providerLabel;
+        if (mark.getAttribute("aria-label") !== (providerLabel || null)) {
+          if (providerLabel) mark.setAttribute("aria-label", providerLabel);
+          else mark.removeAttribute("aria-label");
         }
+        mark.setAttribute("aria-hidden", source ? "false" : "true");
+        mark.classList.toggle("codex", source === "codex");
+        mark.classList.toggle("claude", source === "claude");
+        mark.classList.toggle("shown", source !== null);
       }
       if (value.textContent === text) continue;
       value.textContent = text;
@@ -289,15 +270,21 @@ export function buildCompact(): CompactStrip {
   const teardown = () => {
     cycle.destroy();
     stopGauges();
+    el.removeEventListener("pointerenter", pauseOnHover);
+    el.removeEventListener("pointerleave", resumeFromHover);
     window.removeEventListener("pagehide", teardown);
   };
+  const pauseOnHover = () => { hovered = true; configureCycle(); };
+  const resumeFromHover = () => { hovered = false; configureCycle(); };
+  el.addEventListener("pointerenter", pauseOnHover);
+  el.addEventListener("pointerleave", resumeFromHover);
   window.addEventListener("pagehide", teardown, { once: true });
 
   return {
     el,
-    setVisible(isVisible) {
-      visible = isVisible;
-      writeValues();
+    setActive(isActive) {
+      visible = isActive;
+      configureCycle();
     },
     destroy: teardown,
     sync(plan) {
@@ -336,7 +323,7 @@ export function buildCompact(): CompactStrip {
           const def = METRIC[kind];
           const value = h("b");
           values.set(kind, value);
-          const mark = lucide(def.icon, COMPACT_ICON);
+          const mark = isUsageMetric(kind) ? h("span", { class: "ci-provider-mark" }) : lucide(def.icon, COMPACT_ICON);
           marks.set(kind, mark);
           metrics.append(h(
             "span", { class: "ci-metric", style: `--w:${def.width}px`, title: def.name },
