@@ -330,19 +330,29 @@ body {
   flex: 0 0 auto;
 }
 
-.ci-provider-mark {
+.ci-usage-icon-wrap {
+  position: relative;
+  display: inline-flex;
   flex: 0 0 14px;
+  align-items: center;
+  justify-content: center;
   width: 14px;
-  overflow: hidden;
-  font: 600 9px/14px var(--font);
-  letter-spacing: -0.5px;
-  color: var(--dim-2);
-  opacity: 0;
+  height: 14px;
 }
 
-.ci-provider-mark.shown { opacity: 1; }
-.ci-provider-mark.claude { color: #D97757; }
-.ci-provider-mark.codex { color: var(--ink-2); }
+.ci-provider-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--bg);
+  border-radius: 50%;
+}
+
+.ci-provider-dot[hidden] {
+  display: none;
+}
 
 .ci-metric b {
   font: 500 12px var(--font);

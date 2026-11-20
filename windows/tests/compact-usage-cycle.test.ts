@@ -36,19 +36,26 @@ const show = (win: CompactUsageWindow | null | undefined, updatedAt: number, now
 const level = (percent: number) => percent > 85 ? "hot" as const : percent >= 60 ? "warm" as const : "calm" as const;
 const sourceWords = "Usage only updates while Claude Code runs.";
 
+const read = (overrides: Partial<Parameters<typeof compactUsageReading>[0]> = {}) => compactUsageReading({
+  kind: "usage5h", usage: base.usage, codexQuota: base.codexQuota, rotationEnabled: true,
+  codexLimitsEnabled: true, agent: "claude", shownUsage: show, levelFor: level,
+  sourceWords, now: 50_000, ...overrides,
+});
+
 test("reading selects provider values and labels the displayed source", () => {
-  const claude = compactUsageReading("usage5h", base.usage, base.codexQuota, true, "claude", show, level, sourceWords, 50_000);
-  const codex = compactUsageReading("usage5h", base.usage, base.codexQuota, true, "codex", show, level, sourceWords, 50_000);
+  const claude = read();
+  const codex = read({ agent: "codex" });
   assert.equal(claude.text, "21%");
   assert.match(claude.more ?? "", /Claude Code/);
   assert.equal(codex.text, "64%");
   assert.match(codex.more ?? "", /Codex/);
 });
 
-test("rotation setting disabled preserves the original Claude display", () => {
-  const readingValue = compactUsageReading("usage5h", base.usage, base.codexQuota, false, "codex", show, level, sourceWords, 50_000);
+test("rotation setting disabled preserves the original Claude display and tooltip separator", () => {
+  const readingValue = read({ rotationEnabled: false, agent: "codex" });
   assert.equal(readingValue.text, "21%");
-  assert.doesNotMatch(readingValue.more ?? "", /^(Codex|Claude Code) ·/);
+  assert.equal(readingValue.more, "resets in <1m. Usage only updates while Claude Code runs.");
+  assert.doesNotMatch(readingValue.more ?? "", /Codex|Claude Code ·/);
 });
 
 test("Codex limits disabled gates rotation and provider marks", () => {
@@ -56,29 +63,47 @@ test("Codex limits disabled gates rotation and provider marks", () => {
   cycle.configure(["claude", "codex"], true, false, true);
   assert.equal(pending.size, 0);
   assert.equal(cycle.current(), "claude");
-  const original = compactUsageReading("usage5h", base.usage, base.codexQuota, false, "claude", show, level, sourceWords, 50_000);
+  const original = read({ rotationEnabled: true, codexLimitsEnabled: false, agent: "codex" });
   assert.equal(original.text, "21%");
+  assert.equal(original.more, "resets in <1m. Usage only updates while Claude Code runs.");
   cycle.destroy();
 });
 
-test("provider switching keeps the same metric cells, fixed width, and existing marks", () => {
+test("provider switching keeps original timer and calendar icons in fixed-width cells", () => {
   const width = 52;
-  const cells = ["usage5h", "usage7d"].map((kind) => ({ kind, width, markNode: {} }));
-  const before = cells.map((cell) => ({ ...cell }));
+  const cells = [{ kind: "usage5h", icon: "timer", width }, { kind: "usage7d", icon: "calendarDays", width }];
+  const before = structuredClone(cells);
   for (const agent of ["claude", "codex"] as const) {
-    const values = cells.map((cell) => compactUsageReading(cell.kind as "usage5h" | "usage7d", base.usage, base.codexQuota, true, agent, show, level, sourceWords, 50_000));
+    const values = cells.map((cell) => read({ kind: cell.kind as "usage5h" | "usage7d", agent }));
     assert.equal(values.length, 2);
   }
   assert.deepEqual(cells, before);
+  assert.deepEqual(cells.map(({ icon }) => icon), ["timer", "calendarDays"]);
 });
 
 test("missing and stale provider readings never appear current", () => {
-  const missing = compactUsageReading("usage5h", base.usage, null, true, "codex", show, level, sourceWords, 50_000);
-  const stale = compactUsageReading("usage5h", { ...base.usage, updatedAt: 0 }, base.codexQuota, true, "claude", show, level, sourceWords, 50_000);
+  const missing = read({ codexQuota: null, agent: "codex" });
+  const stale = read({ usage: { ...base.usage, updatedAt: 0 } });
   assert.equal(missing.text, "—");
   assert.match(missing.more ?? "", /Codex usage unavailable/);
   assert.equal(stale.text, "—");
   assert.match(stale.more ?? "", /Claude Code usage unavailable/);
+});
+
+test("old and reset values retain their original display while rotation is inactive", () => {
+  const old = read({ rotationEnabled: false, usage: { ...base.usage, updatedAt: -200_000 } });
+  const reset = read({ rotationEnabled: false, usage: { ...base.usage, fiveHour: { usedPercent: 83, resetsAt: 50_000 } } });
+  assert.equal(old.text, "21%");
+  assert.equal(old.dim, true);
+  assert.equal(reset.text, "0%");
+  assert.equal(reset.dim, true);
+  assert.match(reset.more ?? "", /reset, waiting for new data/);
+});
+
+test("rotation tooltip contains a provider only while rotation is active", () => {
+  assert.match(read().more ?? "", /^Claude Code ·/);
+  assert.match(read({ agent: "codex" }).more ?? "", /^Codex ·/);
+  assert.equal(read({ codexLimitsEnabled: false }).more, "resets in <1m. Usage only updates while Claude Code runs.");
 });
 
 function clock() {

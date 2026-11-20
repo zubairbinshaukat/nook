@@ -21,7 +21,7 @@ import {
 import { clear, h } from "../views/dom";
 import { LUCIDE, lucide } from "../views/iconset";
 import { wear } from "../views/palette";
-import { DOT_LEGEND, TOOL_NAME } from "../views/tool";
+import { CLAUDE_ORANGE, DOT_LEGEND, TOOL_NAME } from "../views/tool";
 import { labelText, roster, stateWords, waitingCount, type Entry } from "../views/roster";
 import { availableCompactUsageAgents, compactUsageReading, createCompactUsageCycle, type UsageAgent } from "./compact-usage-cycle";
 
@@ -77,7 +77,7 @@ export function reading(kind: CompactMetric, { metrics: m, usage, codexQuota, us
       return { text: percent(ramPercent(m)), more: ramWords(m) };
     case "usage5h":
     case "usage7d": {
-      return compactUsageReading(kind, usage, codexQuota, usageRotationEnabled, usageAgent, usageShown, usageLevel, USAGE_SOURCE_WORDS, now);
+      return compactUsageReading({ kind, usage, codexQuota, rotationEnabled: usageRotationEnabled, codexLimitsEnabled: State.settings.codexQuotaEnabled, agent: State.settings.codexQuotaEnabled ? usageAgent : "claude", shownUsage: usageShown, levelFor: usageLevel, sourceWords: USAGE_SOURCE_WORDS, now });
     }
     case "waiting":
       return { text: String(Math.min(99, waiting)) };
@@ -201,6 +201,7 @@ export function buildCompact(): CompactStrip {
   /** The number of each cell on show, by its kind. */
   const values = new Map<CompactMetric, HTMLElement>();
   const marks = new Map<CompactMetric, HTMLElement | SVGSVGElement>();
+  const providerDots = new Map<CompactMetric, HTMLElement>();
   let visible = State.mode !== "hidden";
   let hovered = false;
   let usageAgent: UsageAgent | null = "claude";
@@ -229,12 +230,15 @@ export function buildCompact(): CompactStrip {
   function writeValues() {
     configureCycle();
     const from = gauges(usageAgent);
+    const rotationActive = from.usageRotationEnabled === true && State.settings.codexQuotaEnabled && availability(from).length === 2;
+    const displayed = { ...from, usageRotationEnabled: rotationActive };
     for (const [kind, value] of values) {
-      const { text, more, level, dim } = reading(kind, from);
-      const rotationActive = from.usageRotationEnabled && State.settings.codexQuotaEnabled;
+      const { text, more, level, dim } = reading(kind, displayed);
       const provider = rotationActive && isUsageMetric(kind) && from.usageAgent
-        ? `${from.usageAgent === "codex" ? "Codex" : "Claude Code"} ` : "";
-      const title = more ? `${provider}${METRIC[kind].name} — ${more}` : `${provider}${METRIC[kind].name}`;
+        ? `${from.usageAgent === "codex" ? "Codex" : "Claude Code"}` : "";
+      const title = more
+        ? `${METRIC[kind].name} — ${rotationActive && provider ? `${provider} · ` : ""}${more}`
+        : `${METRIC[kind].name}${rotationActive && provider ? ` — ${provider}` : ""}`;
       const cell = value.parentElement!;
       if (cell.title !== title) cell.title = title;
       cell.setAttribute("aria-label", title);
@@ -243,16 +247,10 @@ export function buildCompact(): CompactStrip {
       const mark = marks.get(kind);
       if (mark && isUsageMetric(kind)) {
         const source = rotationActive ? from.usageAgent : null;
-        const providerLabel = source === "codex" ? "Codex" : source === "claude" ? "Claude" : "";
-        if (mark.textContent !== providerLabel) mark.textContent = providerLabel;
-        if (mark.getAttribute("aria-label") !== (providerLabel || null)) {
-          if (providerLabel) mark.setAttribute("aria-label", providerLabel);
-          else mark.removeAttribute("aria-label");
-        }
-        mark.setAttribute("aria-hidden", source ? "false" : "true");
-        mark.classList.toggle("codex", source === "codex");
-        mark.classList.toggle("claude", source === "claude");
-        mark.classList.toggle("shown", source !== null);
+        const dot = providerDots.get(kind)!;
+        dot.hidden = source === null;
+        dot.style.backgroundColor = source === "claude" ? CLAUDE_ORANGE : "var(--ink-2)";
+        dot.title = source === "codex" ? "Codex" : source === "claude" ? "Claude Code" : "";
       }
       if (value.textContent === text) continue;
       value.textContent = text;
@@ -318,16 +316,24 @@ export function buildCompact(): CompactStrip {
         metricsKey = nextMetrics;
         clear(metrics);
         values.clear();
+        providerDots.clear();
         metrics.hidden = plan.kinds.length === 0;
         for (const kind of plan.kinds) {
           const def = METRIC[kind];
           const value = h("b");
           values.set(kind, value);
-          const mark = isUsageMetric(kind) ? h("span", { class: "ci-provider-mark" }) : lucide(def.icon, COMPACT_ICON);
+          const mark = lucide(def.icon, COMPACT_ICON);
           marks.set(kind, mark);
+          let icon: HTMLElement | SVGSVGElement = mark;
+          if (isUsageMetric(kind)) {
+            const dot = h("i", { class: "ci-provider-dot", hidden: true });
+            const wrapper = h("span", { class: "ci-usage-icon-wrap" }, mark, dot);
+            providerDots.set(kind, dot);
+            icon = wrapper;
+          }
           metrics.append(h(
             "span", { class: "ci-metric", style: `--w:${def.width}px`, title: def.name },
-            mark,
+            icon,
             value,
           ));
         }
