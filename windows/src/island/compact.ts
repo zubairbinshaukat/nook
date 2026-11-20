@@ -23,7 +23,7 @@ import { LUCIDE, lucide } from "../views/iconset";
 import { wear } from "../views/palette";
 import { CLAUDE_ORANGE, DOT_LEGEND, TOOL_NAME } from "../views/tool";
 import { labelText, roster, stateWords, waitingCount, type Entry } from "../views/roster";
-import { availableCompactUsageAgents, compactUsageReading, createCompactUsageCycle, type UsageAgent } from "./compact-usage-cycle";
+import { availableCompactUsageAgents, compactCellTooltip, compactUsageReading, createCompactUsageCycle, type UsageAgent } from "./compact-usage-cycle";
 
 /** A cell's icon, and its number's size: the icons of the set, on their 24 px grid. */
 const COMPACT_ICON = 14;
@@ -56,6 +56,7 @@ export interface Gauges {
   usage: Usage | null;
   codexQuota?: CodexQuotaSnapshot | null;
   usageRotationEnabled?: boolean;
+  codexQuotaEnabled?: boolean;
   usageAgent?: UsageAgent | null;
   waiting: number;
   /** The time the usage is read at (Unix ms): now, when not said. */
@@ -66,7 +67,7 @@ const percent = (value: number | null | undefined): string => (value != null ? `
 const isUsageMetric = (kind: CompactMetric) => kind === "usage5h" || kind === "usage7d";
 
 /** What one cell says, from the gauges alone: nothing here looks at the island. */
-export function reading(kind: CompactMetric, { metrics: m, usage, codexQuota, usageRotationEnabled = false, usageAgent = "claude", waiting, now = Date.now() }: Gauges): Reading {
+export function reading(kind: CompactMetric, { metrics: m, usage, codexQuota, usageRotationEnabled = false, codexQuotaEnabled = false, usageAgent = "claude", waiting, now = Date.now() }: Gauges): Reading {
   switch (kind) {
     case "cpu":
       return { text: percent(m?.cpu) };
@@ -77,7 +78,7 @@ export function reading(kind: CompactMetric, { metrics: m, usage, codexQuota, us
       return { text: percent(ramPercent(m)), more: ramWords(m) };
     case "usage5h":
     case "usage7d": {
-      return compactUsageReading({ kind, usage, codexQuota, rotationEnabled: usageRotationEnabled, codexLimitsEnabled: State.settings.codexQuotaEnabled, agent: State.settings.codexQuotaEnabled ? usageAgent : "claude", shownUsage: usageShown, levelFor: usageLevel, sourceWords: USAGE_SOURCE_WORDS, now });
+      return compactUsageReading({ kind, usage, codexQuota, rotationEnabled: usageRotationEnabled, codexLimitsEnabled: codexQuotaEnabled, agent: codexQuotaEnabled ? usageAgent : "claude", shownUsage: usageShown, levelFor: usageLevel, sourceWords: USAGE_SOURCE_WORDS, now });
     }
     case "waiting":
       return { text: String(Math.min(99, waiting)) };
@@ -89,6 +90,7 @@ const gauges = (usageAgent?: UsageAgent | null): Gauges => ({
   usage: State.usage,
   codexQuota: State.codexQuota,
   usageRotationEnabled: State.settings.usageRotationEnabled,
+  codexQuotaEnabled: State.settings.codexQuotaEnabled,
   usageAgent,
   waiting: waitingCount(),
 });
@@ -200,7 +202,6 @@ export function buildCompact(): CompactStrip {
   let metricsKey = "";
   /** The number of each cell on show, by its kind. */
   const values = new Map<CompactMetric, HTMLElement>();
-  const marks = new Map<CompactMetric, HTMLElement | SVGSVGElement>();
   const providerDots = new Map<CompactMetric, HTMLElement>();
   let visible = State.mode !== "hidden";
   let hovered = false;
@@ -230,22 +231,17 @@ export function buildCompact(): CompactStrip {
   function writeValues() {
     configureCycle();
     const from = gauges(usageAgent);
-    const rotationActive = from.usageRotationEnabled === true && State.settings.codexQuotaEnabled && availability(from).length === 2;
+    const rotationActive = from.usageRotationEnabled === true && from.codexQuotaEnabled === true && availability(from).length === 2;
     const displayed = { ...from, usageRotationEnabled: rotationActive };
     for (const [kind, value] of values) {
       const { text, more, level, dim } = reading(kind, displayed);
-      const provider = rotationActive && isUsageMetric(kind) && from.usageAgent
-        ? `${from.usageAgent === "codex" ? "Codex" : "Claude Code"}` : "";
-      const title = more
-        ? `${METRIC[kind].name} — ${rotationActive && provider ? `${provider} · ` : ""}${more}`
-        : `${METRIC[kind].name}${rotationActive && provider ? ` — ${provider}` : ""}`;
+      const title = compactCellTooltip(METRIC[kind].name, more, rotationActive, isUsageMetric(kind), from.usageAgent ?? null);
       const cell = value.parentElement!;
       if (cell.title !== title) cell.title = title;
       cell.setAttribute("aria-label", title);
       if (value.dataset.level !== (level ?? "")) value.dataset.level = level ?? "";
       value.classList.toggle("dim", dim === true);
-      const mark = marks.get(kind);
-      if (mark && isUsageMetric(kind)) {
+      if (isUsageMetric(kind)) {
         const source = rotationActive ? from.usageAgent : null;
         const dot = providerDots.get(kind)!;
         dot.hidden = source === null;
@@ -323,7 +319,6 @@ export function buildCompact(): CompactStrip {
           const value = h("b");
           values.set(kind, value);
           const mark = lucide(def.icon, COMPACT_ICON);
-          marks.set(kind, mark);
           let icon: HTMLElement | SVGSVGElement = mark;
           if (isUsageMetric(kind)) {
             const dot = h("i", { class: "ci-provider-dot", hidden: true });

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { availableCompactUsageAgents, compactUsageReading, COMPACT_USAGE_ROTATION_MS, createCompactUsageCycle, type CompactUsageShown, type CompactUsageWindow, type UsageAgent } from "../src/island/compact-usage-cycle.ts";
+import { availableCompactUsageAgents, compactCellTooltip, compactUsageReading, COMPACT_USAGE_ROTATION_MS, createCompactUsageCycle, type CompactUsageShown, type CompactUsageWindow, type UsageAgent } from "../src/island/compact-usage-cycle.ts";
 
 const base = {
   metrics: null,
@@ -106,6 +106,21 @@ test("rotation tooltip contains a provider only while rotation is active", () =>
   assert.equal(read({ codexLimitsEnabled: false }).more, "resets in <1m. Usage only updates while Claude Code runs.");
 });
 
+test("final hover tooltip contains the active provider exactly once", () => {
+  const claude = read();
+  const codex = read({ agent: "codex" });
+  const claudeTitle = compactCellTooltip("5-hour usage", claude.more, true, true, "claude");
+  const codexTitle = compactCellTooltip("5-hour usage", codex.more, true, true, "codex");
+  assert.equal(claudeTitle, "5-hour usage — Claude Code · resets in <1m · Usage only updates while Claude Code runs.");
+  assert.equal((claudeTitle.match(/Claude Code ·/g) ?? []).length, 1, "the provider label appears once");
+  assert.equal(codexTitle, "5-hour usage — Codex · resets in 1m");
+});
+
+test("final hover tooltip preserves the original inactive formatting", () => {
+  const claude = read({ rotationEnabled: false });
+  assert.equal(compactCellTooltip("5-hour usage", claude.more, false, true, "claude"), "5-hour usage — resets in <1m. Usage only updates while Claude Code runs.");
+});
+
 function clock() {
   let nextId = 0;
   const pending = new Map<number, { callback: () => void; delay: number }>();
@@ -141,7 +156,7 @@ test("two usable providers alternate at the proposed five-second interval", () =
   cycle.destroy();
 });
 
-test("a sole available provider stays selected and no available providers show no provider", () => {
+test("a sole available provider does not start rotation and no providers show no provider", () => {
   const { cycle, pending } = clock();
   cycle.configure(["codex"], true, true, true);
   assert.equal(cycle.current(), "codex");

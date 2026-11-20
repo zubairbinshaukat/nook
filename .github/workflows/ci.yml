@@ -1,7 +1,7 @@
 name: CI
 
-# Runs when a release tag (v*) is pushed, and by hand from the Actions tab. Builds
-# nothing that is published and uses no secrets.
+# Runs on pull requests, when a release tag (v*) is pushed, and by hand from the
+# Actions tab. Builds nothing that is published and uses no secrets.
 
 on:
   push:

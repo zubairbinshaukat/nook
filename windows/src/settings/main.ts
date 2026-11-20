@@ -1738,7 +1738,7 @@ function islandSection(): Kid[] {
     "What the compact island shows", "Pick up to three numbers to show beside Gullu.",
     "metrics numbers stats cpu processor gpu graphics ram memory usage limits weekly waiting sessions show", true),
     group("Usage indicators",
-      row("Rotate Claude and Codex usage", "Requires Read Codex usage limits. When both providers have fresh quota data, the compact island switches between them every five seconds. If only one is available, it stays selected. Nook uses the data it already has.", usageRotation.el,
+      row("Rotate Claude and Codex usage", "Requires Read Codex usage limits. The compact island switches between Claude and Codex every five seconds only while both have fresh quota data. Otherwise, it keeps showing Claude usage as usual. Nook uses the data it already has.", usageRotation.el,
         "claude codex quota usage limits rotate rotation switch alternate five seconds")),
     resetFoot("island"),
   ];

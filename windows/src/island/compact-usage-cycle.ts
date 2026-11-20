@@ -2,6 +2,13 @@ export type UsageAgent = "claude" | "codex";
 export type CompactUsageReading = { text: string; more?: string; level?: "calm" | "warm" | "hot"; dim?: boolean };
 export type CompactUsageWindow = { usedPercent: number; resetsAt: number };
 export type CompactUsageShown = { percent: number; state: "fresh" | "old" | "reset"; countdown: string };
+
+/** Compose the text that is actually assigned to a compact cell's tooltip. */
+export function compactCellTooltip(name: string, more: string | undefined, rotationActive: boolean, isUsage: boolean, agent: UsageAgent | null): string {
+  if (more) return `${name} — ${more}`;
+  const provider = rotationActive && isUsage && agent ? agent === "codex" ? "Codex" : "Claude Code" : "";
+  return `${name}${provider ? ` — ${provider}` : ""}`;
+}
 export interface CompactUsageReadingOptions {
   kind: "usage5h" | "usage7d";
   usage: { fiveHour: CompactUsageWindow | null; sevenDay: CompactUsageWindow | null; updatedAt: number } | null;
