@@ -15,14 +15,15 @@ import {
   COMPACT_PAD, COMPACT_SLOT_GAP, compactLayout, type CompactLayout,
 } from "../core/layout";
 import {
-  State, USAGE_SOURCE_WORDS, compactMetrics, ramPercent, ramWords, usageLevel, usageShown,
-  type CompactMetric, type Metrics, type Usage, type UsageLevel,
+  State, USAGE_OLD_MS, USAGE_SOURCE_WORDS, compactMetrics, ramPercent, ramWords, usageLevel, usageShown,
+  type CodexQuotaSnapshot, type CompactMetric, type Metrics, type Usage, type UsageLevel,
 } from "../core/state";
 import { clear, h } from "../views/dom";
 import { LUCIDE, lucide } from "../views/iconset";
 import { wear } from "../views/palette";
-import { DOT_LEGEND, TOOL_NAME } from "../views/tool";
+import { CLAUDE_ORANGE, DOT_LEGEND, TOOL_NAME } from "../views/tool";
 import { labelText, roster, stateWords, waitingCount, type Entry } from "../views/roster";
+import { availableCompactUsageAgents, compactCellTooltip, compactUsageReading, createCompactUsageCycle, type UsageAgent } from "./compact-usage-cycle";
 
 /** A cell's icon, and its number's size: the icons of the set, on their 24 px grid. */
 const COMPACT_ICON = 14;
@@ -53,15 +54,20 @@ export interface Reading {
 export interface Gauges {
   metrics: Metrics | null;
   usage: Usage | null;
+  codexQuota?: CodexQuotaSnapshot | null;
+  usageRotationEnabled?: boolean;
+  codexQuotaEnabled?: boolean;
+  usageAgent?: UsageAgent | null;
   waiting: number;
   /** The time the usage is read at (Unix ms): now, when not said. */
   now?: number;
 }
 
 const percent = (value: number | null | undefined): string => (value != null ? `${Math.round(value)}%` : "—");
+const isUsageMetric = (kind: CompactMetric) => kind === "usage5h" || kind === "usage7d";
 
 /** What one cell says, from the gauges alone: nothing here looks at the island. */
-export function reading(kind: CompactMetric, { metrics: m, usage, waiting, now = Date.now() }: Gauges): Reading {
+export function reading(kind: CompactMetric, { metrics: m, usage, codexQuota, usageRotationEnabled = false, codexQuotaEnabled = false, usageAgent = "claude", waiting, now = Date.now() }: Gauges): Reading {
   switch (kind) {
     case "cpu":
       return { text: percent(m?.cpu) };
@@ -72,23 +78,22 @@ export function reading(kind: CompactMetric, { metrics: m, usage, waiting, now =
       return { text: percent(ramPercent(m)), more: ramWords(m) };
     case "usage5h":
     case "usage7d": {
-      const shown = usageShown(kind === "usage5h" ? usage?.fiveHour : usage?.sevenDay, usage?.updatedAt ?? now, now);
-      if (!shown) return { text: "—" };
-      // Past its reset the old number is not shown: 0 %, dimmed, and the tooltip says why.
-      const reset = shown.state === "reset";
-      return {
-        text: `${shown.percent}%`,
-        more: [shown.countdown, USAGE_SOURCE_WORDS].filter(Boolean).join(". "),
-        level: reset ? undefined : usageLevel(shown.percent),
-        dim: shown.state !== "fresh",
-      };
+      return compactUsageReading({ kind, usage, codexQuota, rotationEnabled: usageRotationEnabled, codexLimitsEnabled: codexQuotaEnabled, agent: codexQuotaEnabled ? usageAgent : "claude", shownUsage: usageShown, levelFor: usageLevel, sourceWords: USAGE_SOURCE_WORDS, now });
     }
     case "waiting":
       return { text: String(Math.min(99, waiting)) };
   }
 }
 
-const gauges = (): Gauges => ({ metrics: State.metrics, usage: State.usage, waiting: waitingCount() });
+const gauges = (usageAgent?: UsageAgent | null): Gauges => ({
+  metrics: State.metrics,
+  usage: State.usage,
+  codexQuota: State.codexQuota,
+  usageRotationEnabled: State.settings.usageRotationEnabled,
+  codexQuotaEnabled: State.settings.codexQuotaEnabled,
+  usageAgent,
+  waiting: waitingCount(),
+});
 
 /** A session's dot, as it is drawn. */
 export interface SlotDot {
@@ -160,6 +165,10 @@ export function compactPlan(): CompactPlan {
 
 export interface CompactStrip {
   el: HTMLElement;
+  /** Pauses or resumes the display-only usage timer with island activity. */
+  setActive(active: boolean): void;
+  /** Stops timers and listeners when the island page is torn down. */
+  destroy(): void;
   /** Draws what the plan holds; nothing is rebuilt when it has not changed. */
   sync(plan: CompactPlan): void;
   /**
@@ -193,27 +202,85 @@ export function buildCompact(): CompactStrip {
   let metricsKey = "";
   /** The number of each cell on show, by its kind. */
   const values = new Map<CompactMetric, HTMLElement>();
+  const providerDots = new Map<CompactMetric, HTMLElement>();
+  let visible = State.mode !== "hidden";
+  let hovered = false;
+  let usageAgent: UsageAgent | null = "claude";
+  let cycle: ReturnType<typeof createCompactUsageCycle>;
+
+  const availability = (from: Gauges) => availableCompactUsageAgents(
+    (from.usage ? [from.usage.fiveHour, from.usage.sevenDay] : [])
+      .filter((win): win is NonNullable<typeof win> => !!win)
+      .map((win) => ({ fresh: from.usage!.updatedAt > 0 && Date.now() - from.usage!.updatedAt <= USAGE_OLD_MS, resetsAt: win.resetsAt })),
+    (from.codexQuota?.quotas ? [from.codexQuota.quotas.fiveHour, from.codexQuota.quotas.sevenDay] : [])
+      .filter((win): win is NonNullable<typeof win> => !!win)
+      .map((win) => ({
+        fresh: from.codexQuota?.available === true && from.codexQuota.stale === false && from.codexQuota.updatedAt != null
+          && Date.now() - from.codexQuota.updatedAt <= USAGE_OLD_MS,
+        resetsAt: win.resetsAt,
+      })),
+    Date.now(),
+  );
+
+  function configureCycle() {
+    const base = gauges();
+    cycle.configure(availability(base), State.settings.usageRotationEnabled, State.settings.codexQuotaEnabled, visible && !hovered && State.mode !== "expanded");
+    usageAgent = cycle.current();
+  }
 
   function writeValues() {
-    const from = gauges();
+    configureCycle();
+    const from = gauges(usageAgent);
+    const rotationActive = from.usageRotationEnabled === true && from.codexQuotaEnabled === true && availability(from).length === 2;
+    const displayed = { ...from, usageRotationEnabled: rotationActive };
     for (const [kind, value] of values) {
-      const { text, more, level, dim } = reading(kind, from);
-      const title = more ? `${METRIC[kind].name} — ${more}` : METRIC[kind].name;
+      const { text, more, level, dim } = reading(kind, displayed);
+      const title = compactCellTooltip(METRIC[kind].name, more, rotationActive, isUsageMetric(kind), from.usageAgent ?? null);
       const cell = value.parentElement!;
       if (cell.title !== title) cell.title = title;
+      cell.setAttribute("aria-label", title);
       if (value.dataset.level !== (level ?? "")) value.dataset.level = level ?? "";
       value.classList.toggle("dim", dim === true);
+      if (isUsageMetric(kind)) {
+        const source = rotationActive ? from.usageAgent : null;
+        const dot = providerDots.get(kind)!;
+        dot.hidden = source === null;
+        dot.style.backgroundColor = source === "claude" ? CLAUDE_ORANGE : "var(--ink-2)";
+        dot.title = source === "codex" ? "Codex" : source === "claude" ? "Claude Code" : "";
+      }
       if (value.textContent === text) continue;
       value.textContent = text;
       value.classList.toggle("blank", text === "—");
     }
   }
 
+  cycle = createCompactUsageCycle((agent) => {
+    usageAgent = agent;
+    writeValues();
+  });
+
   // A sample of the machine, or new usage: only the numbers change.
-  State.onGauges(writeValues);
+  const stopGauges = State.onGauges(writeValues);
+  const teardown = () => {
+    cycle.destroy();
+    stopGauges();
+    el.removeEventListener("pointerenter", pauseOnHover);
+    el.removeEventListener("pointerleave", resumeFromHover);
+    window.removeEventListener("pagehide", teardown);
+  };
+  const pauseOnHover = () => { hovered = true; configureCycle(); };
+  const resumeFromHover = () => { hovered = false; configureCycle(); };
+  el.addEventListener("pointerenter", pauseOnHover);
+  el.addEventListener("pointerleave", resumeFromHover);
+  window.addEventListener("pagehide", teardown, { once: true });
 
   return {
     el,
+    setActive(isActive) {
+      visible = isActive;
+      configureCycle();
+    },
+    destroy: teardown,
     sync(plan) {
       const slots = compactSlots(plan, gauges());
       const more = slots.more;
@@ -245,14 +312,23 @@ export function buildCompact(): CompactStrip {
         metricsKey = nextMetrics;
         clear(metrics);
         values.clear();
+        providerDots.clear();
         metrics.hidden = plan.kinds.length === 0;
         for (const kind of plan.kinds) {
           const def = METRIC[kind];
           const value = h("b");
           values.set(kind, value);
+          const mark = lucide(def.icon, COMPACT_ICON);
+          let icon: HTMLElement | SVGSVGElement = mark;
+          if (isUsageMetric(kind)) {
+            const dot = h("i", { class: "ci-provider-dot", hidden: true });
+            const wrapper = h("span", { class: "ci-usage-icon-wrap" }, mark, dot);
+            providerDots.set(kind, dot);
+            icon = wrapper;
+          }
           metrics.append(h(
             "span", { class: "ci-metric", style: `--w:${def.width}px`, title: def.name },
-            lucide(def.icon, COMPACT_ICON),
+            icon,
             value,
           ));
         }

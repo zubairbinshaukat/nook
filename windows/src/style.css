@@ -330,6 +330,30 @@ body {
   flex: 0 0 auto;
 }
 
+.ci-usage-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 14px;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+}
+
+.ci-provider-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--bg);
+  border-radius: 50%;
+}
+
+.ci-provider-dot[hidden] {
+  display: none;
+}
+
 .ci-metric b {
   font: 500 12px var(--font);
   font-variant-numeric: tabular-nums;

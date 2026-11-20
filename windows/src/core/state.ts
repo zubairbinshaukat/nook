@@ -630,6 +630,8 @@ export interface Settings {
   showCodexSessions: boolean;
   /** Settings → Codex: allow launching a short-lived local Codex App Server to read its usage limits. */
   codexQuotaEnabled: boolean;
+  /** Settings → Island: rotate fresh Claude and Codex usage in the compact island. */
+  usageRotationEnabled: boolean;
   /** Settings → About: once a day, ask GitHub whether a newer Nook is out. Off unless the user switches it on. */
   checkUpdates: boolean;
 }
@@ -889,6 +891,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showCursorSessions: true,
   showCodexSessions: true,
   codexQuotaEnabled: false,
+  usageRotationEnabled: false,
   checkUpdates: false,
 };
 

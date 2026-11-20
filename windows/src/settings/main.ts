@@ -496,7 +496,7 @@ document.addEventListener("keydown", (e) => {
 
 /** The settings each category puts back. Never the connections: those are only ever changed through their diff. */
 const RESET_FIELDS: Partial<Record<Section, readonly (keyof Settings)[]>> = {
-  island: ["screen", "dock", "autostart", "autoCloseInterval", "foldedAutoHide", "hideOnlyWhenIdle", "hideInFullscreen", "compactMetrics"],
+  island: ["screen", "dock", "autostart", "autoCloseInterval", "foldedAutoHide", "hideOnlyWhenIdle", "hideInFullscreen", "compactMetrics", "usageRotationEnabled"],
   look: ["botTheme", "playfulReactions", "theme", "reduceMotion"],
   sounds: ["soundEnabled", "soundVolume"],
   agents: ["showAgentsList", "agentsListFade", "agentsListFadeOpacity"],
@@ -1689,6 +1689,7 @@ function islandSection(): Kid[] {
   });
   const whenIdle = toggle(settings.hideOnlyWhenIdle, "Keep it showing while a session is busy", (on) => change({ hideOnlyWhenIdle: on }));
   const fullscreen = toggle(settings.hideInFullscreen, "Hide during full-screen apps", (on) => change({ hideInFullscreen: on }));
+  const usageRotation = toggle(settings.usageRotationEnabled, "Rotate Claude and Codex usage", (on) => change({ usageRotationEnabled: on }));
 
   // The island's own quick settings change the auto-close too.
   let seconds = settings.autoCloseInterval;
@@ -1707,6 +1708,7 @@ function islandSection(): Kid[] {
     neverFold.classList.toggle("open", hideAfterOf() === "0");
     whenIdle.set(settings.hideOnlyWhenIdle);
     fullscreen.set(settings.hideInFullscreen);
+    usageRotation.set(settings.usageRotationEnabled);
     metricPicker.paint(false);
   });
 
@@ -1735,6 +1737,9 @@ function islandSection(): Kid[] {
         h("p", { class: "sp-note", text: "Pick up to three. Drag a chosen one by its handle to change the order. With none, the island is narrower. Numbers in the island preview are samples." }))),
     "What the compact island shows", "Pick up to three numbers to show beside Gullu.",
     "metrics numbers stats cpu processor gpu graphics ram memory usage limits weekly waiting sessions show", true),
+    group("Usage indicators",
+      row("Rotate Claude and Codex usage", "Requires Read Codex usage limits. The compact island switches between Claude and Codex every five seconds only while both have fresh quota data. Otherwise, it keeps showing Claude usage as usual. Nook uses the data it already has.", usageRotation.el,
+        "claude codex quota usage limits rotate rotation switch alternate five seconds")),
     resetFoot("island"),
   ];
 }
