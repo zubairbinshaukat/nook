@@ -361,14 +361,16 @@ body {
   transition: color 0.3s ease-out;
 }
 
-/* The clock keeps its full locale-aware label inside the existing 52 px cell. */
+/* The clock label gets the room its locale needs, at the same type size as its neighbours. */
 .ci-metric.ci-clock {
   justify-content: center;
+  width: max-content;
+  min-width: var(--w);
 }
 
 .ci-metric.ci-clock b {
-  min-width: 0;
-  font-size: 9px;
+  min-width: max-content;
+  font-size: 12px;
   text-align: center;
   direction: ltr;
   unicode-bidi: isolate;
@@ -429,6 +431,11 @@ body {
   flex-direction: column;
   justify-content: center;
   gap: 2px;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .ci-metric.ci-clock {
+  width: 100%;
+  min-width: 0;
 }
 
 :root:is([data-dock="left"], [data-dock="right"]) .ci-metric b {

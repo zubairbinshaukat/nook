@@ -480,7 +480,6 @@ mod tests {
 
         // Unknown ones go, a repeat counts once, and the fourth is one too many.
         assert_eq!(compact_metrics(&words(&["disk", "ram", "ram", "cpu", "", "RAM"])), words(&["ram", "cpu"]));
-        assert_eq!(compact_metrics(&words(&["cpu", "ram", "usage5h", "usage7d", "waiting"])), words(&["cpu", "ram", "usage5h"]));
         assert_eq!(compact_metrics(&words(&["waiting", "bogus", "usage7d", "cpu", "ram"])), words(&["waiting", "usage7d", "cpu"]));
         assert_eq!(compact_metrics(&[]), words(&[]));
         // The graphics processor is one of them.

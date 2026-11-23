@@ -348,7 +348,7 @@ export function buildCompact(): CompactStrip {
           const value = h("b");
           values.set(kind, value);
           const mark = lucide(def.icon, COMPACT_ICON);
-          let icon: HTMLElement | SVGSVGElement | null = kind === "clock" ? null : mark;
+          let icon: HTMLElement | SVGSVGElement | null = mark;
           if (isUsageMetric(kind)) {
             const dot = h("i", { class: "ci-provider-dot", hidden: true });
             const wrapper = h("span", { class: "ci-usage-icon-wrap" }, mark, dot);
@@ -357,7 +357,7 @@ export function buildCompact(): CompactStrip {
           }
           metrics.append(h(
             "span", { class: `ci-metric${kind === "clock" ? " ci-clock" : ""}`, style: `--w:${def.width}px`, title: def.name, "aria-label": def.name },
-            ...(kind === "clock" ? [] : [icon]),
+            icon,
             value,
           ));
         }
