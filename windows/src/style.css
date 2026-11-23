@@ -361,15 +361,12 @@ body {
   transition: color 0.3s ease-out;
 }
 
-/* The clock label gets the room its locale needs, at the same type size as its neighbours. */
+/* compact.ts uses the matching icon + gap + clock-label width in its island plan. */
 .ci-metric.ci-clock {
   justify-content: center;
-  width: max-content;
-  min-width: var(--w);
 }
 
 .ci-metric.ci-clock b {
-  min-width: max-content;
   font-size: 12px;
   text-align: center;
   direction: ltr;

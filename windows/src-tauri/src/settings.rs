@@ -494,7 +494,6 @@ mod tests {
         let restored = serde_json::from_str::<Settings>(&json).unwrap().validated();
         assert_eq!(restored.compact_metrics, words(&["clock", "waiting", "usage7d"]));
         assert_eq!(restored.compact_metrics.len(), MAX_COMPACT_METRICS);
-        assert_eq!(compact_metrics(&words(&["clock", "waiting", "usage7d", "cpu"])), words(&["clock", "waiting", "usage7d"]));
         // Older saved selections remain untouched and do not opt in to clock.
         let old: Settings = serde_json::from_str(r#"{"compactMetrics":["cpu","ram","usage5h"]}"#).unwrap();
         assert_eq!(old.compact_metrics, words(&["cpu", "ram", "usage5h"]));

@@ -28,6 +28,8 @@ import { compactClock, createCompactClock } from "./compact-clock";
 
 /** A cell's icon, and its number's size: the icons of the set, on their 24 px grid. */
 const COMPACT_ICON = 14;
+/** The clock cell's row width: icon + gap + its longest supported 12-hour label at 12px. */
+export const COMPACT_CLOCK_WIDTH = 14 + 5 + 68;
 /** A cell that says a percentage is wide enough for "100%"; the count of sessions waiting, for "99". */
 const PERCENT_W = 52;
 
@@ -39,7 +41,7 @@ const METRIC: Record<CompactMetric, { width: number; name: string; icon: string 
   usage5h: { width: PERCENT_W, name: "5-hour usage", icon: LUCIDE.timer },
   usage7d: { width: PERCENT_W, name: "7-day usage", icon: LUCIDE.calendarDays },
   waiting: { width: 38, name: "Sessions waiting for you", icon: LUCIDE.bell },
-  clock: { width: PERCENT_W, name: "Clock", icon: LUCIDE.clock },
+  clock: { width: COMPACT_CLOCK_WIDTH, name: "Clock", icon: LUCIDE.clock },
 };
 
 /** A cell as it reads now: its number, what its tooltip adds, and — for usage — how it is coloured. */
