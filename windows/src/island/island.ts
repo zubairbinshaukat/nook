@@ -2394,6 +2394,7 @@ export class Island {
     const plan = compactPlan();
     this.compact.sync(plan);
     this.compact.el.classList.toggle("on", State.mode === "compact");
+    this.compact.setActive(State.mode === "compact");
     const was = this.compactSize;
     if (State.mode === "compact" && (Math.abs(plan.width - was.w) > 0.5 || Math.abs(plan.height - was.h) > 0.5)) {
       // One of the two is the folded island's own (width in the row, height in the column); the other stays.

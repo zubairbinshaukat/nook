@@ -156,7 +156,7 @@ pub fn folded_auto_hide(said: f64) -> f64 {
 }
 
 /// Everything the compact island can show a number for.
-pub const COMPACT_METRICS: &[&str] = &["cpu", "gpu", "ram", "usage5h", "usage7d", "waiting"];
+pub const COMPACT_METRICS: &[&str] = &["cpu", "gpu", "ram", "usage5h", "usage7d", "waiting", "clock"];
 /// As many of them as it has room for.
 pub const MAX_COMPACT_METRICS: usize = 3;
 
@@ -485,6 +485,20 @@ mod tests {
         assert_eq!(compact_metrics(&[]), words(&[]));
         // The graphics processor is one of them.
         assert_eq!(compact_metrics(&words(&["gpu", "cpu", "GPU", "gpu"])), words(&["gpu", "cpu"]));
+        assert_eq!(compact_metrics(&words(&["clock", "waiting", "usage7d", "cpu"])), words(&["clock", "waiting", "usage7d"]));
+
+        // A picked clock survives the settings file round-trip in order, still
+        // within the existing three-cell cap; a fourth known cell is truncated.
+        let selected = Settings { compact_metrics: words(&["clock", "waiting", "usage7d"]), ..Settings::default() }.validated();
+        let json = serde_json::to_string(&selected).unwrap();
+        assert!(json.contains(r#""compactMetrics":["clock","waiting","usage7d"]"#), "{json}");
+        let restored = serde_json::from_str::<Settings>(&json).unwrap().validated();
+        assert_eq!(restored.compact_metrics, words(&["clock", "waiting", "usage7d"]));
+        assert_eq!(restored.compact_metrics.len(), MAX_COMPACT_METRICS);
+        assert_eq!(compact_metrics(&words(&["clock", "waiting", "usage7d", "cpu"])), words(&["clock", "waiting", "usage7d"]));
+        // Older saved selections remain untouched and do not opt in to clock.
+        let old: Settings = serde_json::from_str(r#"{"compactMetrics":["cpu","ram","usage5h"]}"#).unwrap();
+        assert_eq!(old.compact_metrics, words(&["cpu", "ram", "usage5h"]));
     }
 
     #[test]

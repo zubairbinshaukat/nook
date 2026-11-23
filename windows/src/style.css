@@ -361,6 +361,19 @@ body {
   transition: color 0.3s ease-out;
 }
 
+/* The clock keeps its full locale-aware label inside the existing 52 px cell. */
+.ci-metric.ci-clock {
+  justify-content: center;
+}
+
+.ci-metric.ci-clock b {
+  min-width: 0;
+  font-size: 9px;
+  text-align: center;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
 /* How much of a usage window is gone: calm, warming, nearly all of it. */
 .ci-metric b[data-level="calm"] {
   color: var(--green-2);
