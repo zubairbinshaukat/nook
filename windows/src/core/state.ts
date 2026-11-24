@@ -647,7 +647,7 @@ export function foldedAutoHide(settings: Pick<Settings, "foldedAutoHide">): numb
 }
 
 /** What a cell of the folded island can show. */
-export const COMPACT_METRICS = ["cpu", "gpu", "ram", "usage5h", "usage7d", "waiting"] as const;
+export const COMPACT_METRICS = ["cpu", "gpu", "ram", "usage5h", "usage7d", "waiting", "clock"] as const;
 export type CompactMetric = (typeof COMPACT_METRICS)[number];
 /** Cells the folded island has room for. */
 export const MAX_COMPACT_METRICS = 3;

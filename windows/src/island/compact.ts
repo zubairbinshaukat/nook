@@ -24,9 +24,12 @@ import { wear } from "../views/palette";
 import { CLAUDE_ORANGE, DOT_LEGEND, TOOL_NAME } from "../views/tool";
 import { labelText, roster, stateWords, waitingCount, type Entry } from "../views/roster";
 import { availableCompactUsageAgents, compactCellTooltip, compactUsageReading, createCompactUsageCycle, type UsageAgent } from "./compact-usage-cycle";
+import { compactClock, createCompactClock } from "./compact-clock";
 
 /** A cell's icon, and its number's size: the icons of the set, on their 24 px grid. */
 const COMPACT_ICON = 14;
+/** The clock cell's row width: icon + gap + its longest supported 12-hour label at 12px. */
+export const COMPACT_CLOCK_WIDTH = 14 + 5 + 68;
 /** A cell that says a percentage is wide enough for "100%"; the count of sessions waiting, for "99". */
 const PERCENT_W = 52;
 
@@ -38,6 +41,7 @@ const METRIC: Record<CompactMetric, { width: number; name: string; icon: string 
   usage5h: { width: PERCENT_W, name: "5-hour usage", icon: LUCIDE.timer },
   usage7d: { width: PERCENT_W, name: "7-day usage", icon: LUCIDE.calendarDays },
   waiting: { width: 38, name: "Sessions waiting for you", icon: LUCIDE.bell },
+  clock: { width: COMPACT_CLOCK_WIDTH, name: "Clock", icon: LUCIDE.clock },
 };
 
 /** A cell as it reads now: its number, what its tooltip adds, and — for usage — how it is coloured. */
@@ -82,6 +86,8 @@ export function reading(kind: CompactMetric, { metrics: m, usage, codexQuota, us
     }
     case "waiting":
       return { text: String(Math.min(99, waiting)) };
+    case "clock":
+      return { text: compactClock(now) };
   }
 }
 
@@ -207,6 +213,8 @@ export function buildCompact(): CompactStrip {
   let hovered = false;
   let usageAgent: UsageAgent | null = "claude";
   let cycle: ReturnType<typeof createCompactUsageCycle>;
+  let clockFace: ReturnType<typeof createCompactClock>;
+  let kinds: readonly CompactMetric[] = [];
 
   const availability = (from: Gauges) => availableCompactUsageAgents(
     (from.usage ? [from.usage.fiveHour, from.usage.sevenDay] : [])
@@ -259,29 +267,52 @@ export function buildCompact(): CompactStrip {
     writeValues();
   });
 
+  clockFace = createCompactClock((text) => {
+    const value = values.get("clock");
+    if (value) value.textContent = text;
+  });
+
+  function syncClock() {
+    clockFace.configure(visible && kinds.includes("clock"));
+  }
+
+  const onPageVisibility = () => {
+    visible = State.mode !== "hidden" && document.visibilityState === "visible";
+    configureCycle();
+    if (visible) clockFace.resync();
+    else syncClock();
+  };
+
   // A sample of the machine, or new usage: only the numbers change.
   const stopGauges = State.onGauges(writeValues);
   const teardown = () => {
     cycle.destroy();
+    clockFace.destroy();
     stopGauges();
     el.removeEventListener("pointerenter", pauseOnHover);
     el.removeEventListener("pointerleave", resumeFromHover);
     window.removeEventListener("pagehide", teardown);
+    document.removeEventListener("visibilitychange", onPageVisibility);
   };
   const pauseOnHover = () => { hovered = true; configureCycle(); };
   const resumeFromHover = () => { hovered = false; configureCycle(); };
   el.addEventListener("pointerenter", pauseOnHover);
   el.addEventListener("pointerleave", resumeFromHover);
   window.addEventListener("pagehide", teardown, { once: true });
+  document.addEventListener("visibilitychange", onPageVisibility);
 
   return {
     el,
     setActive(isActive) {
       visible = isActive;
       configureCycle();
+      if (visible) clockFace.resync();
+      else syncClock();
     },
     destroy: teardown,
     sync(plan) {
+      kinds = plan.kinds;
+      syncClock();
       const slots = compactSlots(plan, gauges());
       const more = slots.more;
       const nextDots = `${slots.dots.map((d) => `${d.id}:${d.color}:${d.calls}:${d.rest}:${d.decision}:${d.cursor}:${d.title}`).join("|")}#${more ? `${more.count}:${more.color}:${more.calls}` : ""}`;
@@ -319,7 +350,7 @@ export function buildCompact(): CompactStrip {
           const value = h("b");
           values.set(kind, value);
           const mark = lucide(def.icon, COMPACT_ICON);
-          let icon: HTMLElement | SVGSVGElement = mark;
+          let icon: HTMLElement | SVGSVGElement | null = mark;
           if (isUsageMetric(kind)) {
             const dot = h("i", { class: "ci-provider-dot", hidden: true });
             const wrapper = h("span", { class: "ci-usage-icon-wrap" }, mark, dot);
@@ -327,7 +358,7 @@ export function buildCompact(): CompactStrip {
             icon = wrapper;
           }
           metrics.append(h(
-            "span", { class: "ci-metric", style: `--w:${def.width}px`, title: def.name },
+            "span", { class: `ci-metric${kind === "clock" ? " ci-clock" : ""}`, style: `--w:${def.width}px`, title: def.name, "aria-label": def.name },
             icon,
             value,
           ));

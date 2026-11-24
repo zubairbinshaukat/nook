@@ -361,6 +361,18 @@ body {
   transition: color 0.3s ease-out;
 }
 
+/* compact.ts uses the matching icon + gap + clock-label width in its island plan. */
+.ci-metric.ci-clock {
+  justify-content: center;
+}
+
+.ci-metric.ci-clock b {
+  font-size: 12px;
+  text-align: center;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
 /* How much of a usage window is gone: calm, warming, nearly all of it. */
 .ci-metric b[data-level="calm"] {
   color: var(--green-2);
@@ -416,6 +428,11 @@ body {
   flex-direction: column;
   justify-content: center;
   gap: 2px;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .ci-metric.ci-clock {
+  width: 100%;
+  min-width: 0;
 }
 
 :root:is([data-dock="left"], [data-dock="right"]) .ci-metric b {

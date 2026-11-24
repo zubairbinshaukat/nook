@@ -35,6 +35,7 @@ export const COMPACT_CELLS: Record<CompactMetric, { width: number; name: string;
   usage5h: { width: 52, name: "5-hour usage limit", short: "5-hour", icon: LUCIDE.timer, sample: "38%" },
   usage7d: { width: 52, name: "Weekly usage limit", short: "Weekly", icon: LUCIDE.calendarDays, sample: "12%" },
   waiting: { width: 38, name: "Sessions waiting for you", short: "Waiting", icon: LUCIDE.bell, sample: "1" },
+  clock: { width: 52, name: "Clock", short: "Clock", icon: LUCIDE.clock, sample: "19:42" },
 };
 /** The size the island draws a cell's icon at. */
 const COMPACT_ICON = 14;
