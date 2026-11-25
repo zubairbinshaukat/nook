@@ -22,6 +22,7 @@ import { clear, h, replay } from "../views/dom";
 import { BRANDS, CLAUDE_MARK, CODEX_MARK, LUCIDE, brand } from "../views/iconset";
 import { TOOL_NAME } from "../views/tool";
 import { connect, type Backend } from "./backend";
+import { updateBatteryTooltip } from "./metric-tooltip";
 import { isBotTheme, mountBot, refreshBots, startBots, wearBotTheme } from "./bots";
 import { COMPACT_BOT, COMPACT_CELLS, cellIcon, islandPreview } from "./island-preview";
 import { SPRING, flip, icon, reorderable, segmented, slider, toggle, type Toggle } from "./ui";
@@ -1565,8 +1566,9 @@ const metricPicker = (() => {
         const r = rows.get(id)!;
         const sample = r.check.querySelector(".sample")!;
         sample.textContent = id === "battery" && !batteryAvailable ? "Unavailable" : COMPACT_CELLS[id].sample;
-        if (id === "battery" && !batteryAvailable) r.check.title = "Battery status is unavailable on this computer.";
-        else r.check.removeAttribute("title");
+        if (id === "battery") {
+          updateBatteryTooltip(r.check, batteryAvailable);
+        }
         const picked = on.includes(id);
         r.el.classList.toggle("on", picked);
         if (picked) delete r.el.dataset.fixed;
