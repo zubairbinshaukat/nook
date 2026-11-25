@@ -156,6 +156,9 @@ pub fn folded_auto_hide(said: f64) -> f64 {
 }
 
 /// Everything the compact island can show a number for.
+#[cfg(windows)]
+pub const COMPACT_METRICS: &[&str] = &["cpu", "gpu", "ram", "usage5h", "usage7d", "waiting", "clock", "battery"];
+#[cfg(not(windows))]
 pub const COMPACT_METRICS: &[&str] = &["cpu", "gpu", "ram", "usage5h", "usage7d", "waiting", "clock"];
 /// As many of them as it has room for.
 pub const MAX_COMPACT_METRICS: usize = 3;
@@ -486,6 +489,7 @@ mod tests {
         // The graphics processor is one of them.
         assert_eq!(compact_metrics(&words(&["gpu", "cpu", "GPU", "gpu"])), words(&["gpu", "cpu"]));
         assert_eq!(compact_metrics(&words(&["clock", "waiting", "usage7d", "cpu"])), words(&["clock", "waiting", "usage7d"]));
+        assert_eq!(compact_metrics(&words(&["cpu", "ram", "clock", "battery"])), words(&["cpu", "ram", "clock"]));
 
         // A picked clock survives the settings file round-trip in order, still
         // within the existing three-cell cap; a fourth known cell is truncated.
@@ -498,6 +502,22 @@ mod tests {
         // Older saved selections remain untouched and do not opt in to clock.
         let old: Settings = serde_json::from_str(r#"{"compactMetrics":["cpu","ram","usage5h"]}"#).unwrap();
         assert_eq!(old.compact_metrics, words(&["cpu", "ram", "usage5h"]));
+    }
+
+    #[test]
+    fn battery_is_off_by_default_and_settings_round_trip_within_the_cell_limit() {
+        let words = |list: &[&str]| list.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        assert!(!Settings::default().compact_metrics.iter().any(|metric| metric == "battery"));
+        #[cfg(windows)]
+        {
+            let selected = Settings { compact_metrics: words(&["battery", "clock", "waiting", "cpu"]), ..Settings::default() }.validated();
+            let json = serde_json::to_string(&selected).unwrap();
+            let restored = serde_json::from_str::<Settings>(&json).unwrap().validated();
+            assert_eq!(restored.compact_metrics, words(&["battery", "clock", "waiting"]));
+            assert_eq!(restored.compact_metrics.len(), MAX_COMPACT_METRICS);
+        }
+        #[cfg(not(windows))]
+        assert_eq!(compact_metrics(&words(&["battery", "clock"])), words(&["clock"]));
     }
 
     #[test]

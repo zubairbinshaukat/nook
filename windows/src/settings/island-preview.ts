@@ -20,6 +20,11 @@ import {
 } from "../core/layout";
 import { notchPath } from "../island/notch";
 import { usageLevel, type CompactMetric } from "../core/state";
+import type { BatteryStatus } from "../core/bridge";
+import {
+  BATTERY_CELL_WIDTH, BATTERY_PERCENT_WIDTH, BATTERY_RING_SIZE, BATTERY_SIDE_CELL_WIDTH,
+  BATTERY_SIDE_PERCENT_WIDTH, BATTERY_SIDE_RING_SIZE, batteryReading, batteryRingSvg,
+} from "../island/compact-battery";
 import { clear, h } from "../views/dom";
 import { LUCIDE, lucide } from "../views/iconset";
 import type { Bot } from "./bots";
@@ -36,6 +41,7 @@ export const COMPACT_CELLS: Record<CompactMetric, { width: number; name: string;
   usage7d: { width: 52, name: "Weekly usage limit", short: "Weekly", icon: LUCIDE.calendarDays, sample: "12%" },
   waiting: { width: 38, name: "Sessions waiting for you", short: "Waiting", icon: LUCIDE.bell, sample: "1" },
   clock: { width: 52, name: "Clock", short: "Clock", icon: LUCIDE.clock, sample: "19:42" },
+  battery: { width: BATTERY_CELL_WIDTH, name: "Battery", short: "Battery", icon: LUCIDE.batteryRing, sample: "82%" },
 };
 /** The size the island draws a cell's icon at. */
 const COMPACT_ICON = 14;
@@ -60,7 +66,7 @@ export interface IslandPreview {
    * from the top or standing on the bottom, a column flush with a side. The
    * island goes to its new length on its own spring unless `animate` is false.
    */
-  update(kinds: readonly CompactMetric[], animate: boolean, dock?: Dock): void;
+  update(kinds: readonly CompactMetric[], animate: boolean, dock?: Dock, batteryAvailable?: boolean): void;
   /** Starts the sample CPU number moving; the returned function stops it. */
   run(): () => void;
 }
@@ -119,7 +125,7 @@ export function islandPreview(bot: Bot): IslandPreview {
   let shown: string | null = null;
   return {
     el,
-    update(kinds, animate, dock = "top") {
+    update(kinds, animate, dock = "top", batteryAvailable = true) {
       side = sideDock(dock) ? dock : null;
       // Another dock: the island is drawn at once in its new shape, not sprung from the old one.
       if (side !== drawnFor) {
@@ -130,7 +136,7 @@ export function islandPreview(bot: Bot): IslandPreview {
         // Tall enough for the longest column the samples make, whatever is picked: the page does not jump as cells come and go.
         desk.style.height = side ? `${SIDE_DESK_H}px` : "";
       }
-      const layout = compactLayout(SAMPLE_DOTS.length, kinds.map((k) => COMPACT_CELLS[k].width), side ?? "top");
+      const layout = compactLayout(SAMPLE_DOTS.length, kinds.map((k) => k === "battery" && side ? BATTERY_SIDE_CELL_WIDTH : COMPACT_CELLS[k].width), side ?? "top");
       const on = kinds.slice(0, layout.metrics);
       if (on.join() !== shown) {
         shown = on.join();
@@ -139,8 +145,24 @@ export function islandPreview(bot: Bot): IslandPreview {
           const cell = COMPACT_CELLS[kind];
           // A usage cell's number wears its level's colour, as on the island.
           const level = kind === "usage5h" || kind === "usage7d" ? usageLevel(parseInt(cell.sample, 10)) : undefined;
-          cells.append(h("span", { class: "sp-ci-metric", style: `--w:${cell.width}px`, title: cell.name, "data-id": kind },
-            cellIcon(kind, COMPACT_ICON), h("b", { text: cell.sample, "data-level": level })));
+          const battery = kind === "battery";
+          if (battery) {
+            const reading = batteryReading(batteryAvailable
+              ? { percent: 82, acConnected: false, charging: false, batteryPresent: true } satisfies BatteryStatus
+              : null);
+            const batterySize = side ? BATTERY_SIDE_RING_SIZE : BATTERY_RING_SIZE;
+            const width = side ? BATTERY_SIDE_CELL_WIDTH : cell.width;
+            cells.append(h("span", {
+              class: "sp-ci-metric ci-battery sp-ci-battery",
+              style: `--w:${width}px;--battery-value-w:${side ? BATTERY_SIDE_PERCENT_WIDTH : BATTERY_PERCENT_WIDTH}px`,
+              title: reading.more, "data-id": kind, "data-level": reading.level,
+            },
+            h("span", { class: "ci-battery-icon", style: `--ring-size:${batterySize}px`, "aria-hidden": "true" }, batteryRingSvg(reading, batterySize)),
+            h("b", { text: reading.text, class: reading.percent == null ? "blank" : "" })));
+          } else {
+            cells.append(h("span", { class: "sp-ci-metric", style: `--w:${cell.width}px`, title: cell.name, "data-id": kind },
+              cellIcon(kind, COMPACT_ICON), h("b", { text: cell.sample, "data-level": level })));
+          }
         }
       }
       wanted = side ? layout.height : layout.width;
