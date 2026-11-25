@@ -158,6 +158,9 @@ export function fakeBackend(): Backend {
     async boot() {
       return { settings: { ...settings }, version: "0.0.0-fake" };
     },
+    async batteryAvailable() {
+      return false;
+    },
     async saveSettings(next) {
       // As Rust does: the shortcuts are not a page's to write, and the page is told what was kept.
       Object.assign(settings, next, {

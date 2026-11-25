@@ -11,13 +11,14 @@
 // other time: nothing here runs a frame.
 
 import {
-  COMPACT_BOT_SLOT, COMPACT_CELL_H, COMPACT_COLUMN_W, COMPACT_DOT, COMPACT_DOT_GAP, COMPACT_METRIC_GAP, COMPACT_MORE_W,
+  COMPACT_BOT_SLOT, COMPACT_CELL_H, COMPACT_COLUMN_W, COMPACT_DOT, COMPACT_DOT_GAP, COMPACT_METRIC_GAP, COMPACT_MORE_W, Room, sideDock,
   COMPACT_PAD, COMPACT_SLOT_GAP, compactLayout, type CompactLayout,
 } from "../core/layout";
 import {
   State, USAGE_OLD_MS, USAGE_SOURCE_WORDS, compactMetrics, ramPercent, ramWords, usageLevel, usageShown,
   type CodexQuotaSnapshot, type CompactMetric, type Metrics, type Usage, type UsageLevel,
 } from "../core/state";
+import { Bridge, type BatteryStatus } from "../core/bridge";
 import { clear, h } from "../views/dom";
 import { LUCIDE, lucide } from "../views/iconset";
 import { wear } from "../views/palette";
@@ -25,6 +26,11 @@ import { CLAUDE_ORANGE, DOT_LEGEND, TOOL_NAME } from "../views/tool";
 import { labelText, roster, stateWords, waitingCount, type Entry } from "../views/roster";
 import { availableCompactUsageAgents, compactCellTooltip, compactUsageReading, createCompactUsageCycle, type UsageAgent } from "./compact-usage-cycle";
 import { compactClock, createCompactClock } from "./compact-clock";
+import {
+  BATTERY_CELL_GAP, BATTERY_CELL_WIDTH, BATTERY_PERCENT_WIDTH, BATTERY_RING_SIZE,
+  BATTERY_SIDE_CELL_GAP, BATTERY_SIDE_CELL_WIDTH, BATTERY_SIDE_PERCENT_WIDTH,
+  BATTERY_SIDE_RING_SIZE, batteryRingSvg, batteryReading, createCompactBatteryPoller, type BatteryReading,
+} from "./compact-battery";
 
 /** A cell's icon, and its number's size: the icons of the set, on their 24 px grid. */
 const COMPACT_ICON = 14;
@@ -42,6 +48,7 @@ const METRIC: Record<CompactMetric, { width: number; name: string; icon: string 
   usage7d: { width: PERCENT_W, name: "7-day usage", icon: LUCIDE.calendarDays },
   waiting: { width: 38, name: "Sessions waiting for you", icon: LUCIDE.bell },
   clock: { width: COMPACT_CLOCK_WIDTH, name: "Clock", icon: LUCIDE.clock },
+  battery: { width: BATTERY_CELL_WIDTH, name: "Battery", icon: LUCIDE.batteryRing },
 };
 
 /** A cell as it reads now: its number, what its tooltip adds, and — for usage — how it is coloured. */
@@ -49,9 +56,11 @@ export interface Reading {
   /** "—" where nothing is known yet, in the same cell. */
   text: string;
   more?: string;
-  level?: UsageLevel;
+  level?: UsageLevel | "green" | "amber" | "red" | "unknown";
   /** A usage window that has reset, or a number more than two hours old: drawn dimmed. */
   dim?: boolean;
+  charging?: boolean;
+  accessible?: string;
 }
 
 /** What the cells are read from: the machine's last sample, Claude's usage, and how many sessions wait. */
@@ -63,6 +72,7 @@ export interface Gauges {
   codexQuotaEnabled?: boolean;
   usageAgent?: UsageAgent | null;
   waiting: number;
+  battery?: BatteryStatus | null;
   /** The time the usage is read at (Unix ms): now, when not said. */
   now?: number;
 }
@@ -71,7 +81,7 @@ const percent = (value: number | null | undefined): string => (value != null ? `
 const isUsageMetric = (kind: CompactMetric) => kind === "usage5h" || kind === "usage7d";
 
 /** What one cell says, from the gauges alone: nothing here looks at the island. */
-export function reading(kind: CompactMetric, { metrics: m, usage, codexQuota, usageRotationEnabled = false, codexQuotaEnabled = false, usageAgent = "claude", waiting, now = Date.now() }: Gauges): Reading {
+export function reading(kind: CompactMetric, { metrics: m, usage, codexQuota, usageRotationEnabled = false, codexQuotaEnabled = false, usageAgent = "claude", waiting, battery = null, now = Date.now() }: Gauges): Reading {
   switch (kind) {
     case "cpu":
       return { text: percent(m?.cpu) };
@@ -88,10 +98,12 @@ export function reading(kind: CompactMetric, { metrics: m, usage, codexQuota, us
       return { text: String(Math.min(99, waiting)) };
     case "clock":
       return { text: compactClock(now) };
+    case "battery":
+      return batteryReading(battery);
   }
 }
 
-const gauges = (usageAgent?: UsageAgent | null): Gauges => ({
+const gauges = (usageAgent?: UsageAgent | null, battery: BatteryStatus | null = null): Gauges => ({
   metrics: State.metrics,
   usage: State.usage,
   codexQuota: State.codexQuota,
@@ -99,6 +111,7 @@ const gauges = (usageAgent?: UsageAgent | null): Gauges => ({
   codexQuotaEnabled: State.settings.codexQuotaEnabled,
   usageAgent,
   waiting: waitingCount(),
+  battery,
 });
 
 /** A session's dot, as it is drawn. */
@@ -165,7 +178,7 @@ export interface CompactPlan extends CompactLayout {
 export function compactPlan(): CompactPlan {
   const { live } = roster();
   const kinds = compactMetrics(State.settings);
-  const layout = compactLayout(live.length, kinds.map((k) => METRIC[k].width));
+  const layout = compactLayout(live.length, kinds.map((k) => METRIC[k].width), Room.dock);
   return { ...layout, live, kinds: kinds.slice(0, layout.metrics) };
 }
 
@@ -212,6 +225,7 @@ export function buildCompact(): CompactStrip {
   let visible = State.mode !== "hidden";
   let hovered = false;
   let usageAgent: UsageAgent | null = "claude";
+  let batteryStatus: BatteryStatus | null = null;
   let cycle: ReturnType<typeof createCompactUsageCycle>;
   let clockFace: ReturnType<typeof createCompactClock>;
   let kinds: readonly CompactMetric[] = [];
@@ -238,15 +252,43 @@ export function buildCompact(): CompactStrip {
 
   function writeValues() {
     configureCycle();
-    const from = gauges(usageAgent);
+    const from = gauges(usageAgent, batteryStatus);
     const rotationActive = from.usageRotationEnabled === true && from.codexQuotaEnabled === true && availability(from).length === 2;
     const displayed = { ...from, usageRotationEnabled: rotationActive };
     for (const [kind, value] of values) {
-      const { text, more, level, dim } = reading(kind, displayed);
-      const title = compactCellTooltip(METRIC[kind].name, more, rotationActive, isUsageMetric(kind), from.usageAgent ?? null);
+      const result = reading(kind, displayed);
+      const { text, more, level, dim, charging, accessible } = result;
+      const battery = kind === "battery" ? result as BatteryReading : null;
+      const title = kind === "battery"
+        ? `Battery — ${more ?? "Battery status unavailable"}`
+        : compactCellTooltip(METRIC[kind].name, more, rotationActive, isUsageMetric(kind), from.usageAgent ?? null);
       const cell = value.parentElement!;
       if (cell.title !== title) cell.title = title;
-      cell.setAttribute("aria-label", title);
+      const label = kind === "battery" ? accessible ?? "Battery status unavailable" : title;
+      if (cell.getAttribute("aria-label") !== label) cell.setAttribute("aria-label", label);
+      cell.classList.toggle("charging", kind === "battery" && charging === true);
+      if (battery) {
+        const side = sideDock(Room.dock);
+        const size = side ? BATTERY_SIDE_RING_SIZE : BATTERY_RING_SIZE;
+        cell.style.setProperty("--w", `${side ? BATTERY_SIDE_CELL_WIDTH : BATTERY_CELL_WIDTH}px`);
+        cell.style.setProperty("--battery-gap", `${side ? BATTERY_SIDE_CELL_GAP : BATTERY_CELL_GAP}px`);
+        cell.style.setProperty("--battery-value-w", `${side ? BATTERY_SIDE_PERCENT_WIDTH : BATTERY_PERCENT_WIDTH}px`);
+        cell.dataset.level = battery.level;
+        const ring = cell.querySelector<SVGSVGElement>(".ci-battery-ring");
+        const ringHost = cell.querySelector<HTMLElement>(".ci-battery-icon");
+        if (ring && ring.getAttribute("width") !== String(size)) {
+          ringHost?.style.setProperty("--ring-size", `${size}px`);
+          ringHost?.replaceChild(batteryRingSvg(battery, size), ring);
+        } else if (ring) {
+          ring.dataset.level = battery.level;
+          ring.dataset.empty = String(!battery.showProgress);
+          const progress = ring.querySelector<SVGCircleElement>(".ci-battery-progress");
+          const dashOffset = String(battery.dashOffset);
+          if (progress && progress.style.strokeDashoffset !== dashOffset) progress.style.strokeDashoffset = dashOffset;
+        }
+        const bolt = cell.querySelector<HTMLElement>(".ci-battery-zap");
+        if (bolt) bolt.hidden = !battery.showBolt;
+      }
       if (value.dataset.level !== (level ?? "")) value.dataset.level = level ?? "";
       value.classList.toggle("dim", dim === true);
       if (isUsageMetric(kind)) {
@@ -267,6 +309,26 @@ export function buildCompact(): CompactStrip {
     writeValues();
   });
 
+  const batteryPoller = createCompactBatteryPoller(Bridge.batteryStatus, (status) => {
+    batteryStatus = status;
+    writeValues();
+  });
+  let batterySelected = false;
+  const syncBatterySelection = () => {
+    const selected = kinds.includes("battery");
+    if (batterySelected !== selected) {
+      batterySelected = selected;
+      batteryPoller.configure(selected);
+      if (selected) {
+        batteryStatus = batteryPoller.latest;
+        writeValues();
+      }
+    }
+    const active = selected && visible && State.mode === "compact" && document.visibilityState === "visible";
+    if (active) batteryPoller.activate(true);
+    else batteryPoller.pause();
+  };
+
   clockFace = createCompactClock((text) => {
     const value = values.get("clock");
     if (value) value.textContent = text;
@@ -279,6 +341,7 @@ export function buildCompact(): CompactStrip {
   const onPageVisibility = () => {
     visible = State.mode !== "hidden" && document.visibilityState === "visible";
     configureCycle();
+    syncBatterySelection();
     if (visible) clockFace.resync();
     else syncClock();
   };
@@ -287,6 +350,7 @@ export function buildCompact(): CompactStrip {
   const stopGauges = State.onGauges(writeValues);
   const teardown = () => {
     cycle.destroy();
+    batteryPoller.destroy();
     clockFace.destroy();
     stopGauges();
     el.removeEventListener("pointerenter", pauseOnHover);
@@ -306,6 +370,7 @@ export function buildCompact(): CompactStrip {
     setActive(isActive) {
       visible = isActive;
       configureCycle();
+      syncBatterySelection();
       if (visible) clockFace.resync();
       else syncClock();
     },
@@ -313,6 +378,7 @@ export function buildCompact(): CompactStrip {
     sync(plan) {
       kinds = plan.kinds;
       syncClock();
+      syncBatterySelection();
       const slots = compactSlots(plan, gauges());
       const more = slots.more;
       const nextDots = `${slots.dots.map((d) => `${d.id}:${d.color}:${d.calls}:${d.rest}:${d.decision}:${d.cursor}:${d.title}`).join("|")}#${more ? `${more.count}:${more.color}:${more.calls}` : ""}`;
@@ -349,16 +415,30 @@ export function buildCompact(): CompactStrip {
           const def = METRIC[kind];
           const value = h("b");
           values.set(kind, value);
-          const mark = lucide(def.icon, COMPACT_ICON);
-          let icon: HTMLElement | SVGSVGElement | null = mark;
-          if (isUsageMetric(kind)) {
-            const dot = h("i", { class: "ci-provider-dot", hidden: true });
-            const wrapper = h("span", { class: "ci-usage-icon-wrap" }, mark, dot);
-            providerDots.set(kind, dot);
+          let icon: HTMLElement | SVGSVGElement;
+          if (kind === "battery") {
+            const side = sideDock(Room.dock);
+            const size = side ? BATTERY_SIDE_RING_SIZE : BATTERY_RING_SIZE;
+            const wrapper = h("span", { class: "ci-battery-icon", style: `--ring-size:${size}px` }, batteryRingSvg(batteryReading(batteryStatus), size),
+              h("i", { class: "ci-battery-zap", hidden: true, "aria-hidden": "true" }, lucide(LUCIDE.zap, 8)));
             icon = wrapper;
+          } else {
+            const mark = lucide(def.icon, COMPACT_ICON);
+            if (isUsageMetric(kind)) {
+              const dot = h("i", { class: "ci-provider-dot", hidden: true });
+              icon = h("span", { class: "ci-usage-icon-wrap" }, mark, dot);
+              providerDots.set(kind, dot);
+            } else {
+              icon = mark;
+            }
           }
+          const side = sideDock(Room.dock);
+          const width = kind === "battery" && side ? BATTERY_SIDE_CELL_WIDTH : def.width;
+          const style = kind === "battery"
+            ? `--w:${width}px;--battery-gap:${side ? BATTERY_SIDE_CELL_GAP : BATTERY_CELL_GAP}px;--battery-value-w:${side ? BATTERY_SIDE_PERCENT_WIDTH : BATTERY_PERCENT_WIDTH}px`
+            : `--w:${width}px`;
           metrics.append(h(
-            "span", { class: `ci-metric${kind === "clock" ? " ci-clock" : ""}`, style: `--w:${def.width}px`, title: def.name, "aria-label": def.name },
+            "span", { class: `ci-metric${kind === "clock" ? " ci-clock" : ""}${kind === "battery" ? " ci-battery" : ""}`, style, title: def.name, "aria-label": def.name },
             icon,
             value,
           ));

@@ -2,6 +2,7 @@
 
 mod about;
 mod agents;
+mod battery;
 #[cfg_attr(not(windows), allow(dead_code))]
 mod codex_hooks;
 mod codex_quota;
@@ -797,6 +798,8 @@ pub fn run() {
         .manage(reply::Runs::default())
         .invoke_handler(tauri::generate_handler![
             boot,
+            battery::battery_available,
+            battery::battery_status,
             save_settings,
             set_collapsed,
             set_island_rect,

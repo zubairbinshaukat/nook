@@ -354,6 +354,70 @@ body {
   display: none;
 }
 
+.ci-battery-icon {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 var(--ring-size, 22px);
+  align-items: center;
+  justify-content: center;
+  width: var(--ring-size, 22px);
+  height: var(--ring-size, 22px);
+}
+
+.ci-battery-ring {
+  display: block;
+  overflow: visible;
+}
+
+.ci-battery-track,
+.ci-battery-progress {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.ci-battery-ring[data-empty="true"] .ci-battery-progress { visibility: hidden; }
+
+.ci-battery-track { stroke: var(--dim-3); opacity: .65; }
+.ci-battery-progress {
+  stroke: var(--dim-2);
+  stroke-linecap: round;
+  transition: stroke-dashoffset .35s ease-out, stroke .2s ease-out;
+}
+
+.ci-battery[data-level="green"] .ci-battery-progress { stroke: var(--green-2); }
+.ci-battery[data-level="amber"] .ci-battery-progress { stroke: var(--amber); }
+.ci-battery[data-level="red"] .ci-battery-progress { stroke: var(--red-text); }
+.ci-battery[data-level="unknown"] .ci-battery-progress { stroke: var(--dim-2); }
+
+.ci-metric.ci-battery {
+  gap: var(--battery-gap, 5px);
+}
+
+.ci-battery b {
+  flex: 0 0 var(--battery-value-w, 40px);
+  width: var(--battery-value-w, 40px);
+  text-align: left;
+}
+
+.ci-battery b.blank { color: var(--dim-2); }
+
+.ci-metric.ci-battery.charging b { color: var(--ink-2); }
+
+.ci-metric.ci-battery .ci-battery-zap[hidden] { display: none; }
+
+.ci-metric.ci-battery .ci-battery-zap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-2);
+}
+
+.ci-battery-zap {
+  pointer-events: none;
+}
+
 .ci-metric b {
   font: 500 12px var(--font);
   font-variant-numeric: tabular-nums;
@@ -371,6 +435,33 @@ body {
   text-align: center;
   direction: ltr;
   unicode-bidi: isolate;
+}
+
+.ci-metric.ci-battery b { text-align: left; }
+
+:root:is([data-dock="left"], [data-dock="right"]) .ci-metric.ci-battery {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  overflow: visible;
+}
+
+:root:is([data-dock="left"], [data-dock="right"]) .ci-metric.ci-battery .ci-battery-icon { flex-basis: 18px; width: 18px; height: 18px; }
+
+:root:is([data-dock="left"], [data-dock="right"]) .ci-metric.ci-battery b {
+  flex: 0 0 26px;
+  width: 26px;
+  font-size: 10px;
+  line-height: 14px;
+  text-align: left;
+}
+
+:root[data-motion="reduce"] .ci-battery-progress { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"]) .ci-battery-progress { transition: none; }
 }
 
 /* How much of a usage window is gone: calm, warming, nearly all of it. */

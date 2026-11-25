@@ -1523,6 +1523,32 @@ body.settings-window {
 .sp-ci-metric b[data-level="warm"] { color: #ffb547; }
 .sp-ci-metric b[data-level="hot"] { color: #ff8d97; }
 
+.sp-ci-battery { gap: 5px; }
+.sp-ci-battery .ci-battery-icon {
+  flex: 0 0 var(--ring-size);
+  width: var(--ring-size);
+  height: var(--ring-size);
+}
+.sp-ci-battery .ci-battery-ring { display: block; overflow: visible; }
+.sp-ci-battery .ci-battery-track,
+.sp-ci-battery .ci-battery-progress { fill: none; stroke-width: 2.5; stroke-linecap: round; }
+.sp-ci-battery .ci-battery-track { stroke: #6b7079; opacity: .65; }
+.sp-ci-battery[data-level="green"] .ci-battery-progress { stroke: #4fd69c; }
+.sp-ci-battery[data-level="amber"] .ci-battery-progress { stroke: #ffb547; }
+.sp-ci-battery[data-level="red"] .ci-battery-progress { stroke: #ff8d97; }
+.sp-ci-battery[data-level="unknown"] .ci-battery-progress { stroke: #8e939c; }
+.sp-ci-battery .ci-battery-ring[data-empty="true"] .ci-battery-progress { visibility: hidden; }
+.sp-desk:is([data-dock="left"], [data-dock="right"]) .sp-ci-battery {
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+}
+.sp-ci-battery b { flex: 0 0 var(--battery-value-w); width: var(--battery-value-w); text-align: left; }
+.sp-desk:is([data-dock="left"], [data-dock="right"]) .sp-ci-battery b {
+  font-size: 10px;
+  line-height: 14px;
+}
+
 /* What island-preview.ts and bots.ts expect of the page. */
 .sp-notch {
   position: absolute;

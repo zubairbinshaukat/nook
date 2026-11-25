@@ -11,6 +11,13 @@ import type { Settings } from "./state";
 export const IS_TAURI =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+export interface BatteryStatus {
+  percent: number | null;
+  acConnected: boolean | null;
+  charging: boolean | null;
+  batteryPresent: boolean | null;
+}
+
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   if (!IS_TAURI) return null;
   try {
@@ -43,6 +50,11 @@ export interface PanelSize {
 
 export const Bridge = {
   boot: () => call<BootInfo>("boot"),
+
+  /** Whether the current platform reports a system battery, for the settings picker. */
+  batteryAvailable: () => call<boolean>("battery_available"),
+  /** One read-only sample, called only while the battery cell is selected. */
+  batteryStatus: () => call<BatteryStatus>("battery_status"),
 
   saveSettings: (settings: Settings) => call<void>("save_settings", { settings }),
 

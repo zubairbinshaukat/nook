@@ -16,6 +16,7 @@ export interface Backend {
   /** The section to open on, when something other than the first is asked for (the made-up one only). */
   start?: string;
   boot(): Promise<{ settings: Settings; version: string } | null>;
+  batteryAvailable(): Promise<boolean | null>;
   saveSettings(settings: Settings): Promise<void>;
   onSettingsChanged(handler: (settings: Settings) => void): void;
 
@@ -59,6 +60,7 @@ export interface Backend {
 const nook: Backend = {
   fake: false,
   boot: () => Bridge.boot(),
+  batteryAvailable: () => Bridge.batteryAvailable(),
   saveSettings: async (settings) => void (await Bridge.saveSettings(settings)),
   onSettingsChanged: (handler) => void onEvent<Settings>("settings-changed", handler),
   hooksStatus: () => Bridge.hooksStatus(),

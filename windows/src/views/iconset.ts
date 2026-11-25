@@ -30,6 +30,10 @@ export const LUCIDE = {
   bell: '<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>',
   /** lucide: clock-3 (ISC) */
   clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  /** Compact battery charge ring. */
+  batteryRing: '<circle cx="12" cy="12" r="9" opacity=".3"/><path d="M12 3a9 9 0 1 1-8.66 6.54"/>',
+  /** lucide: zap (ISC) */
+  zap: '<path d="M4 14a1 1 0 0 1-.78-1.63l9.9-12.2a.5.5 0 0 1 .88.45L12.7 8h5.8a1 1 0 0 1 .78 1.63l-9.9 12.2a.5.5 0 0 1-.88-.45L9.3 16H4z"/>',
 
   // ── The island's header: sound on and muted ──
   /** lucide: volume-2 (ISC) */

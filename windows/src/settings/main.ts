@@ -22,6 +22,7 @@ import { clear, h, replay } from "../views/dom";
 import { BRANDS, CLAUDE_MARK, CODEX_MARK, LUCIDE, brand } from "../views/iconset";
 import { TOOL_NAME } from "../views/tool";
 import { connect, type Backend } from "./backend";
+import { updateBatteryTooltip } from "./metric-tooltip";
 import { isBotTheme, mountBot, refreshBots, startBots, wearBotTheme } from "./bots";
 import { COMPACT_BOT, COMPACT_CELLS, cellIcon, islandPreview } from "./island-preview";
 import { SPRING, flip, icon, reorderable, segmented, slider, toggle, type Toggle } from "./ui";
@@ -40,6 +41,7 @@ type Motion = Settings["reduceMotion"];
 
 let nook: Backend;
 let settings: Settings = { ...DEFAULT_SETTINGS };
+let batteryAvailable = false;
 let version = "";
 let hooks: HookStatus | null = null;
 let usage: UsageStatus | null = null;
@@ -1538,7 +1540,9 @@ const isMetric = (id: string): id is CompactMetric => (COMPACT_METRICS as readon
 
 /** The compact island, live: at the top of the Island page and of Look and colours, whichever is on show. */
 const folded = islandPreview(islandBot);
-const paintPreview = (animate: boolean) => folded.update(compactMetrics(settings), animate && !still(), settings.dock);
+const paintPreview = (animate: boolean) => folded.update(
+  compactMetrics(settings), animate && !still(), settings.dock, batteryAvailable,
+);
 
 /** The metrics to choose from: made once, repainted in place. */
 const metricPicker = (() => {
@@ -1548,13 +1552,23 @@ const metricPicker = (() => {
   const rows = new Map<MetricRow, { el: HTMLElement; check: HTMLButtonElement; grip: HTMLButtonElement }>();
 
   const chosen = () => compactMetrics(settings);
-  const order = (): MetricRow[] => [...chosen(), ...METRIC_ROWS.filter((id) => !(chosen() as MetricRow[]).includes(id))];
+  const order = (): MetricRow[] => {
+    const on = chosen() as MetricRow[];
+    return [...on, ...METRIC_ROWS.filter((id) => (id !== "battery" || batteryAvailable) && !on.includes(id))];
+  };
 
   const paint = (animate = true) => {
     const on = chosen() as MetricRow[];
     flip(list, () => {
+      const visible = new Set(order());
+      for (const [id, r] of rows) r.el.hidden = !visible.has(id);
       for (const id of order()) {
         const r = rows.get(id)!;
+        const sample = r.check.querySelector(".sample")!;
+        sample.textContent = id === "battery" && !batteryAvailable ? "Unavailable" : COMPACT_CELLS[id].sample;
+        if (id === "battery") {
+          updateBatteryTooltip(r.check, batteryAvailable);
+        }
         const picked = on.includes(id);
         r.el.classList.toggle("on", picked);
         if (picked) delete r.el.dataset.fixed;
@@ -1735,8 +1749,8 @@ function islandSection(): Kid[] {
         metricPicker.list,
         metricPicker.refusal,
         h("p", { class: "sp-note", text: "Pick up to three. Drag a chosen one by its handle to change the order. With none, the island is narrower. Numbers in the island preview are samples." }))),
-    "What the compact island shows", "Pick up to three numbers to show beside Gullu.",
-    "metrics numbers stats cpu processor gpu graphics ram memory usage limits weekly waiting sessions show", true),
+    "What the compact island shows", "Pick up to three cells to show beside Gullu.",
+    "metrics numbers stats cpu processor gpu graphics ram memory usage limits weekly waiting sessions battery charge power show", true),
     group("Usage indicators",
       row("Rotate Claude and Codex usage", "Requires Read Codex usage limits. The compact island switches between Claude and Codex every five seconds only while both have fresh quota data. Otherwise, it keeps showing Claude usage as usual. Nook uses the data it already has.", usageRotation.el,
         "claude codex quota usage limits rotate rotation switch alternate five seconds")),
@@ -2143,7 +2157,8 @@ function setSection(next: Section, animate = true) {
 
 async function start() {
   nook = await connect();
-  const [boot, , statuses, where] = await Promise.all([nook.boot(), readClaude(), nook.shortcutStatus(), nook.dataPaths()]);
+  const [boot, , statuses, where, hasBattery] = await Promise.all([nook.boot(), readClaude(), nook.shortcutStatus(), nook.dataPaths(), nook.batteryAvailable()]);
+  batteryAvailable = hasBattery === true;
   if (boot) {
     settings = { ...settings, ...boot.settings };
     version = boot.version;
