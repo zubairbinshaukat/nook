@@ -17,12 +17,14 @@
 import "./settings.css";
 import type { AboutLink, CodexStatus, CursorStatus, DataPaths, HookPreview, HookStatus, ReplyFormatAction, ReplyFormatStatus, ShortcutName, ShortcutStatus, UpdateInfo, UsageStatus } from "../core/bridge";
 import { COMPACT_METRICS, DEFAULT_SETTINGS, FADE_MAX, FADE_MIN, FOLDED_AUTO_HIDE, MAX_COMPACT_METRICS, compactMetrics, foldedAutoHide, type CompactMetric, type SessionAgent, type Settings } from "../core/state";
+import { DICTIONARIES, effectiveLanguage as resolveEffectiveLanguage, isLanguagePreference, t, type LanguagePreference, type TranslationKey } from "../core/i18n";
 import { BOT_THEMES } from "../bot/engine";
 import { clear, h, replay } from "../views/dom";
 import { BRANDS, CLAUDE_MARK, CODEX_MARK, LUCIDE, brand } from "../views/iconset";
 import { TOOL_NAME } from "../views/tool";
 import { connect, type Backend } from "./backend";
 import { updateBatteryTooltip } from "./metric-tooltip";
+import { LOOK_RESET_FIELDS, lookAtDefaults, lookResetPatch } from "./reset";
 import { isBotTheme, mountBot, refreshBots, startBots, wearBotTheme } from "./bots";
 import { COMPACT_BOT, COMPACT_CELLS, cellIcon, islandPreview } from "./island-preview";
 import { SPRING, flip, icon, reorderable, segmented, slider, toggle, type Toggle } from "./ui";
@@ -41,6 +43,7 @@ type Motion = Settings["reduceMotion"];
 
 let nook: Backend;
 let settings: Settings = { ...DEFAULT_SETTINGS };
+let systemLanguage: "en" | "uk" | "pl" | "ru" = "en";
 let batteryAvailable = false;
 let version = "";
 let hooks: HookStatus | null = null;
@@ -148,8 +151,8 @@ function settingsChanged(next: Settings) {
   }
   settings = { ...settings, ...next, ...(mine as Partial<Settings>) };
   applyAppearance();
+  paintLocalizedSettings();
   follow();
-  paintResets();
 }
 
 // ── Theme and motion ──────────────────────────────────────────────────────────
@@ -246,11 +249,13 @@ const versionLine = h("span");
 /** A category's title: its mark, its name, and what it is for. */
 const heads = new Map<Section, HTMLElement>();
 function head(id: Section): HTMLElement {
+  const name = id === "look" ? t("settings.look.title", effectiveLanguage()) : INFO[id].name;
+  const lede = id === "look" ? t("settings.look.description", effectiveLanguage()) : INFO[id].lede;
   const el = h("header", { class: "sp-head" },
     tile(id, 20, "big"),
     h("div", { class: "sp-head-text" },
-      h("h1", { class: "sp-title", text: INFO[id].name }),
-      h("p", { class: "sp-lede", text: INFO[id].lede })));
+      h("h1", { class: "sp-title", text: name }),
+      h("p", { class: "sp-lede", text: lede })));
   heads.set(id, el);
   return el;
 }
@@ -316,7 +321,10 @@ const plain = (text: string) =>
   text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[“”"'‘’]/g, "");
 
 function findable<T extends HTMLElement>(el: T, label: string, help: string | null, keys = "", block = false): T {
-  index.push({ section: building, el, block, words: plain(`${label} ${help ?? ""} ${keys} ${INFO[building].name}`) });
+  const localizedCategory = building === "look"
+    ? Object.values(DICTIONARIES).map((dictionary) => dictionary["settings.look.title"]).join(" ")
+    : "";
+  index.push({ section: building, el, block, words: plain(`${label} ${help ?? ""} ${keys} ${INFO[building].name} ${localizedCategory}`) });
   return el;
 }
 
@@ -499,7 +507,7 @@ document.addEventListener("keydown", (e) => {
 /** The settings each category puts back. Never the connections: those are only ever changed through their diff. */
 const RESET_FIELDS: Partial<Record<Section, readonly (keyof Settings)[]>> = {
   island: ["screen", "dock", "autostart", "autoCloseInterval", "foldedAutoHide", "hideOnlyWhenIdle", "hideInFullscreen", "compactMetrics", "usageRotationEnabled"],
-  look: ["botTheme", "playfulReactions", "theme", "reduceMotion"],
+  look: LOOK_RESET_FIELDS,
   sounds: ["soundEnabled", "soundVolume"],
   agents: ["showAgentsList", "agentsListFade", "agentsListFadeOpacity"],
   shelf: ["shelfOrder", "shelfHidden"],
@@ -513,10 +521,16 @@ const RESET_WORDS: Partial<Record<Section, string>> = {
   shortcuts: "Puts all five shortcuts back to Nook's keys, and turns them on.",
   shelf: "Shows every widget again, in the order they came in.",
 };
+const RESET_ENGLISH_WORDS = {
+  "settings.reset.idle": "Reset this section",
+  "settings.reset.armed": "Click again to reset",
+  "settings.reset.busy": "Resetting…",
+} as const;
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 function atDefaults(id: Section): boolean {
+  if (id === "look") return lookAtDefaults(settings, DEFAULT_SETTINGS);
   if (id === "shortcuts") {
     return SHORTCUTS.every(({ which }) => {
       const [key, on] = SHORTCUT_FIELDS[which];
@@ -535,7 +549,8 @@ async function resetSection(id: Section) {
     }
   } else {
     const patch: Record<string, unknown> = {};
-    for (const key of RESET_FIELDS[id] ?? []) patch[key] = structuredClone(DEFAULT_SETTINGS[key]);
+    if (id === "look") Object.assign(patch, lookResetPatch(DEFAULT_SETTINGS));
+    else for (const key of RESET_FIELDS[id] ?? []) patch[key] = structuredClone(DEFAULT_SETTINGS[key]);
     // The normal way: kept, applied at once, saved — and the island told.
     change(patch as Partial<Settings>);
     autoCloseCustom = autoClosePreset() === "custom";
@@ -551,13 +566,41 @@ const paintResets = () => {
 /** Arms a category's reset as a first click does (the made-up window's `reset=armed`). */
 const resetArmers = new Map<Section, () => void>();
 
+function effectiveLanguage() {
+  return resolveEffectiveLanguage(settings.language, systemLanguage);
+}
+
+function translated(key: TranslationKey) {
+  return t(key, effectiveLanguage());
+}
+
+function paintLocalizedSettings(paintResetLabels = true) {
+  const lookName = translated("settings.look.title");
+  const lookTab = tabs.get("look");
+  if (lookTab) {
+    lookTab.setAttribute("aria-label", lookName);
+    lookTab.title = lookName;
+    const label = lookTab.querySelector<HTMLElement>(".sp-tab-name");
+    if (label) label.textContent = lookName;
+  }
+  const lookHead = heads.get("look");
+  if (lookHead) {
+    lookHead.querySelector(".sp-title")!.textContent = lookName;
+    lookHead.querySelector(".sp-lede")!.textContent = translated("settings.look.description");
+  }
+  for (const paint of localizedPainters) paint();
+  if (paintResetLabels) paintResets();
+}
+
+const localizedPainters: (() => void)[] = [];
+
 /**
  * "Reset this section", at the foot of a category: a quiet button that asks
  * twice. The first click arms it — its words change, and a screen reader is
  * told — and it disarms by itself after a few seconds; the second resets.
  */
 function resetFoot(id: Section): HTMLElement {
-  const IDLE = "Reset this section";
+  const IDLE = "settings.reset.idle" as const;
   const words = h("span", { text: IDLE });
   const b = h("button", { class: "sp-reset", type: "button" }, icon(LUCIDE.rotateCcw, 14, 2.1), words);
   const note = h("p", { class: "sp-help", id: `reset-note-${id}` });
@@ -571,8 +614,11 @@ function resetFoot(id: Section): HTMLElement {
     b.setAttribute("aria-disabled", String(spent));
     b.classList.toggle("spent", spent);
     b.classList.toggle("armed", armed !== 0);
-    words.textContent = busy ? "Resetting…" : armed ? "Click again to reset" : IDLE;
-    note.textContent = done && !armed ? "Everything here is as it came." : RESET_WORDS[id] ?? "";
+    const resetKey = busy ? "settings.reset.busy" : armed ? "settings.reset.armed" : IDLE;
+    words.textContent = id === "look" ? translated(resetKey) : RESET_ENGLISH_WORDS[resetKey];
+    note.textContent = id === "look"
+      ? translated(done && !armed ? "settings.reset.look.done" : "settings.reset.look.note")
+      : done && !armed ? "Everything here is as it came." : RESET_WORDS[id] ?? "";
   };
   const disarm = () => {
     window.clearTimeout(armed);
@@ -582,7 +628,7 @@ function resetFoot(id: Section): HTMLElement {
   const arm = () => {
     armed = window.setTimeout(disarm, 4000);
     paint();
-    say(`Click again to reset ${INFO[id].name}.`);
+    say(id === "look" ? translated("settings.reset.look.armAnnouncement") : `Click again to reset ${INFO[id].name}.`);
   };
   b.addEventListener("click", async () => {
     if (busy || (!armed && atDefaults(id))) return;
@@ -594,7 +640,7 @@ function resetFoot(id: Section): HTMLElement {
     await resetSection(id);
     busy = false;
     paint();
-    say(`${INFO[id].name} is reset.`);
+    say(id === "look" ? translated("settings.reset.look.doneAnnouncement") : `${INFO[id].name} is reset.`);
   });
   b.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && armed) {
@@ -1813,6 +1859,43 @@ function lookSection(): Kid[] {
   });
   const motion = segmented<Motion>("Reduce motion", [["system", "Match computer"], ["on", "On"], ["off", "Off"]], settings.reduceMotion, (v) => change({ reduceMotion: v }));
   const playful = toggle(settings.playfulReactions !== false, "Playful Gullu", (on) => change({ playfulReactions: on }));
+  const languageOptions = ["system", "en", "uk", "pl", "ru"] as const;
+  const languagePicker = h("select", { class: "sp-language-select", title: translated("settings.language.tooltip"), "aria-label": translated("settings.language.label") });
+  const languagePickerLabel = h("div", { class: "sp-row-label", text: translated("settings.language.label") });
+  const languageHelp = h("p", { class: "sp-help", text: translated("settings.language.description") });
+  const languageHeading = h("h2", { class: "sp-group-label", text: translated("settings.language.heading") });
+  for (const value of languageOptions) {
+    const key = `settings.language.${value}` as TranslationKey;
+    languagePicker.append(h("option", { value, text: translated(key) }));
+  }
+  languagePicker.value = settings.language;
+  languagePicker.addEventListener("change", () => {
+    if (!isLanguagePreference(languagePicker.value)) return;
+    change({ language: languagePicker.value as LanguagePreference });
+    follow();
+    paintLocalizedSettings(false);
+  });
+  const paintLanguage = () => {
+    languagePicker.title = translated("settings.language.tooltip");
+    languagePicker.setAttribute("aria-label", translated("settings.language.label"));
+    languagePickerLabel.textContent = translated("settings.language.label");
+    languageHelp.textContent = translated("settings.language.description");
+    languageHeading.textContent = translated("settings.language.heading");
+    for (const [index, value] of languageOptions.entries()) {
+      languagePicker.options[index].textContent = translated(`settings.language.${value}` as TranslationKey);
+    }
+    if (document.activeElement !== languagePicker) languagePicker.value = settings.language;
+  };
+  localizedPainters.push(paintLanguage);
+  const languageRow = findable(h("div", { class: "sp-row stack" },
+    h("div", { class: "sp-row-text" }, languagePickerLabel, languageHelp), languagePicker),
+  translated("settings.language.label"), translated("settings.language.description"),
+  [...Object.values(DICTIONARIES).flatMap((dictionary) => [
+    dictionary["settings.language.heading"], dictionary["settings.language.label"],
+    dictionary["settings.language.description"], dictionary["settings.language.tooltip"],
+    dictionary["settings.language.system"], dictionary["settings.language.en"],
+    dictionary["settings.language.uk"], dictionary["settings.language.pl"], dictionary["settings.language.ru"],
+  ]), "language interface translation localization locale мова язык język"].join(" "), false);
   writeHelp();
   followers.push(() => {
     theme.set(settings.theme);
@@ -1822,6 +1905,7 @@ function lookSection(): Kid[] {
   });
   return [
     head("look"),
+    h("section", { class: "sp-group" }, languageHeading, h("div", { class: "sp-box" }, languageRow)),
     group("Gullu",
       botColours(),
       row("Playful Gullu", "Gullu follows your mouse and reacts to clicks. Off, Gullu only shows how your sessions are doing.", playful.el,
@@ -2161,6 +2245,7 @@ async function start() {
   batteryAvailable = hasBattery === true;
   if (boot) {
     settings = { ...settings, ...boot.settings };
+    systemLanguage = boot.systemLanguage;
     version = boot.version;
   }
   shortcutsNow = statuses;
@@ -2175,6 +2260,7 @@ async function start() {
     panes.set(id, pane);
     main.append(pane);
   }
+  paintLocalizedSettings();
   main.append(results);
 
   clear(root);
@@ -2193,6 +2279,16 @@ async function start() {
   startBots(still);
 
   nook.onSettingsChanged(settingsChanged);
+  window.addEventListener("languagechange", () => {
+    if (settings.language === "system") {
+      void nook.boot().then((boot) => {
+        if (boot && settings.language === "system") {
+          systemLanguage = boot.systemLanguage;
+          paintLocalizedSettings();
+        }
+      });
+    }
+  });
   systemDark.addEventListener("change", () => {
     applyAppearance();
     follow();

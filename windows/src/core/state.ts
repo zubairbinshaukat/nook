@@ -2,6 +2,7 @@
 
 import type { BotEmoteName, BotStateName, Dock, IslandMode, IslandViewName } from "./layout";
 import type { EyeShape } from "../bot/engine";
+import type { LanguagePreference } from "./i18n";
 
 export type AgentSource = "claudeCode" | "agent";
 export type PillBadge = "approval" | "finished" | "error";
@@ -561,6 +562,8 @@ export const INTEGRATION_AGENTS: AgentTask[] = [
 ];
 
 export interface Settings {
+  /** The interface language; "system" follows the preferred OS language. */
+  language: LanguagePreference;
   soundEnabled: boolean;
   soundVolume: number;
   autoCloseInterval: number;
@@ -853,6 +856,7 @@ export const DEFAULT_HIDE_SHORTCUT = "Ctrl+Alt+N";
 export const DEFAULT_AGENTS_SHORTCUT = "Ctrl+Shift+L";
 
 export const DEFAULT_SETTINGS: Settings = {
+  language: "en",
   soundEnabled: true,
   soundVolume: 0.12,
   autoCloseInterval: 15,

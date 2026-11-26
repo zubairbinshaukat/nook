@@ -27,6 +27,8 @@ tokio = { version = "1", features = ["net", "io-util", "sync", "time", "rt", "pr
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = [
   "Win32_Foundation",
+  # Preferred Windows UI languages for the tray's "Same as system" choice.
+  "Win32_Globalization",
   # The display a window is on, for "Hide in full-screen apps" (platform/windows.rs).
   "Win32_Graphics_Gdi",
   "Win32_Security",

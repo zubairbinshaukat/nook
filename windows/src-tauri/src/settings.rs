@@ -9,6 +9,8 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
+    /// "system" follows the platform's preferred UI language; English stays the default.
+    pub language: String,
     pub sound_enabled: bool,
     pub sound_volume: f64,
     pub auto_close_interval: f64,
@@ -254,6 +256,7 @@ impl Settings {
         self.shelf_order = shelf_order(&self.shelf_order);
         self.shelf_hidden = shelf_hidden(&self.shelf_hidden);
         self.folded_auto_hide = folded_auto_hide(self.folded_auto_hide);
+        self.language = one_of(LANGUAGES, &self.language);
         self.hide_shortcut = hide_shortcut(&self.hide_shortcut);
         self.agents_shortcut = agents_shortcut(&self.agents_shortcut);
         // A position is two numbers or none: one alone says nothing.
@@ -271,6 +274,7 @@ impl Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            language: "en".into(),
             sound_enabled: true,
             sound_volume: 0.12,
             auto_close_interval: 15.0,
@@ -315,6 +319,9 @@ impl Default for Settings {
     }
 }
 
+/// Persisted UI language choices; "en" keeps existing installations in English.
+pub const LANGUAGES: &[&str] = &["en", "uk", "pl", "ru", "system"];
+
 pub use crate::platform::{config_dir, local_dir};
 
 pub fn hook_exe_path() -> PathBuf {
@@ -352,6 +359,7 @@ mod tests {
         assert!(!settings.sound_enabled);
         assert_eq!(settings.screen, "cursor");
         assert!(settings.autostart);
+        assert_eq!(settings.language, "en");
         assert_eq!(settings.expand_shortcut, "Ctrl+Alt+Space");
         assert!(settings.expand_shortcut_enabled);
         assert_eq!(settings.goto_shortcut, "Ctrl+Alt+Enter");
@@ -367,6 +375,29 @@ mod tests {
         assert!(!settings.expand_shortcut_enabled);
         assert_eq!(settings.goto_shortcut, "Ctrl+Alt+Enter");
         assert_eq!(settings.panel_shortcut, "Ctrl+Shift+Space");
+    }
+
+    #[test]
+    fn language_defaults_validates_and_round_trips_without_breaking_old_settings() {
+        assert_eq!(Settings::default().language, "en");
+        let old: Settings = serde_json::from_str(r#"{"soundEnabled":false}"#).unwrap();
+        assert_eq!(old.language, "en");
+
+        for language in ["en", "uk", "pl", "ru", "system"] {
+            let settings = Settings {
+                language: language.into(),
+                ..Settings::default()
+            }
+            .validated();
+            assert_eq!(settings.language, language);
+            let json = serde_json::to_string(&settings).unwrap();
+            let restored = serde_json::from_str::<Settings>(&json)
+                .unwrap()
+                .validated();
+            assert_eq!(restored.language, language);
+        }
+        let invalid = Settings { language: "xx".into(), ..Settings::default() }.validated();
+        assert_eq!(invalid.language, "en");
     }
 
     #[test]

@@ -15,7 +15,7 @@ export interface Backend {
   fake: boolean;
   /** The section to open on, when something other than the first is asked for (the made-up one only). */
   start?: string;
-  boot(): Promise<{ settings: Settings; version: string } | null>;
+  boot(): Promise<{ settings: Settings; version: string; systemLanguage: "en" | "uk" | "pl" | "ru" } | null>;
   batteryAvailable(): Promise<boolean | null>;
   saveSettings(settings: Settings): Promise<void>;
   onSettingsChanged(handler: (settings: Settings) => void): void;

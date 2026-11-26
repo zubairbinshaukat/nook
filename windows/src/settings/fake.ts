@@ -156,7 +156,7 @@ export function fakeBackend(): Backend {
     fake: true,
     start: q.get("section") ?? undefined,
     async boot() {
-      return { settings: { ...settings }, version: "0.0.0-fake" };
+      return { settings: { ...settings }, version: "0.0.0-fake", systemLanguage: "en" };
     },
     async batteryAvailable() {
       return false;
