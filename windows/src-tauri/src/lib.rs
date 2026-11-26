@@ -56,6 +56,7 @@ pub struct Shared {
 #[serde(rename_all = "camelCase")]
 pub struct BootInfo {
     settings: Settings,
+    system_language: &'static str,
     screen: ScreenInfo,
     /// The full window's logical size: what the island is centred in, and the
     /// most the large panel can be on this display.
@@ -77,10 +78,13 @@ fn boot(app: AppHandle, window: tauri::Window, shared: State<Shared>) -> BootInf
     let mut settings = shared.settings.lock().unwrap().clone();
     // The real state of ~/.claude/settings.json wins over whatever we stored.
     settings.hooks_installed = hooks::status().installed;
+    let system_language = tray::system_language();
+    tray::set_language(&app, &settings.language);
     let screen = island::screen_info(&app, &settings.screen);
     let panel = *shared.gate.panel.lock().unwrap();
     BootInfo {
         settings,
+        system_language,
         screen,
         panel,
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -91,10 +95,19 @@ fn boot(app: AppHandle, window: tauri::Window, shared: State<Shared>) -> BootInf
 
 #[tauri::command]
 fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
-    let (screen_changed, autostart_changed, theme_changed, agents_changed, codex_quota_changed, settings) = {
+    let (
+        screen_changed,
+        autostart_changed,
+        theme_changed,
+        agents_changed,
+        codex_quota_changed,
+        language_changed,
+        settings,
+    ) = {
         let mut current = shared.settings.lock().unwrap();
         let screen_changed = current.screen != settings.screen;
         let autostart_changed = current.autostart != settings.autostart;
+        let language_changed = current.language != settings.language;
         // The global shortcuts are not preferences a page writes: they change
         // through `set_shortcut` alone, which registers one before it saves it.
         // The rest is held to what Nook knows (settings.rs `validated`): the
@@ -125,7 +138,15 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
         let agents_changed = current.show_agents_list != settings.show_agents_list;
         let codex_quota_changed = current.codex_quota_enabled != settings.codex_quota_enabled;
         *current = settings.clone();
-        (screen_changed, autostart_changed, theme_changed, agents_changed, codex_quota_changed, settings)
+        (
+            screen_changed,
+            autostart_changed,
+            theme_changed,
+            agents_changed,
+            codex_quota_changed,
+            language_changed,
+            settings,
+        )
     };
     if let Err(err) = settings::save(&settings) {
         eprintln!("[nook] could not save settings: {err}");
@@ -154,6 +175,9 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
     }
     if codex_quota_changed {
         app.state::<codex_quota::Provider>().set_enabled(settings.codex_quota_enabled);
+    }
+    if language_changed {
+        tray::set_language(&app, &settings.language);
     }
 }
 

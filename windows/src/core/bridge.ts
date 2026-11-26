@@ -30,6 +30,8 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T |
 
 export interface BootInfo {
   settings: Settings;
+  /** Rust's platform-resolved system language, independent of Settings.language. */
+  systemLanguage: "en" | "uk" | "pl" | "ru";
   /** Logical screen rect of the monitor the island lives on. */
   screen: { x: number; y: number; width: number; height: number; scale: number };
   /** The window's own logical size on that monitor: see layout.ts `Room`. */

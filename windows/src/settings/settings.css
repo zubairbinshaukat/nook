@@ -127,6 +127,7 @@
 
 html {
   height: 100%;
+  overflow: hidden;
   background: var(--side);
 }
 
@@ -154,6 +155,7 @@ body.settings-window {
   height: 100%;
   display: grid;
   grid-template-columns: 188px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
 }
 
 [hidden] {
@@ -475,6 +477,7 @@ body.settings-window {
 }
 
 .sp-pane {
+  --sp-pane-top-padding: 22px;
   position: absolute;
   inset: 0;
   overflow-x: hidden;
@@ -482,7 +485,7 @@ body.settings-window {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--edge) 55%, transparent) transparent;
   scrollbar-gutter: stable;
-  padding: 22px 14px 28px 24px;
+  padding: var(--sp-pane-top-padding) 14px 28px 24px;
 }
 
 .sp-pane > * {
@@ -715,6 +718,46 @@ body.settings-window {
   margin: 2px 0 0;
   font: 400 12px/16px var(--font);
   color: var(--text-2);
+}
+
+.sp-select-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+}
+
+.sp-language-select {
+  /* This control is a child of a column flex row, so a pixel flex-basis would
+     set its height. Let its intrinsic single-line size meet the 36px minimum. */
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 38px 0 10px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font: 500 12.5px var(--font);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.sp-select-wrap > svg {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 14px;
+  height: 14px;
+  color: var(--text-2);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.sp-language-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .sp-note {
@@ -1362,7 +1405,7 @@ body.settings-window {
 /* Stays in sight while the choices under it scroll. */
 .sp-live {
   position: sticky;
-  top: 0;
+  top: calc(0px - var(--sp-pane-top-padding));
   z-index: 3;
   margin: 8px -14px 0 -24px;
   padding: 12px 14px 10px 24px;
@@ -2194,7 +2237,8 @@ body.settings-window {
   }
 
   .sp-pane {
-    padding: 18px 10px 24px 20px;
+    --sp-pane-top-padding: 18px;
+    padding: var(--sp-pane-top-padding) 10px 24px 20px;
   }
 
   /* The results start under the field that came out over them. */
@@ -2241,7 +2285,8 @@ body.settings-window {
   }
 
   .sp-pane {
-    padding: 28px 26px 32px 36px;
+    --sp-pane-top-padding: 28px;
+    padding: var(--sp-pane-top-padding) 26px 32px 36px;
   }
 
   .sp-live {
