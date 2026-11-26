@@ -1861,6 +1861,7 @@ function lookSection(): Kid[] {
   const playful = toggle(settings.playfulReactions !== false, "Playful Gullu", (on) => change({ playfulReactions: on }));
   const languageOptions = ["system", "en", "uk", "pl", "ru"] as const;
   const languagePicker = h("select", { class: "sp-language-select", title: translated("settings.language.tooltip"), "aria-label": translated("settings.language.label") });
+  const languageSelect = h("div", { class: "sp-select-wrap" }, languagePicker, icon(LUCIDE.chevronDown, 14, 2.2));
   const languagePickerLabel = h("div", { class: "sp-row-label", text: translated("settings.language.label") });
   const languageHelp = h("p", { class: "sp-help", text: translated("settings.language.description") });
   const languageHeading = h("h2", { class: "sp-group-label", text: translated("settings.language.heading") });
@@ -1888,7 +1889,7 @@ function lookSection(): Kid[] {
   };
   localizedPainters.push(paintLanguage);
   const languageRow = findable(h("div", { class: "sp-row stack" },
-    h("div", { class: "sp-row-text" }, languagePickerLabel, languageHelp), languagePicker),
+    h("div", { class: "sp-row-text" }, languagePickerLabel, languageHelp), languageSelect),
   translated("settings.language.label"), translated("settings.language.description"),
   [...Object.values(DICTIONARIES).flatMap((dictionary) => [
     dictionary["settings.language.heading"], dictionary["settings.language.label"],
