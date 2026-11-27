@@ -450,8 +450,6 @@ function runSearch(text: string) {
       title: `Open ${INFO[id].name}`,
       "aria-label": `In ${INFO[id].name}. Open it.` },
       tile(id, 12), h("span", { text: INFO[id].name }), icon(LUCIDE.arrowRight, 13, 2.2));
-    crumb.title = translateSettingsSource(`Open ${INFO[id].name}`, effectiveLanguage());
-    crumb.setAttribute("aria-label", translateSettingsSource(`In ${INFO[id].name}. Open it.`, effectiveLanguage()));
     setLocalizedAttribute(crumb, "title", `Open ${INFO[id].name}`);
     setLocalizedAttribute(crumb, "aria-label", `In ${INFO[id].name}. Open it.`);
     crumb.addEventListener("click", () => goTo(id, mine[0].el));

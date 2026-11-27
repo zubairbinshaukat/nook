@@ -1,7 +1,6 @@
-type Language = "en" | "uk" | "pl" | "ru";
-const LOCALE: Record<Language, string> = { en: "en-US", uk: "uk-UA", pl: "pl-PL", ru: "ru-RU" };
-const formatNumber = (value: number, language: Language) => new Intl.NumberFormat(LOCALE[language]).format(value);
-const pluralCategory = (value: number, language: Language) => new Intl.PluralRules(LOCALE[language]).select(value);
+import { formatNumber, pluralCategory, type Language } from "./i18n.ts";
+
+// Use this catalog for Settings copy without typed core keys; use t() and typed keys for shared app copy.
 
 /** Settings-only source copy. Each entry keeps the English source and its three reviewed UI translations together. */
 const COPY = {
