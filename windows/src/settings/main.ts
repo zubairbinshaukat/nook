@@ -17,9 +17,11 @@
 import "./settings.css";
 import type { AboutLink, CodexStatus, CursorStatus, DataPaths, HookPreview, HookStatus, ReplyFormatAction, ReplyFormatStatus, ShortcutName, ShortcutStatus, UpdateInfo, UsageStatus } from "../core/bridge";
 import { COMPACT_METRICS, DEFAULT_SETTINGS, FADE_MAX, FADE_MIN, FOLDED_AUTO_HIDE, MAX_COMPACT_METRICS, compactMetrics, foldedAutoHide, type CompactMetric, type SessionAgent, type Settings } from "../core/state";
-import { DICTIONARIES, effectiveLanguage as resolveEffectiveLanguage, isLanguagePreference, t, type LanguagePreference, type TranslationKey } from "../core/i18n";
+import { DICTIONARIES, effectiveLanguage as resolveEffectiveLanguage, formatDateTime, formatDurationSeconds, formatNumber, formatPercent, isLanguagePreference, t, type Language, type LanguagePreference, type TranslationKey } from "../core/i18n";
+import { IS_TAURI } from "../core/bridge";
+import { searchResultCount, settingsSearchMatches, settingsSearchWords, translateSettingsSource, tSettings } from "../core/settings-copy";
 import { BOT_THEMES } from "../bot/engine";
-import { clear, h, replay } from "../views/dom";
+import { clear, configureTextLocalization, h, refreshTextLocalization, replay, setLocalizedAttribute } from "../views/dom";
 import { BRANDS, CLAUDE_MARK, CODEX_MARK, LUCIDE, brand } from "../views/iconset";
 import { TOOL_NAME } from "../views/tool";
 import { connect, type Backend } from "./backend";
@@ -28,6 +30,7 @@ import { LOOK_RESET_FIELDS, lookAtDefaults, lookResetPatch } from "./reset";
 import { isBotTheme, mountBot, refreshBots, startBots, wearBotTheme } from "./bots";
 import { COMPACT_BOT, COMPACT_CELLS, cellIcon, islandPreview } from "./island-preview";
 import { SPRING, flip, icon, reorderable, segmented, slider, toggle, type Toggle } from "./ui";
+import { applySettingsEchoEffects, composeShortcutRefusal, createLocalizedPainter, formatSettingsDuration, shortcutProblemText } from "./settings-behavior";
 
 // ── What the window knows ─────────────────────────────────────────────────────
 
@@ -44,6 +47,7 @@ type Motion = Settings["reduceMotion"];
 let nook: Backend;
 let settings: Settings = { ...DEFAULT_SETTINGS };
 let systemLanguage: "en" | "uk" | "pl" | "ru" = "en";
+let lastEffectiveLanguage: Language = "en";
 let batteryAvailable = false;
 let version = "";
 let hooks: HookStatus | null = null;
@@ -59,6 +63,7 @@ let section: Section = "connect";
 
 const page = document.documentElement;
 const root = document.getElementById("settings-root")!;
+configureTextLocalization((source) => translateSettingsSource(source, effectiveLanguage()));
 
 /** What Rust, or the bridge, refused with — as a sentence, without the "Error:" a thrown one carries. */
 const reason = (err: unknown) => (err instanceof Error ? err.message : String(err)).replace(/^Error:\s*/, "");
@@ -120,7 +125,7 @@ function change(patch: Partial<Settings>, soon = false) {
   settings = { ...settings, ...patch };
   const now = performance.now();
   for (const key of Object.keys(patch)) touched.set(key, now);
-  applyAppearance();
+  if ("theme" in patch || "reduceMotion" in patch || "botTheme" in patch) applyAppearance();
   paintResets();
   if (!soon) return save();
   window.clearTimeout(saveTimer);
@@ -143,6 +148,7 @@ const follow = () => {
  * ago is not taken back from an older echo.
  */
 function settingsChanged(next: Settings) {
+  const previous = settings;
   const now = performance.now();
   const mine: Record<string, unknown> = {};
   for (const [key, at] of touched) {
@@ -150,9 +156,11 @@ function settingsChanged(next: Settings) {
     else touched.delete(key);
   }
   settings = { ...settings, ...next, ...(mine as Partial<Settings>) };
-  applyAppearance();
-  paintLocalizedSettings();
-  follow();
+  applySettingsEchoEffects(
+    previous as unknown as Record<string, unknown>, settings as unknown as Record<string, unknown>,
+    lastEffectiveLanguage, effectiveLanguage(),
+    { localize: paintLocalizedSettings, applyAppearance, followFeatures: follow, paintResets },
+  );
 }
 
 // ── Theme and motion ──────────────────────────────────────────────────────────
@@ -241,7 +249,7 @@ new ResizeObserver(placeMark).observe(nav);
 const main = h("main", { class: "sp-main" });
 /** Says what a move or a refusal did, to a screen reader. */
 const live = h("div", { class: "sp-sr", role: "status", "aria-live": "polite" });
-const say = (text: string) => (live.textContent = text);
+const say = (text: string) => (live.textContent = translateSettingsSource(text, effectiveLanguage()));
 const versionLine = h("span");
 
 // ── Small pieces every category uses ──────────────────────────────────────────
@@ -249,8 +257,8 @@ const versionLine = h("span");
 /** A category's title: its mark, its name, and what it is for. */
 const heads = new Map<Section, HTMLElement>();
 function head(id: Section): HTMLElement {
-  const name = id === "look" ? t("settings.look.title", effectiveLanguage()) : INFO[id].name;
-  const lede = id === "look" ? t("settings.look.description", effectiveLanguage()) : INFO[id].lede;
+  const name = id === "look" ? tSettings("Look and colours", effectiveLanguage()) : INFO[id].name;
+  const lede = id === "look" ? tSettings("Gullu's colour, the colours of this window, and how lively things are.", effectiveLanguage()) : INFO[id].lede;
   const el = h("header", { class: "sp-head" },
     tile(id, 20, "big"),
     h("div", { class: "sp-head-text" },
@@ -286,7 +294,7 @@ const stackRow = (label: string, help: string | null, keys: string, ...controls:
 const needs = () => h("p", { class: "sp-needs", hidden: true });
 const sayNeeds = (el: HTMLElement, why: string | null) => {
   el.hidden = why == null;
-  el.textContent = why ?? "";
+  el.textContent = why ? translateSettingsSource(why, effectiveLanguage()) : "";
 };
 
 /** A path, free to wrap after any of its separators and nowhere else. */
@@ -308,6 +316,9 @@ interface Entry {
   section: Section;
   el: HTMLElement;
   words: string;
+  label: string;
+  help: string | null;
+  keys: string;
   block: boolean;
   /** Where it stands in its category while it is in the results. */
   home?: Comment;
@@ -317,15 +328,18 @@ const index: Entry[] = [];
 let building: Section = "connect";
 
 /** Lower case, without accents or quotes: "Colour" and "colour", "café" and "cafe" are one. */
-const plain = (text: string) =>
-  text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[“”"'‘’]/g, "");
-
 function findable<T extends HTMLElement>(el: T, label: string, help: string | null, keys = "", block = false): T {
-  const localizedCategory = building === "look"
-    ? Object.values(DICTIONARIES).map((dictionary) => dictionary["settings.look.title"]).join(" ")
-    : "";
-  index.push({ section: building, el, block, words: plain(`${label} ${help ?? ""} ${keys} ${INFO[building].name} ${localizedCategory}`) });
+  index.push({ section: building, el, block, label, help, keys, words: "" });
   return el;
+}
+
+function refreshSearchIndex() {
+  const language = effectiveLanguage();
+  for (const entry of index) {
+    const section = INFO[entry.section];
+    const extra = entry.section === "look" ? ["Look and colours", "Вигляд і кольори", "Wygląd i kolory", "Вид и цвета"].join(" ") : "";
+    entry.words = settingsSearchWords(entry.label, entry.help, section.name, entry.keys, language, extra);
+  }
 }
 
 const searchInput = h("input", {
@@ -338,7 +352,7 @@ const searchBox = h("div", { class: "sp-search", role: "search" },
   h("label", { class: "sp-sr", for: "sp-search", text: "Search settings" }),
   icon(LUCIDE.search, 15, 2.1),
   searchInput, searchClear,
-  h("kbd", { class: "sp-search-key", "aria-hidden": "true", text: "/" }));
+  h("kbd", { class: "sp-search-key", "aria-hidden": "true", text: "/", "data-no-l10n": "" }));
 /** In a narrow window the field folds to this; pressed, the field comes out over the window's top. */
 const searchOpen = h("button", { class: "sp-search-open", type: "button", "aria-label": "Search settings", title: "Search settings (/)" },
   icon(LUCIDE.search, 17, 2));
@@ -353,6 +367,7 @@ const results = h("div", { class: "sp-pane sp-results", id: "sp-results", role: 
   resultsList);
 
 let query = "";
+let searchHitCount = 0;
 
 /** Every row that is in the results goes back where it stands in its category. */
 function putBack() {
@@ -401,6 +416,10 @@ function runSearch(text: string) {
   paintTabs();
   const pane = panes.get(section);
   if (!query) {
+    searchHitCount = 0;
+    resultsTitle.removeAttribute("data-no-l10n");
+    resultsTitle.textContent = translateSettingsSource("Search", effectiveLanguage());
+    resultsCount.textContent = "";
     results.hidden = true;
     if (pane) pane.hidden = false;
     // Cleared from elsewhere (a result's category opened): a narrow window's field folds away again.
@@ -411,10 +430,12 @@ function runSearch(text: string) {
   results.hidden = false;
   results.scrollTop = 0;
 
-  const words = plain(query).split(/\s+/).filter(Boolean);
-  const hits = index.filter((e) => words.every((w) => e.words.includes(w)));
-  resultsTitle.textContent = `“${query}”`;
-  resultsCount.textContent = hits.length === 0 ? "Nothing found." : hits.length === 1 ? "1 setting found." : `${hits.length} settings found.`;
+  const hits = index.filter((e) => settingsSearchMatches(e.words, query));
+  searchHitCount = hits.length;
+  if (query) resultsTitle.dataset.noL10n = "";
+  else resultsTitle.removeAttribute("data-no-l10n");
+  resultsTitle.textContent = query ? `“${query}”` : translateSettingsSource("Search", effectiveLanguage());
+  resultsCount.textContent = hits.length === 0 ? translateSettingsSource("Nothing found.", effectiveLanguage()) : searchResultCount(hits.length, effectiveLanguage());
   if (!hits.length) {
     resultsList.append(h("div", { class: "sp-empty" },
       icon(LUCIDE.search, 26, 1.8),
@@ -425,8 +446,14 @@ function runSearch(text: string) {
   for (const id of SECTIONS) {
     const mine = hits.filter((e) => e.section === id);
     if (!mine.length) continue;
-    const crumb = h("button", { class: "sp-crumb", type: "button", title: `Open ${INFO[id].name}`, "aria-label": `In ${INFO[id].name}. Open it.` },
+    const crumb = h("button", { class: "sp-crumb", type: "button",
+      title: `Open ${INFO[id].name}`,
+      "aria-label": `In ${INFO[id].name}. Open it.` },
       tile(id, 12), h("span", { text: INFO[id].name }), icon(LUCIDE.arrowRight, 13, 2.2));
+    crumb.title = translateSettingsSource(`Open ${INFO[id].name}`, effectiveLanguage());
+    crumb.setAttribute("aria-label", translateSettingsSource(`In ${INFO[id].name}. Open it.`, effectiveLanguage()));
+    setLocalizedAttribute(crumb, "title", `Open ${INFO[id].name}`);
+    setLocalizedAttribute(crumb, "aria-label", `In ${INFO[id].name}. Open it.`);
     crumb.addEventListener("click", () => goTo(id, mine[0].el));
     const hit = h("section", { class: "sp-hit", "aria-label": INFO[id].name }, crumb);
     let box: HTMLElement | null = null;
@@ -521,12 +548,6 @@ const RESET_WORDS: Partial<Record<Section, string>> = {
   shortcuts: "Puts all five shortcuts back to Nook's keys, and turns them on.",
   shelf: "Shows every widget again, in the order they came in.",
 };
-const RESET_ENGLISH_WORDS = {
-  "settings.reset.idle": "Reset this section",
-  "settings.reset.armed": "Click again to reset",
-  "settings.reset.busy": "Resetting…",
-} as const;
-
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 function atDefaults(id: Section): boolean {
@@ -574,8 +595,28 @@ function translated(key: TranslationKey) {
   return t(key, effectiveLanguage());
 }
 
-function paintLocalizedSettings(paintResetLabels = true) {
-  const lookName = translated("settings.look.title");
+let lastNativeTitle = "";
+function updateSettingsWindowTitle(language: ReturnType<typeof effectiveLanguage>) {
+  lastEffectiveLanguage = language;
+  const title = `${tSettings("Settings", language)} — Nook`;
+  document.title = title;
+  if (page.lang !== language) page.lang = language;
+  if (IS_TAURI && title !== lastNativeTitle) {
+    lastNativeTitle = title;
+    void import("@tauri-apps/api/window")
+      .then(async ({ getCurrentWindow }) => {
+        try { await getCurrentWindow().setTitle(title); }
+        catch (error) { console.error("Could not update the Settings window title.", error); }
+      })
+      .catch((error) => console.error("Could not load the Settings window API.", error));
+  }
+}
+
+function paintLocalizedSettings() {
+  const language = effectiveLanguage();
+  updateSettingsWindowTitle(language);
+  refreshTextLocalization(app);
+  const lookName = tSettings("Look and colours", language);
   const lookTab = tabs.get("look");
   if (lookTab) {
     lookTab.setAttribute("aria-label", lookName);
@@ -586,10 +627,19 @@ function paintLocalizedSettings(paintResetLabels = true) {
   const lookHead = heads.get("look");
   if (lookHead) {
     lookHead.querySelector(".sp-title")!.textContent = lookName;
-    lookHead.querySelector(".sp-lede")!.textContent = translated("settings.look.description");
+    lookHead.querySelector(".sp-lede")!.textContent = tSettings("Gullu's colour, the colours of this window, and how lively things are.", language);
   }
   for (const paint of localizedPainters) paint();
-  if (paintResetLabels) paintResets();
+  paintPreview(false);
+  metricPicker.paintLocale();
+  shelfPicker.paintLocale();
+  refreshSearchIndex();
+  paintResets();
+  if (query) {
+    resultsCount.textContent = searchHitCount === 0
+      ? translateSettingsSource("Nothing found.", language)
+      : searchResultCount(searchHitCount, language);
+  }
 }
 
 const localizedPainters: (() => void)[] = [];
@@ -615,10 +665,10 @@ function resetFoot(id: Section): HTMLElement {
     b.classList.toggle("spent", spent);
     b.classList.toggle("armed", armed !== 0);
     const resetKey = busy ? "settings.reset.busy" : armed ? "settings.reset.armed" : IDLE;
-    words.textContent = id === "look" ? translated(resetKey) : RESET_ENGLISH_WORDS[resetKey];
+    words.textContent = id === "look" ? translated(resetKey) : t(resetKey, effectiveLanguage());
     note.textContent = id === "look"
       ? translated(done && !armed ? "settings.reset.look.done" : "settings.reset.look.note")
-      : done && !armed ? "Everything here is as it came." : RESET_WORDS[id] ?? "";
+      : translateSettingsSource(done && !armed ? "Everything here is as it came." : RESET_WORDS[id] ?? "", effectiveLanguage());
   };
   const disarm = () => {
     window.clearTimeout(armed);
@@ -628,7 +678,7 @@ function resetFoot(id: Section): HTMLElement {
   const arm = () => {
     armed = window.setTimeout(disarm, 4000);
     paint();
-    say(id === "look" ? translated("settings.reset.look.armAnnouncement") : `Click again to reset ${INFO[id].name}.`);
+    say(id === "look" ? translated("settings.reset.look.armAnnouncement") : tSettings("Click again to reset {section}.", effectiveLanguage(), { section: translateSettingsSource(INFO[id].name, effectiveLanguage()) }));
   };
   b.addEventListener("click", async () => {
     if (busy || (!armed && atDefaults(id))) return;
@@ -640,7 +690,7 @@ function resetFoot(id: Section): HTMLElement {
     await resetSection(id);
     busy = false;
     paint();
-    say(id === "look" ? translated("settings.reset.look.doneAnnouncement") : `${INFO[id].name} is reset.`);
+    say(id === "look" ? translated("settings.reset.look.doneAnnouncement") : tSettings("{section} is reset.", effectiveLanguage(), { section: translateSettingsSource(INFO[id].name, effectiveLanguage()) }));
   });
   b.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && armed) {
@@ -1059,7 +1109,7 @@ function diffPanel(kind: Change, flow: Extract<Flow, { at: "confirm" }>, close: 
   const lines = flow.preview.diff.split("\n");
   const added = lines.filter((l) => l.startsWith("+")).length;
   const removed = lines.filter((l) => l.startsWith("-")).length;
-  const box = h("div", { class: "sp-diff", tabindex: "0", role: "region", "aria-label": `Changes to ${fileName}` });
+  const box = h("div", { class: "sp-diff", "data-no-l10n": "", tabindex: "0", role: "region", "aria-label": `Changes to ${fileName}` });
   for (const line of lines) {
     const sign = line[0] === "+" || line[0] === "-" ? line[0] : " ";
     // Rust writes "+ ", "- " or two spaces before each line.
@@ -1078,7 +1128,7 @@ function diffPanel(kind: Change, flow: Extract<Flow, { at: "confirm" }>, close: 
     added + removed === 0 ? h("p", { class: "sp-help", text: `Nothing would change: ${fileName} already says this.` }) : null,
     created
       ? h("p", { class: "sp-help", text: "There is no file to back up: it is created." })
-      : h("p", { class: "sp-help" }, "A dated backup is saved first: ", h("code", {}, ...breakable(flow.preview.backup))),
+      : h("p", { class: "sp-help" }, "A dated backup is saved first: ", h("code", { "data-no-l10n": "" }, ...breakable(flow.preview.backup))),
     flow.error ? h("div", { class: "sp-flash error", role: "alert" }, icon(LUCIDE.circleX, 15), h("span", { text: flow.error })) : null,
     h("div", { class: "sp-panel-actions" }, confirm, cancel));
   panel.addEventListener("keydown", (e) => {
@@ -1141,7 +1191,7 @@ function integration(kind: Change): HTMLElement {
       actions.append(b);
       if (blocked) {
         b.disabled = true;
-        b.title = blocked;
+        setLocalizedAttribute(b, "title", blocked);
         actions.append(h("span", { class: "sp-actions-note", text: blocked }));
       }
     }
@@ -1156,13 +1206,13 @@ function integration(kind: Change): HTMLElement {
       const body = h("div", { class: "sp-details", id });
       if (spec.found?.length) {
         // Somebody's own lines: shown as they are, and nothing here acts on them.
-        body.append(h("div", { class: "sp-diff sp-found", tabindex: "0", role: "region", "aria-label": `Lines found in ${CHANGED_FILE[kind]}` },
+      body.append(h("div", { class: "sp-diff sp-found", "data-no-l10n": "", tabindex: "0", role: "region", "aria-label": `Lines found in ${CHANGED_FILE[kind]}` },
           ...spec.found.map((line) => h("div", { "data-sign": " ", text: line || " " }))));
       }
       for (const text of spec.details ?? []) body.append(h("p", { text }));
       if (spec.facts.length) {
         const facts = h("dl", { class: "sp-facts" });
-        for (const [k, v] of spec.facts) facts.append(h("dt", { text: k }), h("dd", {}, ...breakable(v)));
+        for (const [k, v] of spec.facts) facts.append(h("dt", { text: k }), h("dd", { "data-no-l10n": "" }, ...breakable(v)));
         body.append(facts);
       }
       const fold = h("div", { class: `sp-fold${detailsOpen[kind] ? " open" : ""}` }, h("div", {}, body));
@@ -1183,6 +1233,7 @@ function integration(kind: Change): HTMLElement {
         paint(false, "primary");
       })));
     }
+    if (effectiveLanguage() !== "en") refreshTextLocalization(block);
     block.append(fold);
     clear(slot);
     slot.append(block);
@@ -1347,22 +1398,29 @@ function shortcutRow({ which, label, does, keys }: (typeof SHORTCUTS)[number]): 
   const paint = () => {
     // The agents shortcut is kept but not taken while the list is off.
     const dormant = which === "agents" && !settings.showAgentsList;
-    const problem = refused?.why ?? (status.enabled && !dormant ? status.error : null);
+    const problem = shortcutProblemText(status.error, refused?.why ?? null, status.enabled, dormant, effectiveLanguage(), translateSettingsSource);
     const state = recording ? "recording" : problem ? "error" : !status.enabled || dormant ? "off" : known && status.registered ? "ok" : "unknown";
     el.dataset.state = state;
     clear(field);
     const shown = recording ? partial.map(keyWord) : refused ? refused.keys : shortcutKeys(status.accelerator);
-    for (const key of shown) field.append(h("kbd", { text: key }));
+    for (const key of shown) field.append(h("kbd", { text: key, "data-no-l10n": "" }));
     if (recording) field.append(h("span", { class: "wait", text: partial.length ? "+ a key…" : "Press the new keys…" }));
     else field.append(h("span", { class: "hint", text: "Click to change" }));
-    field.setAttribute("aria-label", recording ? `${label}: recording` : `${label}: ${shortcutKeys(status.accelerator).join(" + ")}. Change`);
+    const localizedLabel = translateSettingsSource(label, effectiveLanguage());
+    field.setAttribute("aria-label", recording
+      ? tSettings("{label}: recording", effectiveLanguage(), { label: localizedLabel })
+      : tSettings("{label}: {keys}. Change", effectiveLanguage(), { label: localizedLabel, keys: shortcutKeys(status.accelerator).join(" + ") }));
     power.set(status.enabled);
+    if (power) power.el.setAttribute("aria-label", tSettings("{label}: on", effectiveLanguage(), {
+      label: translateSettingsSource(label, effectiveLanguage()),
+    }));
     const using = shortcutKeys(status.accelerator).join(" + ");
     clear(line);
     line.append(h("i"), h("span", { text:
       state === "recording" ? "Recording. Esc cancels."
-      : refused ? (status.enabled && status.registered ? `${refused.why}. Still using ${using}.` : `${refused.why}.`)
-      : state === "error" ? `${problem}.`
+      : refused ? composeShortcutRefusal(problem ?? "", status.enabled && status.registered ? using : null, (reason, keys) =>
+        tSettings("{reason}. Still using {keys}.", effectiveLanguage(), { reason, keys }))
+      : state === "error" ? composeShortcutRefusal(problem ?? "", null, () => "")
       : state === "off" ? (dormant && status.enabled ? "Waiting for the agents list to be turned on." : "Off. No shortcut is registered.")
       : state === "ok" ? "Works from any app"
       : known ? "Not registered" : "" }));
@@ -1423,13 +1481,14 @@ function shortcutRow({ which, label, does, keys }: (typeof SHORTCUTS)[number]): 
     paint();
   });
 
-  power = toggle(status.enabled, `${label}: on`, (on) => void set(status.accelerator, on, shortcutKeys(status.accelerator)));
+  power = toggle(status.enabled, tSettings("{label}: on", effectiveLanguage(), { label: translateSettingsSource(label, effectiveLanguage()) }), (on) => void set(status.accelerator, on, shortcutKeys(status.accelerator)));
   el.append(
     h("div", { class: "sp-shortcut-top" },
       h("div", { class: "sp-row-text" }, h("div", { class: "sp-row-label", text: label }), h("p", { class: "sp-help", text: does })),
       power.el),
     field, line);
   paint();
+  localizedPainters.push(paint);
   shortcutFields.set(which, field);
   shortcutResets.set(which, async () => {
     const [key, on] = SHORTCUT_FIELDS[which];
@@ -1482,11 +1541,13 @@ const volumePercent = () => Math.round((Math.max(0, Math.min(VOLUME_MAX, setting
 
 function soundsSection(): Kid[] {
   const volumeNeeds = needs();
-  const volume = slider("Volume", volumePercent(), (v) => `${v}%`, (v) => change({ soundVolume: Number(((v / 100) * VOLUME_MAX).toFixed(4)) }, true));
+  const volume = slider("Volume", volumePercent(), (v) => formatPercent(v, effectiveLanguage()), (v) => change({ soundVolume: Number(((v / 100) * VOLUME_MAX).toFixed(4)) }, true));
+  localizedPainters.push(() => volume.refresh());
   const paintVolume = () => {
     volume.setDisabled(!settings.soundEnabled);
     sayNeeds(volumeNeeds, settings.soundEnabled ? null : "Turn on sounds first.");
   };
+  localizedPainters.push(paintVolume);
   const sound = toggle(settings.soundEnabled, "Play sounds", (on) => {
     change({ soundEnabled: on });
     paintVolume();
@@ -1518,7 +1579,8 @@ function agentsSection(): Kid[] {
     paintAgentsFade();
   });
   const fadePercent = () => Math.max(FADE_MIN, Math.min(FADE_MAX, Math.round(settings.agentsListFadeOpacity) || 50));
-  const agentsFadeTo = slider("How visible when faded", fadePercent(), (v) => `${v}%`, (v) => change({ agentsListFadeOpacity: v }, true), FADE_MIN, FADE_MAX);
+  const agentsFadeTo = slider("How visible when faded", fadePercent(), (v) => formatPercent(v, effectiveLanguage()), (v) => change({ agentsListFadeOpacity: v }, true), FADE_MIN, FADE_MAX);
+  localizedPainters.push(() => agentsFadeTo.refresh());
   const agentsList = toggle(settings.showAgentsList, "Show the agents list", (on) => {
     change({ showAgentsList: on });
     paintAgentsFade();
@@ -1531,6 +1593,7 @@ function agentsSection(): Kid[] {
     sayNeeds(fadeNeeds, off);
     sayNeeds(opacityNeeds, off ?? (settings.agentsListFade ? null : "Turn on fading first."));
   };
+  localizedPainters.push(paintAgentsFade);
   paintAgentsFade();
   followers.push(() => {
     agentsList.set(settings.showAgentsList);
@@ -1560,7 +1623,7 @@ function agentsSection(): Kid[] {
       findable(h("div", { class: "sp-row" },
         rowText("Move and size it with the mouse",
           "Drag its header to move it. Drag its sides to change its width, and its bottom edge to set how tall it may grow. Double-click its header to put the size back.")),
-      "Move and size it with the mouse", "Drag its header to move it, its edges to size it; double-click the header to reset.",
+      "Move and size it with the mouse", "Drag its header to move it. Drag its sides to change its width, and its bottom edge to set how tall it may grow. Double-click its header to put the size back.",
       "move drag resize size width height position place reset double-click"),
       findable(h("div", { class: "sp-row" }, toShortcut), "Set a keyboard shortcut for the list", null, "shortcut hotkey keyboard keys agents")),
     resetFoot("agents"),
@@ -1587,7 +1650,7 @@ const isMetric = (id: string): id is CompactMetric => (COMPACT_METRICS as readon
 /** The compact island, live: at the top of the Island page and of Look and colours, whichever is on show. */
 const folded = islandPreview(islandBot);
 const paintPreview = (animate: boolean) => folded.update(
-  compactMetrics(settings), animate && !still(), settings.dock, batteryAvailable,
+  compactMetrics(settings), animate && !still(), settings.dock, batteryAvailable, effectiveLanguage(),
 );
 
 /** The metrics to choose from: made once, repainted in place. */
@@ -1596,6 +1659,7 @@ const metricPicker = (() => {
   const count = h("span", { class: "count" });
   const refusal = h("div", { class: "sp-refusal", role: "status", hidden: true }, icon(LUCIDE.triangleAlert, 15), h("span"));
   const rows = new Map<MetricRow, { el: HTMLElement; check: HTMLButtonElement; grip: HTMLButtonElement }>();
+  let refused: MetricRow | null = null;
 
   const chosen = () => compactMetrics(settings);
   const order = (): MetricRow[] => {
@@ -1605,15 +1669,17 @@ const metricPicker = (() => {
 
   const paint = (animate = true) => {
     const on = chosen() as MetricRow[];
+    const ordered = order();
+    const shouldReorder = ordered.some((id, i) => list.children[i] !== rows.get(id)?.el);
     flip(list, () => {
-      const visible = new Set(order());
+      const visible = new Set(ordered);
       for (const [id, r] of rows) r.el.hidden = !visible.has(id);
-      for (const id of order()) {
+      for (const id of ordered) {
         const r = rows.get(id)!;
         const sample = r.check.querySelector(".sample")!;
-        sample.textContent = id === "battery" && !batteryAvailable ? "Unavailable" : COMPACT_CELLS[id].sample;
+        sample.textContent = id === "battery" && !batteryAvailable ? translateSettingsSource("Unavailable", effectiveLanguage()) : COMPACT_CELLS[id].sample;
         if (id === "battery") {
-          updateBatteryTooltip(r.check, batteryAvailable);
+          updateBatteryTooltip(r.check, batteryAvailable, (source) => translateSettingsSource(source, effectiveLanguage()));
         }
         const picked = on.includes(id);
         r.el.classList.toggle("on", picked);
@@ -1621,18 +1687,44 @@ const metricPicker = (() => {
         else r.el.dataset.fixed = "";
         r.check.setAttribute("aria-checked", String(picked));
         r.grip.tabIndex = picked ? 0 : -1;
-        list.append(r.el);
+        if (shouldReorder) list.append(r.el);
       }
     }, !animate || still());
-    count.textContent = `${on.length} of ${MAX_COMPACT_METRICS} chosen`;
+    count.textContent = tSettings("{count} of {total} chosen", effectiveLanguage(), {
+      count: formatNumber(on.length, effectiveLanguage()), total: formatNumber(MAX_COMPACT_METRICS, effectiveLanguage()),
+    });
+    if (refused) refusal.querySelector("span")!.textContent = tSettings("Three at most. Untick one to show {name}.", effectiveLanguage(), {
+      name: translateSettingsSource(metricName(refused), effectiveLanguage()),
+    });
     paintPreview(animate);
   };
 
+  const paintLocale = () => {
+    const chosenRows = chosen();
+    count.textContent = tSettings("{count} of {total} chosen", effectiveLanguage(), {
+      count: formatNumber(chosenRows.length, effectiveLanguage()), total: formatNumber(MAX_COMPACT_METRICS, effectiveLanguage()),
+    });
+    if (refused) refusal.querySelector("span")!.textContent = tSettings("Three at most. Untick one to show {name}.", effectiveLanguage(), {
+      name: translateSettingsSource(metricName(refused), effectiveLanguage()),
+    });
+    for (const [id, row] of rows) {
+      row.check.querySelector(".sample")!.textContent = id === "battery" && !batteryAvailable
+        ? translateSettingsSource("Unavailable", effectiveLanguage()) : COMPACT_CELLS[id].sample;
+      row.grip.setAttribute("aria-label", tSettings("Move {name}. Use the up and down arrows.", effectiveLanguage(), {
+        name: translateSettingsSource(metricName(id), effectiveLanguage()),
+      }));
+      if (id === "battery") updateBatteryTooltip(row.check, batteryAvailable, (source) => translateSettingsSource(source, effectiveLanguage()));
+    }
+  };
+
   const refuse = (id: MetricRow | null) => {
+    refused = id;
     for (const r of rows.values()) r.el.classList.remove("refused");
     refusal.hidden = id == null;
     if (id == null) return;
-    const text = `Three at most. Untick one to show ${metricName(id)}.`;
+    const text = tSettings("Three at most. Untick one to show {name}.", effectiveLanguage(), {
+      name: translateSettingsSource(metricName(id), effectiveLanguage()),
+    });
     refusal.querySelector("span")!.textContent = text;
     say(text);
     const el = rows.get(id)!.el;
@@ -1648,7 +1740,7 @@ const metricPicker = (() => {
       h("span", { class: "name", text: name }),
       h("span", { class: "sample", text: COMPACT_CELLS[id].sample }));
     // A machine that reports no GPU use shows "—" in its cell: it can still be picked.
-    if (id === "gpu") check.title = "Shows — on a computer that does not report its graphics use.";
+    if (id === "gpu") setLocalizedAttribute(check, "title", "Shows — on a computer that does not report its graphics use.");
     check.addEventListener("click", () => {
       const on = chosen();
       if (on.includes(id)) {
@@ -1698,12 +1790,11 @@ const metricPicker = (() => {
   });
 
   paint(false);
-  return { list, count, refusal, refuse, paint };
+  return { list, count, refusal, refuse, paint, paintLocale };
 })();
 
 /** "Hide the compact island after": the choices as the control names them, by their seconds ("0" is never). */
 type HideAfter = `${(typeof FOLDED_AUTO_HIDE)[number]}`;
-const HIDE_AFTER_WORDS: Record<HideAfter, string> = { 5: "5 s", 10: "10 s", 30: "30 s", 60: "1 min", 0: "Never" };
 /**
  * What keeping the island on show costs, said as what it is: one measurement,
  * on one machine (the app at rest with the folded island up, across Nook and
@@ -1733,20 +1824,24 @@ function islandSection(): Kid[] {
   autoCloseCustom = autoClosePreset() === "custom";
   const customFold = h("div", { class: `sp-fold${picked() === "custom" ? " open" : ""}` },
     h("div", {}, h("label", { class: "sp-number" }, custom, h("span", { text: "seconds, from 2 to 120" }))));
-  const autoClose = segmented<AutoClose>("Close the open island after", AUTO_CLOSE.map((v) => [v, v === "custom" ? "Other" : `${v} s`] as const), picked(), (v) => {
+  const autoCloseLabels = () => AUTO_CLOSE.map((v) => v === "custom" ? tSettings("Other", effectiveLanguage()) : formatSettingsDuration(Number(v), effectiveLanguage(), tSettings("Never", effectiveLanguage()), formatDurationSeconds));
+  const autoClose = segmented<AutoClose>("Close the open island after", AUTO_CLOSE.map((v, i) => [v, autoCloseLabels()[i]] as const), picked(), (v) => {
     autoCloseCustom = v === "custom";
     customFold.classList.toggle("open", autoCloseCustom);
     // Other starts from the time in use: nothing changes until another number is typed.
     if (autoCloseCustom) custom.value = String(clamp(settings.autoCloseInterval));
     else change({ autoCloseInterval: Number(v) });
   });
+  localizedPainters.push(() => autoClose.setLabels(autoCloseLabels()));
 
   const hideAfterOf = (): HideAfter => String(foldedAutoHide(settings)) as HideAfter;
+  const hideAfterLabels = () => FOLDED_AUTO_HIDE.map((v) => formatSettingsDuration(v, effectiveLanguage(), tSettings("Never", effectiveLanguage()), formatDurationSeconds));
   const neverFold = h("div", { class: `sp-fold${hideAfterOf() === "0" ? " open" : ""}` }, h("div", {}, h("p", { class: "sp-note", text: ALWAYS_SHOWN_NOTE })));
-  const hideAfter = segmented<HideAfter>("Hide the compact island after", FOLDED_AUTO_HIDE.map((v) => [String(v) as HideAfter, HIDE_AFTER_WORDS[String(v) as HideAfter]] as const), hideAfterOf(), (v) => {
+  const hideAfter = segmented<HideAfter>("Hide the compact island after", FOLDED_AUTO_HIDE.map((v, i) => [String(v) as HideAfter, hideAfterLabels()[i]] as const), hideAfterOf(), (v) => {
     neverFold.classList.toggle("open", v === "0");
     change({ foldedAutoHide: Number(v) });
   });
+  localizedPainters.push(() => hideAfter.setLabels(hideAfterLabels()));
   const whenIdle = toggle(settings.hideOnlyWhenIdle, "Keep it showing while a session is busy", (on) => change({ hideOnlyWhenIdle: on }));
   const fullscreen = toggle(settings.hideInFullscreen, "Hide during full-screen apps", (on) => change({ hideInFullscreen: on }));
   const usageRotation = toggle(settings.usageRotationEnabled, "Rotate Claude and Codex usage", (on) => change({ usageRotationEnabled: on }));
@@ -1824,7 +1919,12 @@ function botColours(): HTMLElement {
       b.setAttribute("aria-checked", String(on));
       b.tabIndex = on ? 0 : -1;
     });
-    label.textContent = BOT_THEMES[worn()].label;
+    label.textContent = translateSettingsSource(BOT_THEMES[worn()].label, effectiveLanguage());
+    buttons.forEach((button, i) => {
+      const name = translateSettingsSource(BOT_THEMES[names[i]].label, effectiveLanguage());
+      button.setAttribute("aria-label", name);
+      button.title = name;
+    });
   };
   const pick = (name: (typeof names)[number]) => {
     if (name !== worn()) change({ botTheme: name });
@@ -1840,6 +1940,7 @@ function botColours(): HTMLElement {
   });
   swatches.append(...buttons, label);
   paint();
+  localizedPainters.push(paint);
   followers.push(paint);
   return stackRow("Gullu's colour", "Gullu is the little character in the island. Choose the colour of the island's character.",
     "colour color bot character gullu mascot paint theme", swatches);
@@ -1850,9 +1951,12 @@ function lookSection(): Kid[] {
   const writeHelp = () => {
     // Asked of the system only while following it: a picked theme answers for itself.
     themeHelp.textContent = settings.theme === "system"
-      ? `Follows your computer, which is set to ${systemDark.matches ? "dark" : "light"} right now. The island itself is always dark.`
-      : "The island itself is always dark.";
+      ? tSettings("Follows your computer, which is set to {theme} right now. The island itself is always dark.", effectiveLanguage(), {
+        theme: translateSettingsSource(systemDark.matches ? "dark" : "light", effectiveLanguage()),
+      })
+      : translateSettingsSource("The island itself is always dark.", effectiveLanguage());
   };
+  localizedPainters.push(writeHelp);
   const theme = segmented<Theme>("Colours of this window", [["light", "Light"], ["dark", "Dark"], ["system", "Match computer"]], settings.theme, (v) => {
     change({ theme: v });
     writeHelp();
@@ -1867,14 +1971,13 @@ function lookSection(): Kid[] {
   const languageHeading = h("h2", { class: "sp-group-label", text: translated("settings.language.heading") });
   for (const value of languageOptions) {
     const key = `settings.language.${value}` as TranslationKey;
-    languagePicker.append(h("option", { value, text: translated(key) }));
+    languagePicker.append(h("option", { value, lang: value === "system" ? "en" : value, text: translated(key) }));
   }
   languagePicker.value = settings.language;
   languagePicker.addEventListener("change", () => {
     if (!isLanguagePreference(languagePicker.value)) return;
     change({ language: languagePicker.value as LanguagePreference });
-    follow();
-    paintLocalizedSettings(false);
+    if (effectiveLanguage() !== lastEffectiveLanguage) paintLocalizedSettings();
   });
   const paintLanguage = () => {
     languagePicker.title = translated("settings.language.tooltip");
@@ -1965,10 +2068,30 @@ const shelfPicker = (() => {
     return [...shelfOrder().filter((id) => !hidden.has(id)), ...shelfOrder().filter((id) => hidden.has(id))];
   };
 
+  const paintLocale = () => {
+    const ids = order();
+    const hidden = shelfHidden();
+    const shown = ids.length - hidden.size;
+    count.textContent = tSettings("{count} of {total} on", effectiveLanguage(), {
+      count: formatNumber(shown, effectiveLanguage()), total: formatNumber(ids.length, effectiveLanguage()),
+    });
+    ids.forEach((id, i) => {
+      const card = cards.get(id)!;
+      const name = translateSettingsSource(WIDGETS[id].name, effectiveLanguage());
+      card.el.setAttribute("aria-label", hidden.has(id)
+        ? tSettings("{name}, hidden", effectiveLanguage(), { name })
+        : tSettings("{name}, position {position} of {total}. Arrow keys move it.", effectiveLanguage(), {
+          name, position: formatNumber(i + 1, effectiveLanguage()), total: formatNumber(shown, effectiveLanguage()),
+        }));
+      card.shown.el.setAttribute("aria-label", tSettings("Show {name}", effectiveLanguage(), { name }));
+    });
+  };
+
   const paint = (animate = true) => {
     const ids = order();
     const hidden = shelfHidden();
     const shown = ids.length - hidden.size;
+    const shouldReorder = ids.some((id, i) => tray.children[i] !== cards.get(id)?.el);
     flip(tray, () => {
       ids.forEach((id, i) => {
         const card = cards.get(id)!;
@@ -1978,12 +2101,15 @@ const shelfPicker = (() => {
         else delete card.el.dataset.fixed;
         card.shown.set(!off);
         card.el.setAttribute("aria-label", off
-          ? `${WIDGETS[id].name}, hidden`
-          : `${WIDGETS[id].name}, position ${i + 1} of ${shown}. Arrow keys move it.`);
-        tray.append(card.el);
+          ? tSettings("{name}, hidden", effectiveLanguage(), { name: translateSettingsSource(WIDGETS[id].name, effectiveLanguage()) })
+          : tSettings("{name}, position {position} of {total}. Arrow keys move it.", effectiveLanguage(), {
+            name: translateSettingsSource(WIDGETS[id].name, effectiveLanguage()),
+            position: formatNumber(i + 1, effectiveLanguage()), total: formatNumber(shown, effectiveLanguage()),
+          }));
+        if (shouldReorder) tray.append(card.el);
       });
     }, !animate || still());
-    count.textContent = `${shown} of ${ids.length} on`;
+    paintLocale();
   };
 
   for (const id of WIDGET_IDS) {
@@ -1994,7 +2120,9 @@ const shelfPicker = (() => {
       else hidden.add(id);
       change({ shelfHidden: WIDGET_IDS.filter((x) => hidden.has(x)) });
       paint();
-      say(`${def.name} ${on ? "shown" : "hidden"}`);
+      say(tSettings(on ? "{name} is shown" : "{name} is hidden", effectiveLanguage(), {
+        name: translateSettingsSource(def.name, effectiveLanguage()),
+      }));
     });
     const el = h("div", { class: "sp-card", role: "listitem", tabindex: "0", "data-id": id, style: `--c:${def.accent}` },
       h("div", { class: "sp-card-head" },
@@ -2034,7 +2162,7 @@ const shelfPicker = (() => {
   });
 
   paint(false);
-  return { tray, count, paint };
+  return { tray, count, paint, paintLocale };
 })();
 
 function shelfSection(): Kid[] {
@@ -2081,17 +2209,20 @@ function updatesGroup(): HTMLElement {
   let busy = false;
   let failed: string | null = null;
 
-  const paint = () => {
+  const paintAt = (language: Language) => {
     get.style.display = found?.available && !busy ? "" : "none";
     check.disabled = busy;
-    check.textContent = busy ? "Checking…" : "Check now";
+    check.textContent = translateSettingsSource(busy ? "Checking…" : "Check now", language);
     status.classList.toggle("sp-danger-text", failed != null);
     status.textContent = failed
-      ?? (busy ? "Asking GitHub…"
-        : !found ? "Not checked yet."
-          : found.available ? `Nook ${found.latest} is out. Get it opens its download page in your browser.`
-            : `You have the latest version.${found.checkedAt ? ` Checked ${new Date(found.checkedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}.` : ""}`);
+      ? translateSettingsSource(failed, language)
+      : busy ? translateSettingsSource("Asking GitHub…", language)
+        : !found ? translateSettingsSource("Not checked yet.", language)
+          : found.available ? tSettings("Nook {version} is out. Get it opens its download page in your browser.", language, { version: found.latest })
+            : `${tSettings("You have the latest version.", language)}${found.checkedAt ? ` ${tSettings("Checked {date}.", language, { date: formatDateTime(found.checkedAt, language) })}` : ""}`;
   };
+  const paint = createLocalizedPainter(effectiveLanguage, paintAt);
+  localizedPainters.push(paint);
   async function run() {
     if (busy) return;
     busy = true;
@@ -2125,12 +2256,15 @@ function aboutSection(): Kid[] {
   const place = (label: string, help: string, path: string | undefined, keys: string) =>
     findable(h("div", { class: "sp-row" },
       rowText(label, help),
-      h("span", { class: "sp-path" }, ...(path ? breakable(path) : ["—"]))), label, help, keys);
-  const link = ({ which, name, where, mark }: (typeof LINKS)[number]) =>
-    h("button", {
+      h("span", { class: "sp-path", "data-no-l10n": "" }, ...(path ? breakable(path) : ["—"]))), label, help, keys);
+  const link = ({ which, name, where, mark }: (typeof LINKS)[number]) => {
+    const button = h("button", {
       class: "sp-social", type: "button", title: where,
       "aria-label": `${name}: ${where}. Opens in your browser.`, onclick: () => void nook.openLink(which),
     }, h("i", {}, mark()), h("span", { text: name }));
+    setLocalizedAttribute(button, "aria-label", `${name}: ${where}. Opens in your browser.`);
+    return button;
+  };
   return [
     head("about"),
     h("div", { class: "sp-about" },
@@ -2261,7 +2395,6 @@ async function start() {
     panes.set(id, pane);
     main.append(pane);
   }
-  paintLocalizedSettings();
   main.append(results);
 
   clear(root);
@@ -2275,6 +2408,7 @@ async function start() {
       nook.fake ? h("div", { class: "sp-fake", text: "Fake data", title: "Nothing here is read from or written to this machine." }) : null),
     main);
   root.append(app, live);
+  paintLocalizedSettings();
   setSection(sectionNamed(nook.start) ?? "connect", false);
   paintResets();
   startBots(still);
@@ -2284,8 +2418,9 @@ async function start() {
     if (settings.language === "system") {
       void nook.boot().then((boot) => {
         if (boot && settings.language === "system") {
+          const previous = lastEffectiveLanguage;
           systemLanguage = boot.systemLanguage;
-          paintLocalizedSettings();
+          if (effectiveLanguage() !== previous) paintLocalizedSettings();
         }
       });
     }
