@@ -62,6 +62,8 @@ export interface Segmented<T extends string> {
   el: HTMLElement;
   /** Shows `value` as the one picked, without calling back. */
   set(value: T): void;
+  /** Updates visible option labels without changing values or selection. */
+  setLabels(labels: readonly string[]): void;
 }
 
 /** One of several, as a row of equal cells with a thumb that slides to the one picked. */
@@ -103,7 +105,8 @@ export function segmented<T extends string>(
   });
   el.append(...buttons);
   set(value);
-  return { el, set };
+  const setLabels = (labels: readonly string[]) => buttons.forEach((button, i) => { if (labels[i] !== undefined) button.textContent = labels[i]; });
+  return { el, set, setLabels };
 }
 
 // ── Slider ────────────────────────────────────────────────────────────────────
@@ -112,6 +115,8 @@ export interface Slider {
   el: HTMLElement;
   /** Shows `value`, without calling back. Left alone while the thumb is held. */
   set(value: number): void;
+  /** Reformat the current value after a locale change. */
+  refresh(): void;
   setDisabled(disabled: boolean): void;
 }
 
@@ -144,6 +149,7 @@ export function slider(label: string, value: number, format: (v: number) => stri
       input.value = String(next);
       paint();
     },
+    refresh: paint,
     setDisabled(disabled) {
       input.disabled = disabled;
       el.classList.toggle("off", disabled);

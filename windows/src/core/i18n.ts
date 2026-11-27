@@ -2,10 +2,30 @@
 export type Language = "en" | "uk" | "pl" | "ru";
 export type LanguagePreference = Language | "system";
 
-/** The keys are the small Settings pilot. English is the source of truth. */
+const LOCALE: Record<Language, string> = { en: "en-US", uk: "uk-UA", pl: "pl-PL", ru: "ru-RU" };
+
+export function formatNumber(value: number, language: Language): string {
+  return new Intl.NumberFormat(LOCALE[language]).format(value);
+}
+
+export function formatPercent(value: number, language: Language): string {
+  return new Intl.NumberFormat(LOCALE[language], { style: "percent", maximumFractionDigits: 0 }).format(value / 100);
+}
+
+export function formatDurationSeconds(value: number, language: Language): string {
+  return new Intl.NumberFormat(LOCALE[language], { style: "unit", unit: "second", unitDisplay: "narrow" }).format(value);
+}
+
+export function formatDateTime(value: Date | number | string, language: Language): string {
+  return new Intl.DateTimeFormat(LOCALE[language], { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+export function pluralCategory(value: number, language: Language): Intl.LDMLPluralRule {
+  return new Intl.PluralRules(LOCALE[language]).select(value);
+}
+
+/** English source strings for the language picker and Look reset actions. */
 export const ENGLISH = {
-  "settings.look.title": "Look and colours",
-  "settings.look.description": "Gullu's colour, the colours of this window, and how lively things are.",
   "settings.language.heading": "Interface language",
   "settings.language.label": "Language",
   "settings.language.description": "Choose the language used in Nook's interface.",
@@ -30,8 +50,6 @@ export type Dictionary = Readonly<Record<TranslationKey, string>>;
 export const DICTIONARIES: Readonly<Record<Language, Dictionary>> = {
   en: ENGLISH,
   uk: {
-    "settings.look.title": "Вигляд і кольори",
-    "settings.look.description": "Колір персонажа Gullu, кольори цього вікна та анімація інтерфейсу.",
     "settings.language.heading": "Мова інтерфейсу",
     "settings.language.label": "Мова",
     "settings.language.description": "Виберіть мову інтерфейсу Nook.",
@@ -50,8 +68,6 @@ export const DICTIONARIES: Readonly<Record<Language, Dictionary>> = {
     "settings.reset.look.doneAnnouncement": "Вигляд і кольори скинуто.",
   },
   pl: {
-    "settings.look.title": "Wygląd i kolory",
-    "settings.look.description": "Kolor postaci Gullu, kolory tego okna i animacje interfejsu.",
     "settings.language.heading": "Język interfejsu",
     "settings.language.label": "Język",
     "settings.language.description": "Wybierz język interfejsu Nook.",
@@ -70,8 +86,6 @@ export const DICTIONARIES: Readonly<Record<Language, Dictionary>> = {
     "settings.reset.look.doneAnnouncement": "Przywrócono domyślny wygląd i kolory.",
   },
   ru: {
-    "settings.look.title": "Вид и цвета",
-    "settings.look.description": "Цвет персонажа Gullu, цвета этого окна и анимация интерфейса.",
     "settings.language.heading": "Язык интерфейса",
     "settings.language.label": "Язык",
     "settings.language.description": "Выберите язык интерфейса Nook.",

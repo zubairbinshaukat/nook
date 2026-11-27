@@ -28,6 +28,8 @@ import {
 import { clear, h } from "../views/dom";
 import { LUCIDE, lucide } from "../views/iconset";
 import type { Bot } from "./bots";
+import { formatNumber, type Language } from "../core/i18n";
+import { translateSettingsSource } from "../core/settings-copy";
 
 /**
  * Each cell as island/compact.ts `METRIC` has it — its fixed width, its name
@@ -66,7 +68,7 @@ export interface IslandPreview {
    * from the top or standing on the bottom, a column flush with a side. The
    * island goes to its new length on its own spring unless `animate` is false.
    */
-  update(kinds: readonly CompactMetric[], animate: boolean, dock?: Dock, batteryAvailable?: boolean): void;
+  update(kinds: readonly CompactMetric[], animate: boolean, dock?: Dock, batteryAvailable?: boolean, language?: Language): void;
   /** Starts the sample CPU number moving; the returned function stops it. */
   run(): () => void;
 }
@@ -125,7 +127,7 @@ export function islandPreview(bot: Bot): IslandPreview {
   let shown: string | null = null;
   return {
     el,
-    update(kinds, animate, dock = "top", batteryAvailable = true) {
+    update(kinds, animate, dock = "top", batteryAvailable = true, language = "en") {
       side = sideDock(dock) ? dock : null;
       // Another dock: the island is drawn at once in its new shape, not sprung from the old one.
       if (side !== drawnFor) {
@@ -179,11 +181,12 @@ export function islandPreview(bot: Bot): IslandPreview {
         requestAnimationFrame(frame);
       }
       draw();
-      const names = on.map((k) => COMPACT_CELLS[k].short);
-      words.textContent = names.length ? `Gullu · sessions · ${names.join(" · ")}` : "Gullu · sessions — no numbers, so the island is narrower";
+      const names = on.map((k) => translateSettingsSource(COMPACT_CELLS[k].short, language));
+      words.textContent = names.length ? `${translateSettingsSource("Gullu · sessions", language)} · ${names.join(" · ")}` : translateSettingsSource("Gullu · sessions — no numbers, so the island is narrower", language);
       // Its length along the edge, ears included; on a side, the column's width beside it.
-      width.textContent = side ? `${COMPACT_COLUMN_W} × ${wanted + 2 * EAR_COMPACT} px` : `${wanted + 2 * EAR_COMPACT} px`;
-      desk.setAttribute("aria-label", `Preview of the compact island, with sample values: ${on.map((k) => COMPACT_CELLS[k].name).join(", ") || "no numbers"}`);
+      width.textContent = side ? `${formatNumber(COMPACT_COLUMN_W, language)} × ${formatNumber(wanted + 2 * EAR_COMPACT, language)} px` : `${formatNumber(wanted + 2 * EAR_COMPACT, language)} px`;
+      desk.setAttribute("aria-label", translateSettingsSource("Preview of the compact island, with sample values: {values}", language)
+        .replace("{values}", on.map((k) => translateSettingsSource(COMPACT_CELLS[k].name, language)).join(", ") || translateSettingsSource("no numbers", language)));
     },
     run() {
       let tick = 0;
