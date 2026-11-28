@@ -1,4 +1,5 @@
 import type { BatteryStatus } from "../core/bridge";
+import { formatPercent, type Language, tIsland } from "../core/i18n.ts";
 
 export const BATTERY_POLL_MS = 60_000;
 export const BATTERY_RING_RADIUS = 9.5;
@@ -35,7 +36,7 @@ export interface BatteryReading {
 }
 
 /** Values for the compact ring, keeping missing measurements distinct from zero. */
-export function batteryReading(status: BatteryStatus | null): BatteryReading {
+export function batteryReading(status: BatteryStatus | null, language: Language = "en"): BatteryReading {
   const value = status?.batteryPresent === true
     && status.percent != null
     && Number.isInteger(status.percent)
@@ -43,19 +44,20 @@ export function batteryReading(status: BatteryStatus | null): BatteryReading {
     && status.percent <= 100
     ? status.percent
     : null;
-  const text = value == null ? "—" : `${value}%`;
+  const text = value == null ? "—" : formatPercent(value, language);
   const level = batteryRingLevel(value);
   const charging = value != null && status?.charging === true;
   const showBolt = charging;
   const chargeState = value == null
-    ? status?.batteryPresent === false ? "No battery detected" : "Battery status unavailable"
-    : status?.charging === true ? "Charging" : status?.charging === false ? "Not charging" : "Charging state unknown";
-  const powerSource = status?.acConnected === true ? "AC connected" : status?.acConnected === false ? "On battery power" : "Power source unknown";
+    ? status?.batteryPresent === false ? tIsland("island.metric.batteryMissing", {}, language) : tIsland("island.metric.batteryUnavailable", {}, language)
+    : status?.charging === true ? tIsland("island.metric.charging", {}, language) : status?.charging === false ? tIsland("island.metric.notCharging", {}, language) : tIsland("island.metric.chargingUnknown", {}, language);
+  const powerSource = status?.acConnected === true ? tIsland("island.metric.acConnected", {}, language) : status?.acConnected === false ? tIsland("island.metric.onBattery", {}, language) : tIsland("island.metric.powerUnknown", {}, language);
   const accessible = value == null
-    ? "Battery status unavailable"
-    : status?.charging === true ? `Battery: ${text}, charging`
-      : status?.charging === false ? `Battery: ${text}`
-        : `Battery: ${text}, charging state unknown`;
+    ? tIsland("island.metric.batteryUnavailable", {}, language)
+    : tIsland("island.metric.batterySummary", {
+      value: text,
+      charging: status?.charging === true ? tIsland("island.metric.chargingSuffix", {}, language) : status?.charging === false ? "" : tIsland("island.metric.chargingUnknownSuffix", {}, language),
+    }, language);
   const progress = value ?? 0;
   return {
     text,

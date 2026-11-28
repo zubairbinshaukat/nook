@@ -9,7 +9,8 @@
 
 import { h } from "./dom";
 import { LUCIDE, lucide } from "./iconset";
-import { State, USAGE_SOURCE_WORDS, ramPercent, ramWords, usageLevel, usageShown } from "../core/state";
+import { State, ramPercent, ramWords, usageLevel, usageShown } from "../core/state";
+import { currentIslandLanguage, formatPercent, tIsland, usageSourceDescription } from "../core/i18n";
 
 const ICON = 11;
 
@@ -45,31 +46,36 @@ export function buildHeaderStats(): { el: HTMLElement; draw(): void } {
   const keys = new Map<Item, string>();
 
   function machine(it: Item, name: string, percent: number | null, more = "") {
-    const key = `${percent == null ? "" : Math.round(percent)}|${more}`;
+    const key = `${currentIslandLanguage()}|${percent == null ? "" : Math.round(percent)}|${more}`;
     if (keys.get(it) === key) return;
     keys.set(it, key);
     const known = percent != null;
-    it.value.textContent = known ? `${Math.round(percent)}%` : "—";
+    it.value.textContent = known ? formatPercent(percent, currentIslandLanguage()) : "—";
     it.value.classList.toggle("blank", !known);
     it.fill.style.width = `${percent ?? 0}%`;
     it.el.dataset.level = known ? usageLevel(percent) : "";
-    it.el.title = known ? `${name} ${Math.round(percent)}%${more ? ` · ${more}` : ""}` : `${name}: not known yet`;
+    it.el.title = known ? `${name} ${formatPercent(percent, currentIslandLanguage())}${more ? ` · ${more}` : ""}` : tIsland("island.usage.unknownYet", { label: name });
   }
 
-  function usage(it: Item, name: string, win: ReturnType<typeof usageShown>) {
-    const key = win ? `${win.percent}|${win.state}|${win.countdown}` : "";
+  function usage(it: Item, name: string, provider: "claude" | "codex", win: ReturnType<typeof usageShown>) {
+    const key = win ? `${currentIslandLanguage()}|${win.percent}|${win.state}|${win.countdown}` : "";
     if (keys.get(it) === key) return;
     keys.set(it, key);
     it.el.hidden = !win;
     if (!win) return;
-    it.value.textContent = `${win.percent}%`;
+    it.value.textContent = formatPercent(win.percent, currentIslandLanguage());
     it.value.classList.remove("blank");
     it.value.dataset.level = win.state === "reset" ? "" : usageLevel(win.percent);
     it.el.classList.toggle("dim", win.state !== "fresh");
     it.fill.style.width = `${win.percent}%`;
     it.fill.style.setProperty("--used", String(win.percent / 100));
-    const source = name.startsWith("Codex") ? "Read from Codex's local App Server; Codex may contact OpenAI." : USAGE_SOURCE_WORDS;
-    it.el.title = `${name}: ${win.percent}% used${win.countdown ? ` · ${win.countdown}` : ""}. ${source}`;
+    const source = usageSourceDescription(provider, currentIslandLanguage());
+    it.el.title = tIsland("island.usage.used", {
+      label: name,
+      percent: formatPercent(win.percent, currentIslandLanguage()),
+      countdown: win.countdown ? tIsland("island.usage.countdown", { time: win.countdown }) : "",
+      source,
+    });
   }
 
   return {
@@ -81,12 +87,12 @@ export function buildHeaderStats(): { el: HTMLElement; draw(): void } {
       machine(ram, "RAM", ramPercent(m), ramWords(m));
       const now = Date.now();
       const u = State.usage;
-      usage(five, "Claude usage, 5 hours", usageShown(u?.fiveHour, u?.updatedAt ?? now, now));
-      usage(seven, "Claude usage, 7 days", usageShown(u?.sevenDay, u?.updatedAt ?? now, now));
+      usage(five, tIsland("island.metric.claudeUsage5h"), "claude", usageShown(u?.fiveHour, u?.updatedAt ?? now, now, currentIslandLanguage()));
+      usage(seven, tIsland("island.metric.claudeUsage7d"), "claude", usageShown(u?.sevenDay, u?.updatedAt ?? now, now, currentIslandLanguage()));
       const codex = State.settings.codexQuotaEnabled ? State.codexQuota : null;
       const codexFresh = codex?.updatedAt != null && now - codex.updatedAt <= 10 * 60_000 && !codex.stale;
-      usage(codexFive, "Codex usage, 5 hours", usageShown(codexFresh ? codex.quotas?.fiveHour : null, codex?.updatedAt ?? now, now));
-      usage(codexSeven, "Codex usage, 7 days", usageShown(codexFresh ? codex.quotas?.sevenDay : null, codex?.updatedAt ?? now, now));
+      usage(codexFive, tIsland("island.metric.codexUsage5h"), "codex", usageShown(codexFresh ? codex.quotas?.fiveHour : null, codex?.updatedAt ?? now, now, currentIslandLanguage()));
+      usage(codexSeven, tIsland("island.metric.codexUsage7d"), "codex", usageShown(codexFresh ? codex.quotas?.sevenDay : null, codex?.updatedAt ?? now, now, currentIslandLanguage()));
     },
   };
 }

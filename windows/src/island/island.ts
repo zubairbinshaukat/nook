@@ -25,6 +25,8 @@ import { widgetOn, type ShelfWidgetId } from "../widgets/defs";
 import { h } from "../views/dom";
 import { isActive, overallState, roster } from "../views/roster";
 import { buildCompact, compactPlan, type CompactStrip } from "./compact";
+import { effectiveLanguage, localeFor, setIslandLanguage } from "../core/i18n";
+import { refreshIslandLocalization } from "../views/dom";
 import { IslandStateMachine } from "./fsm";
 import { createNotch, type NotchShape } from "./notch";
 import { PagePan, ROW_SETTLE_MS, TailGuard, canScroll, type PanEnd } from "./swipe";
@@ -2485,6 +2487,10 @@ export class Island {
 
   /** Applies settings coming from Rust at boot. */
   applySettings() {
+    const language = effectiveLanguage(State.settings.language, State.systemLanguage);
+    const languageChanged = setIslandLanguage(language);
+    document.documentElement.lang = localeFor(language);
+    if (languageChanged) refreshIslandLocalization(this.root);
     Sound.setEnabled(State.settings.soundEnabled);
     Sound.setVolume(State.settings.soundVolume);
     this.fsm.homeToPetitDelay = State.settings.autoCloseInterval;
@@ -2510,6 +2516,10 @@ export class Island {
     // Settings → Shelf: a widget that is off arms nothing.
     widgetsSettingsChanged();
     State.notify();
+    if (languageChanged) {
+      refreshIslandLocalization(this.root);
+      this.compact.localeChanged();
+    }
     this.ensureRunning();
   }
 

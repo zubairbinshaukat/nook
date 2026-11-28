@@ -10,7 +10,8 @@
 // never through a shell. The list is asked for once when the Shelf comes on
 // show, and again no more than every ten seconds while it stays.
 
-import { clear, h } from "../views/dom";
+import { clear, h, im, setIslandText } from "../views/dom";
+import { currentIslandLanguage, formatNumber, tIsland } from "../core/i18n.ts";
 import { ICONS } from "../views/icons";
 import type { ProjectInfo } from "../core/bridge";
 import { ShelfBackend } from "./backend";
@@ -70,28 +71,35 @@ const saying = (p: ProjectInfo, kind: "code" | "claude") =>
   state.said.path === p.path && state.said.kind === kind && Date.now() - state.said.at < SAID_MS;
 
 /** "just now", "5 min ago", "yesterday", "3 d ago". */
-export function agoText(at: number, now = Date.now()): string {
+function agoMessage(at: number, now = Date.now()): ReturnType<typeof im> {
   const mins = Math.max(0, Math.round((now - at) / 60_000));
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
+  if (mins < 1) return im("island.widget.projectsAgoNow");
+  if (mins < 60) return im("island.widget.projectsAgoMinutes", { count: formatNumber(mins, currentIslandLanguage()) });
   const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours} h ago`;
+  if (hours < 24) return im("island.widget.projectsAgoHours", { count: formatNumber(hours, currentIslandLanguage()) });
   const days = Math.round(hours / 24);
-  if (days === 1) return "yesterday";
-  return days < 14 ? `${days} d ago` : `${Math.round(days / 7)} w ago`;
+  if (days === 1) return im("island.widget.projectsAgoYesterday");
+  return days < 14
+    ? im("island.widget.projectsAgoDays", { count: formatNumber(days, currentIslandLanguage()) })
+    : im("island.widget.projectsAgoWeeks", { count: formatNumber(Math.round(days / 7), currentIslandLanguage()) });
+}
+
+export function agoText(at: number, now = Date.now()): string {
+  const message = agoMessage(at, now);
+  return tIsland(message.key, { ...message.params });
 }
 
 export function buildProjects(ctx: WidgetContext): Widget {
   /** A button that says what it did for a moment after it is pressed. */
-  const launcher = (p: ProjectInfo, kind: "code" | "claude", label: string, title: string) => {
-    const btn = h("button", { class: "chip-btn launch", title, onclick: () => void launch(p, kind) });
+  const launcher = (p: ProjectInfo, kind: "code" | "claude", label: ReturnType<typeof im>, title: ReturnType<typeof im>) => {
+    const btn = h("button", { class: "chip-btn launch", title, "aria-label": title, onclick: () => void launch(p, kind) });
     const markEl = h("span", { class: "launch-icon" });
     const done = saying(p, kind);
     const ok = state.said.ok;
     btn.classList.toggle("done", done && ok);
     btn.classList.toggle("failed", done && !ok);
     setIcon(markEl, done ? (ok ? ICONS.check : ICONS.xmark) : kind === "code" ? CODE : ICONS.terminal, 11, done ? 3 : 2.2);
-    const words = done && !ok ? (kind === "code" ? "No VS Code" : "No terminal") : label;
+    const words = done && !ok ? im(kind === "code" ? "island.widget.projectsNoCode" : "island.widget.projectsNoTerminal") : label;
     btn.append(markEl, h("span", { text: words }));
     return btn;
   };
@@ -101,15 +109,15 @@ export function buildProjects(ctx: WidgetContext): Widget {
   const small = mini("projects", h("div", { class: "wbody-projects" }, sList));
 
   // Expanded: every folder, and a new Claude session in each.
-  const note = h("div", { class: "fc-note", text: "Folders your Claude Code sessions have run in. Nothing is launched but the folder you press." });
-  const list = h("div", { class: "gh-list fc-list", "aria-label": "Project folders" });
+  const note = h("div", { class: "fc-note", text: im("island.widget.projectsNote") });
+  const list = h("div", { class: "gh-list fc-list", "aria-label": im("island.widget.projectsList") });
   const count = h("span", { class: "fc-aside" });
   const body = h("div", { class: "fc-col" }, list, note);
 
   let shown: string | null = null;
   function paint() {
     const items = state.list;
-    count.textContent = `${items.length} folder${items.length === 1 ? "" : "s"}`;
+    setIslandText(count, im("island.widget.projectsCount", { count: formatNumber(items.length, currentIslandLanguage()) }));
     const key = items.map((p) => `${p.path}${p.at}${saying(p, "code") ? "c" : ""}${saying(p, "claude") ? "n" : ""}`).join("|")
       + (state.said.ok ? "" : "!");
     // The words ("5 min ago") grow old by themselves: the lines are drawn again when a minute has gone, as the rest changes.
@@ -122,9 +130,9 @@ export function buildProjects(ctx: WidgetContext): Widget {
     items.slice(0, SMALL_PROJECTS).forEach((p, i) => {
       sList.append(h("div", { class: "wmini-proj" },
         shared(h("b", { text: p.name, title: p.path }), `proj-name-${i}`, "text"),
-        shared(launcher(p, "code", "Code", `Open ${p.name} in VS Code`), `proj-code-${i}`, "text")));
+        shared(launcher(p, "code", im("island.widget.projectsCode"), im("island.widget.projectsOpenNamedCode", { project: p.name })), `proj-code-${i}`, "text")));
     });
-    if (items.length === 0) sList.append(h("div", { class: "wmini-none", text: state.asked ? "No folders yet" : "Looking…" }));
+    if (items.length === 0) sList.append(h("div", { class: "wmini-none", text: im(state.asked ? "island.widget.projectsNone" : "island.widget.projectsLooking") }));
 
     clear(list);
     items.forEach((p, i) => {
@@ -132,12 +140,12 @@ export function buildProjects(ctx: WidgetContext): Widget {
         h("div", { class: "proj-who" },
           h("div", { class: "proj-name" },
             shared(h("b", { text: p.name }), `proj-name-${i}`, "text"),
-            h("span", { class: "int-ago", text: agoText(p.at) })),
+            h("span", { class: "int-ago", text: agoMessage(p.at) })),
           h("div", { class: "gh-sub path", text: p.path, title: p.path })),
-        shared(launcher(p, "code", "Open in VS Code", `Open ${p.name} in VS Code`), `proj-code-${i}`, "text"),
-        launcher(p, "claude", "New Claude session", `New Claude Code session in ${p.name}`)));
+        shared(launcher(p, "code", im("island.widget.projectsOpenCode"), im("island.widget.projectsOpenNamedCode", { project: p.name })), `proj-code-${i}`, "text"),
+        launcher(p, "claude", im("island.widget.projectsNewClaude"), im("island.widget.projectsNewClaudeIn", { project: p.name }))));
     });
-    if (items.length === 0) list.append(h("div", { class: "wmini-none", text: "No folders yet. They appear as Claude Code sessions run." }));
+    if (items.length === 0) list.append(h("div", { class: "wmini-none", text: im("island.widget.projectsNoneHelp") }));
   }
 
   return {

@@ -2,10 +2,14 @@
 
 import type { BotEmoteName, BotStateName, Dock, IslandMode, IslandViewName } from "./layout";
 import type { EyeShape } from "../bot/engine";
-import type { LanguagePreference } from "./i18n";
+import { cardinalForm, currentIslandLanguage, formatNumber, localeFor, tIsland, type IslandTranslationKey, type Language, type LanguagePreference } from "./i18n.ts";
 
 export type AgentSource = "claudeCode" | "agent";
 export type PillBadge = "approval" | "finished" | "error";
+
+/** A UI-authored activity label stays typed until the current language renders it. */
+export type ActivityLabelKey = Extract<IslandTranslationKey, `island.tool.${string}`>;
+export type ActivityLine = string | { key: ActivityLabelKey; target?: string } | { label: string; target?: string };
 
 export interface AgentTask {
   id: string;
@@ -13,7 +17,7 @@ export interface AgentTask {
   color: string;
   state: BotStateName;
   stepIndex: number;
-  steps: string[];
+  steps: ActivityLine[];
   source: AgentSource;
   isIntegration: boolean;
   emote?: BotEmoteName | null;
@@ -127,10 +131,10 @@ function tabName(session: Pick<ClaudeSession, "title" | "project">): string {
 export function targetTip(session: Pick<ClaudeSession, "target" | "title" | "project">): string | null {
   const { kind, label, tabbed } = session.target;
   switch (kind) {
-    case "claude": return "Open Claude";
+    case "claude": return tIsland("island.target.openClaude");
     case "vscode":
-    case "cursor": return `Focus ${label}`;
-    case "terminal": return tabbed ? `Opens ${label}, tab: ${tabName(session)}` : `Focus ${label} window`;
+    case "cursor": return tIsland("island.target.focus", { target: label });
+    case "terminal": return tabbed ? tIsland("island.target.openTab", { target: label, tab: tabName(session) }) : tIsland("island.target.focusWindow", { target: label });
     default: return null;
   }
 }
@@ -138,10 +142,10 @@ export function targetTip(session: Pick<ClaudeSession, "target" | "title" | "pro
 /** The same, in the two words of a card's button. */
 export function targetWords(target: SessionTarget): string | null {
   switch (target.kind) {
-    case "claude": return "Open Claude";
+    case "claude": return tIsland("island.target.openClaude");
     case "vscode":
-    case "cursor": return `Open ${target.label}`;
-    case "terminal": return "Open terminal";
+    case "cursor": return tIsland("island.target.open", { target: target.label });
+    case "terminal": return tIsland("island.target.openTerminal");
     default: return null;
   }
 }
@@ -199,7 +203,15 @@ export const subagentsGoing = (session: Pick<ClaudeSession, "subagents">) => ses
 export function repliedWords(session: Pick<ClaudeSession, "parked" | "toldReply" | "subagents">): string | null {
   const going = subagentsGoing(session);
   if (!session.parked || !session.toldReply || going === 0) return null;
-  return `Replied · ${going} ${going === 1 ? "subagent" : "subagents"} still running`;
+  const language = currentIslandLanguage();
+  const form = cardinalForm(going, language);
+  const keys = {
+    one: "island.session.repliedSubagents.one",
+    few: "island.session.repliedSubagents.few",
+    many: "island.session.repliedSubagents.many",
+    other: "island.session.repliedSubagents.other",
+  } as const;
+  return tIsland(keys[form], { count: formatNumber(going, language) }, language);
 }
 
 /**
@@ -229,6 +241,8 @@ export interface SessionStep {
    * what is looked for. For something said: the words.
    */
   target: string | null;
+  /** A presentation-only message supplied by the app, rather than hook content. */
+  messageKey?: IslandTranslationKey;
   /** What it gave back, once it is done. */
   result: StepResult | null;
   /** For an edit: the diff it made. */
@@ -384,7 +398,6 @@ export function subagentTook(agent: Pick<Subagent, "startedAt" | "endedAt" | "ti
  * alone — the next event clears it.
  */
 export const QUIET_MS = 10 * 60_000;
-export const QUIET_WORDS = "No activity for 10 min";
 const CAN_GO_QUIET: ReadonlySet<BotStateName> = new Set<BotStateName>(["working", "thinking", "searching"]);
 
 type Heard = Pick<ClaudeSession, "state" | "approval" | "question" | "heardAt">;
@@ -456,7 +469,7 @@ export interface ClaudeSession {
   cwd: string | null;
   state: BotStateName;
   /** What it did, a line per step, oldest first: what a card falls back on. */
-  lines: string[];
+  lines: ActivityLine[];
   /** Its journal, oldest first: what was asked, each tool, what Claude said; "Done" closes a turn. */
   steps: SessionStep[];
   /** What the user asked last, and what Claude said to end its turn. */
@@ -529,7 +542,6 @@ export interface ClaudeSession {
 }
 
 /** What the mark of a reply that waits on a decision says. */
-export const DECISION_WORDS = "Needs your decision";
 
 /** What a session is called before its folder is known. */
 export const SESSION_UNNAMED = "Session";
@@ -708,19 +720,19 @@ export interface CodexQuotaSnapshot {
 export const USAGE_OLD_MS = 2 * 60 * 60_000;
 
 /** What a window says once its reset time has passed, until Claude Code reports again. */
-export const USAGE_RESET_WORDS = "reset, waiting for new data";
+export const USAGE_RESET_WORDS = tIsland("island.usage.resetWaiting", {}, "en");
 /** Why the numbers are as old as they are: the tooltip of the usage block, and of a usage cell. */
 export const USAGE_SOURCE_WORDS =
   "Usage only updates while Claude Code runs. Usage from claude.ai and the desktop app counts toward the same limits but isn't visible to Nook.";
 
 /** "resets in 2h 14m", "resets in 3d 4h", "resets in 14m", "resets in <1m": how long until a window starts again. */
-export function resetCountdown(ms: number): string {
+export function resetCountdown(ms: number, language: Language = "en"): string {
   const minutes = Math.floor(Math.max(0, ms) / 60_000);
-  if (minutes < 1) return "resets in <1m";
-  if (minutes < 60) return `resets in ${minutes}m`;
+  if (minutes < 1) return tIsland("island.usage.resetsLessThanMinute", {}, language);
+  if (minutes < 60) return tIsland("island.usage.resetsInMinutes", { minutes: formatNumber(minutes, language) }, language);
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `resets in ${hours}h ${minutes % 60}m`;
-  return `resets in ${Math.floor(hours / 24)}d ${hours % 24}h`;
+  if (hours < 24) return tIsland("island.usage.resetsInHours", { hours: formatNumber(hours, language), minutes: formatNumber(minutes % 60, language) }, language);
+  return tIsland("island.usage.resetsInDays", { days: formatNumber(Math.floor(hours / 24), language), hours: formatNumber(hours % 24, language) }, language);
 }
 
 /**
@@ -740,13 +752,13 @@ export interface UsageShown {
 }
 
 /** What a window shows now: from what was last reported, and the time. Nothing here asks anybody anything. */
-export function usageShown(win: UsageWindow | null | undefined, updatedAt: number, now: number): UsageShown | null {
+export function usageShown(win: UsageWindow | null | undefined, updatedAt: number, now: number, language: Language = "en"): UsageShown | null {
   if (!win) return null;
-  if (win.resetsAt > 0 && now >= win.resetsAt) return { percent: 0, state: "reset", countdown: USAGE_RESET_WORDS };
+  if (win.resetsAt > 0 && now >= win.resetsAt) return { percent: 0, state: "reset", countdown: tIsland("island.usage.resetWaiting", {}, language) };
   return {
     percent: Math.round(win.usedPercent),
     state: now - updatedAt > USAGE_OLD_MS ? "old" : "fresh",
-    countdown: win.resetsAt > 0 ? resetCountdown(win.resetsAt - now) : "",
+    countdown: win.resetsAt > 0 ? resetCountdown(win.resetsAt - now, language) : "",
   };
 }
 
@@ -793,7 +805,11 @@ export function ramWords(m: Metrics | null): string {
   if (!m || m.ramTotal <= 0) return "";
   const GB = 1024 ** 3;
   const digits = m.ramTotal / GB >= 100 ? 0 : 1;
-  return `${(m.ramUsed / GB).toFixed(digits)} of ${(m.ramTotal / GB).toFixed(digits)} GB`;
+  const language = currentIslandLanguage();
+  return tIsland("island.metric.ramUsedOfTotal", {
+    used: new Intl.NumberFormat(localeFor(language), { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(m.ramUsed / GB),
+    total: new Intl.NumberFormat(localeFor(language), { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(m.ramTotal / GB),
+  }, language);
 }
 
 /** How much of a usage window is gone, as it is coloured: calm under 60 %, warm to 85 %, hot past it. */
@@ -932,6 +948,8 @@ class AppState {
   lastActivity = performance.now();
 
   settings: Settings = { ...DEFAULT_SETTINGS };
+  /** Rust's platform-resolved language for the "Same as system" preference. */
+  systemLanguage: Language = "en";
 
   /** The machine's last sample; null until one has come. */
   metrics: Metrics | null = null;
@@ -1068,7 +1086,7 @@ class AppState {
     this.notify();
   }
 
-  appendStep(id: string, step: string) {
+  appendStep(id: string, step: ActivityLine) {
     const t = this.tasks.find((x) => x.id === id);
     if (!t) return;
     t.steps.push(step);

@@ -44,6 +44,7 @@ async function main() {
   const boot = await Bridge.boot();
   if (boot) {
     State.settings = { ...State.settings, ...boot.settings };
+    State.systemLanguage = boot.systemLanguage;
     island.setRoom(boot.panel.width, boot.panel.height, boot.panel.dock);
     island.setScreenWidth(boot.screen.width, boot.screen.height);
   }

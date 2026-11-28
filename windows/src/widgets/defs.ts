@@ -7,14 +7,14 @@ import { State } from "../core/state";
 import { LUCIDE } from "../views/iconset";
 
 export const SHELF_WIDGETS = {
-  // Each widget's `w` × `h` is the island's size while it is expanded (the approved preview's).
-  media: { name: "Media", accent: "#34D399", icon: LUCIDE.music, w: 460, h: 200 },
-  todo: { name: "To-do", accent: "#FACC15", icon: LUCIDE.listTodo, w: 520, h: 300 },
-  timer: { name: "Timer", accent: "#F5A524", icon: LUCIDE.timer, w: 360, h: 338 },
-  reminders: { name: "Reminders", accent: "#F472B6", icon: LUCIDE.bell, w: 440, h: 304 },
+  // Widget ids, colours, icons and expanded sizes are stable data; localized names live in the Island catalogs.
+  media: { accent: "#34D399", icon: LUCIDE.music, w: 460, h: 200 },
+  todo: { accent: "#FACC15", icon: LUCIDE.listTodo, w: 520, h: 300 },
+  timer: { accent: "#F5A524", icon: LUCIDE.timer, w: 360, h: 338 },
+  reminders: { accent: "#F472B6", icon: LUCIDE.bell, w: 440, h: 304 },
   // The largest: a rounded 4:3 preview.
-  mirror: { name: "Mirror", accent: "#22D3EE", icon: LUCIDE.camera, w: 520, h: 390 },
-  projects: { name: "Projects", accent: "#3B9EFF", icon: LUCIDE.folder, w: 580, h: 330 },
+  mirror: { accent: "#22D3EE", icon: LUCIDE.camera, w: 520, h: 390 },
+  projects: { accent: "#3B9EFF", icon: LUCIDE.folder, w: 580, h: 330 },
 } as const;
 export type ShelfWidgetId = keyof typeof SHELF_WIDGETS;
 export const WIDGET_IDS = Object.keys(SHELF_WIDGETS) as ShelfWidgetId[];

@@ -11,7 +11,8 @@
 // island on the Timer. Kept in shelf.json, so a restart keeps a running timer.
 
 import { Sound } from "../core/sound";
-import { h } from "../views/dom";
+import { currentIslandLanguage, formatNumber } from "../core/i18n.ts";
+import { h, im, setIslandText } from "../views/dom";
 import { loadWidget, notifyShelf, saveWidget, ShelfHooks } from "./core";
 import { widgetOn } from "./defs";
 import { frame, mini, shared, takesKeys, type Widget, type WidgetContext } from "./ui";
@@ -167,15 +168,15 @@ export function buildTimer(ctx: WidgetContext): Widget {
   const time = shared(h("div", { class: "timer-time" }), "timer-time");
   const sub = shared(h("div", { class: "timer-sub" }), "timer-sub", "text");
 
-  const presets = h("div", { class: "seg timer-presets", role: "group", "aria-label": "Presets" });
+  const presets = h("div", { class: "seg timer-presets", role: "group", "aria-label": im("island.widget.timerPresets") });
   for (const m of PRESETS) {
-    const btn = h("button", { text: `${m} min`, onclick: () => timerSet(m) });
+    const btn = h("button", { text: im("island.widget.minutesShort", { minutes: formatNumber(m, currentIslandLanguage()) }), onclick: () => timerSet(m) });
     btn.dataset.min = String(m);
     presets.append(btn);
   }
   const custom = takesKeys(ctx, h("input", {
-    class: "island-field timer-custom", type: "number", min: 1, max: MAX_MINUTES, step: 1, placeholder: "min",
-    title: "A time of your own, in minutes", "aria-label": "Custom time in minutes",
+    class: "island-field timer-custom", type: "number", min: 1, max: MAX_MINUTES, step: 1, placeholder: im("island.widget.minutesUnit"),
+    title: im("island.widget.timerCustom"), "aria-label": im("island.widget.timerCustom"),
   }));
   const setCustom = () => {
     const value = Number(custom.value);
@@ -192,19 +193,19 @@ export function buildTimer(ctx: WidgetContext): Widget {
     h("div", { class: "timer-face" }, dial as unknown as Node, h("div", { class: "timer-read" }, time, sub)),
     h("div", { class: "timer-set" },
       presets,
-      h("div", { class: "timer-own" }, custom, h("button", { class: "chip-btn", text: "Set", onclick: setCustom }))),
-    h("div", { class: "actions" }, go, h("button", { class: "btn secondary", text: "Reset", onclick: timerReset })));
+      h("div", { class: "timer-own" }, custom, h("button", { class: "chip-btn", text: im("island.widget.timerSet"), onclick: setCustom }))),
+    h("div", { class: "actions" }, go, h("button", { class: "btn secondary", text: im("island.widget.timerReset"), onclick: timerReset })));
 
   function paint() {
     const left = timerLeft();
     const read = clock(left);
-    const of = timer.done ? "Time's up" : `of ${clock(timer.durationMs)}`;
-    const label = timer.running ? "Pause" : timer.done ? "Restart" : "Start";
+    const of = timer.done ? im("island.widget.timerUp") : im("island.widget.timerOf", { time: clock(timer.durationMs) });
+    const label = timer.running ? im("island.widget.timerPause") : timer.done ? im("island.widget.timerRestart") : im("island.widget.timerStart");
     for (const el of [sTime, time]) if (el.textContent !== read) el.textContent = read;
     time.classList.toggle("long", read.length > 5);
-    sub.textContent = of;
-    sSub.textContent = timer.done ? of : timer.running ? `${of} · running` : `${of} · paused`;
-    for (const el of [sGo, go]) if (el.textContent !== label) el.textContent = label;
+    setIslandText(sub, of);
+    setIslandText(sSub, timer.done ? of : im(timer.running ? "island.widget.timerSmallRunning" : "island.widget.timerSmallPaused", { time: clock(timer.durationMs) }));
+    for (const el of [sGo, go]) setIslandText(el, label);
     ring.setAttribute("stroke-dashoffset", String(LENGTH * (1 - left / timer.durationMs)));
     body.classList.toggle("done", timer.done);
     small.classList.toggle("done", timer.done);

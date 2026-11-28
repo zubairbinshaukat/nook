@@ -15,11 +15,12 @@ import { Reply } from "../core/reply";
 import { Sound } from "../core/sound";
 import {
   CLAUDE_ID, QUESTION_TOOL, SESSION_UNNAMED, State, TURN_DONE, isQuestion, newSession, newStep, nextRequest, readModel, readTarget, requestsOf, taskStart,
-  type ChangedFile, type ClaudeSession, type Question, type SessionRequest, type SessionStep,
+  type ActivityLine, type ChangedFile, type ClaudeSession, type Question, type SessionRequest, type SessionStep,
   type StepKind, type StepResult, type Subagent,
 } from "../core/state";
 import type { IslandViewName } from "../core/layout";
 import { needsDecision } from "../views/markdown";
+import { stepActivityLine } from "../views/step-labels";
 import { rememberProject } from "../widgets/projects";
 import type { Island } from "./island";
 
@@ -427,7 +428,7 @@ function heedTasks(island: Island, session: ClaudeSession, tasks: BackgroundAgen
 const subagentsRunning = (session: ClaudeSession) => session.subagents.some((a) => a.state === "running");
 
 /** One more line of what the session did. */
-function say(session: ClaudeSession, line: string) {
+function say(session: ClaudeSession, line: ActivityLine) {
   session.lines.push(line);
   if (session.lines.length > MAX_LINES) session.lines.splice(0, MAX_LINES / 2);
 }
@@ -669,41 +670,6 @@ function lastPathComponent(p: string): string {
 }
 
 /**
- * What a tool does, in a word — the macOS app's frenchStep(), in English like
- * the rest of the island here.
- */
-const TOOL_LABELS: Record<string, string> = {
-  Bash: "Runs",
-  Read: "Reads",
-  Write: "Writes",
-  Edit: "Edits",
-  Glob: "Finds",
-  Grep: "Searches",
-  WebSearch: "Searches the web",
-  WebFetch: "Fetches",
-  TodoWrite: "Todos",
-  Task: "Agent",
-  LS: "Lists",
-  MultiEdit: "Edits",
-  NotebookEdit: "Notebook",
-  PowerShell: "Runs",
-};
-
-function stepLabel(tool: string, input: Record<string, unknown>): string {
-  const label = TOOL_LABELS[tool] ?? tool;
-  const str = (k: string) => (typeof input[k] === "string" ? (input[k] as string) : null);
-  const cmd = str("command");
-  if (cmd) return `${label} · ${cmd.slice(0, 40)}`;
-  const path = str("path");
-  if (path) return `${label} · ${lastPathComponent(path)}`;
-  const file = str("file_path");
-  if (file) return `${label} · ${lastPathComponent(file)}`;
-  const query = str("query");
-  if (query) return `${label} · ${query.slice(0, 40)}`;
-  return label;
-}
-
-/**
  * What the Allow button actually authorises. Approving "Write" tells you nothing
  * — approving `Write · C:\…\.env` tells you everything, and the difference is
  * the whole point of approving from the island rather than blind.
@@ -787,7 +753,7 @@ function handleAgent(island: Island, payload: HookPayload, agent: string) {
     case "PreToolUse":
       ensurePill();
       State.updateTask(agentId, "working");
-      State.appendStep(agentId, stepLabel(payload.tool_name ?? "Tool", payload.tool_input ?? {}));
+      State.appendStep(agentId, stepActivityLine(payload.tool_name ?? "Tool", payload.tool_input ?? {}));
       reveal();
       break;
 
@@ -797,7 +763,7 @@ function handleAgent(island: Island, payload: HookPayload, agent: string) {
 
     case "PostToolUseFailure":
       State.updateTask(agentId, "working");
-      State.appendStep(agentId, "⚠ failed");
+      State.appendStep(agentId, { key: "island.tool.failed" });
       break;
 
     case "Notification": {
@@ -834,11 +800,11 @@ function handleAgent(island: Island, payload: HookPayload, agent: string) {
       break;
 
     case "SubagentStart":
-      State.appendStep(agentId, "+ subagent");
+      State.appendStep(agentId, { key: "island.tool.subagent" });
       break;
 
     case "SubagentStop":
-      State.appendStep(agentId, "• subagent done");
+      State.appendStep(agentId, { key: "island.tool.subagentDone" });
       break;
 
     case "PermissionRequest":
@@ -1023,7 +989,7 @@ export function handleHook(island: Island, payload: HookPayload) {
         // Before that is plain: it may be any running subagent's, and each is told so.
         for (const sub of session.subagents) if (sub.state === "running") sub.strays++;
       }
-      say(session, stepLabel(tool, input));
+      say(session, stepActivityLine(tool, input));
       surface("overview", false);
       break;
     }
@@ -1050,7 +1016,7 @@ export function handleHook(island: Island, payload: HookPayload) {
         session.launching = session.launching.filter((call) => call.step !== ended);
       }
       if (!failed) recordChange(session, payload);
-      else say(session, "⚠ failed");
+      else say(session, { key: "island.tool.failed" });
       atWork(session);
       break;
     }
@@ -1088,7 +1054,7 @@ export function handleHook(island: Island, payload: HookPayload) {
         session.launching = [];
         session.parked = true;
         atWork(session);
-        say(session, "… waiting for its subagents");
+        say(session, { key: "island.tool.waitingSubagents" });
         // It said something to end its own turn: that is an answer, and the
         // user is told — once — though the session is not finished: the
         // finish sound, and the card or the mark a finished turn gets, worded
@@ -1159,7 +1125,7 @@ export function handleHook(island: Island, payload: HookPayload) {
       log(session.steps, newStep("Cursor said", "reply", said));
       session.answer = said;
       session.answeredAt = Date.now();
-      say(session, said.slice(0, LINE_CHARS));
+      say(session, { key: "island.tool.cursorSaid", target: said.slice(0, LINE_CHARS) });
       break;
     }
 
@@ -1171,7 +1137,7 @@ export function handleHook(island: Island, payload: HookPayload) {
       const last = session.steps[session.steps.length - 1];
       if (last?.tool === "Thinking") last.target = thought;
       else log(session.steps, newStep("Thinking", "note", thought));
-      say(session, "Thinking…");
+      say(session, { key: "island.tool.thinkingEllipsis" });
       break;
     }
 
@@ -1180,14 +1146,16 @@ export function handleHook(island: Island, payload: HookPayload) {
       break;
 
     case "StopFailure":
-      log(session.steps, newStep("Error", "note", "The session stopped on an error.")).state = "failed";
+      const error = newStep("Error", "note", null);
+      error.messageKey = "island.tool.errorStopped";
+      log(session.steps, error).state = "failed";
       session.state = "error";
       Sound.play("error");
       tell("error");
       break;
 
     case "SubagentStart":
-      if (startSubagent(session, payload)) say(session, "+ subagent");
+      if (startSubagent(session, payload)) say(session, { key: "island.tool.subagent" });
       break;
 
     case "SubagentStop": {
@@ -1202,7 +1170,7 @@ export function handleHook(island: Island, payload: HookPayload) {
         // A second stop of one that has stopped changes nothing of how it ended.
         if (stopped.state === "running") {
           closeSubagent(island, session, stopped, "done", payload.last_message ?? null);
-          say(session, "• subagent done");
+          say(session, { key: "island.tool.subagentDone" });
         } else if (payload.last_message) stopped.result = payload.last_message;
       }
       const tasks = backgroundAgents(payload);

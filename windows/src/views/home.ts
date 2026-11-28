@@ -13,8 +13,8 @@
 import { createStateBot, releaseMiniBot, restMiniBot } from "../bot/minibots";
 import { hexToRGB, type BotEngine } from "../bot/engine";
 import { HOME_SIDE_BOT_H, HOME_SIDE_SESSIONS_H, HOME_STAGE, MAX_VISIBLE, washRGBA, type BotStateName, type Wash } from "../core/layout";
-import { DECISION_WORDS, State, USAGE_OLD_MS, USAGE_SOURCE_WORDS, ramPercent, ramWords, usageLevel, usageShown } from "../core/state";
-import { clear, h, svg } from "./dom";
+import { State, USAGE_OLD_MS, ramPercent, ramWords, usageLevel, usageShown } from "../core/state";
+import { clear, h, im, clearIslandAttribute, setIslandAttribute, setIslandText, svg } from "./dom";
 import { ICONS } from "./icons";
 import { LUCIDE, lucide } from "./iconset";
 import { TOOL_NAME, toolMark } from "./tool";
@@ -24,15 +24,16 @@ import {
   subagentWords, type Entry, type Lane,
 } from "./roster";
 import type { ViewActions, ViewHost } from "./views";
+import { currentIslandLanguage, formatNumber, formatPercent, tIsland } from "../core/i18n";
 
 /** The island's entrance curve (.view.on in style.css): what moves, moves like this. */
 const SPRING = "cubic-bezier(0.3, 1.2, 0.4, 1)";
 const MINI_BOT = 22;
 
-const LANES: { key: Lane; title: string }[] = [
-  { key: "needs", title: "Needs you" },
-  { key: "working", title: "Working" },
-  { key: "done", title: "Done" },
+const LANES: { key: Lane; title: Parameters<typeof im>[0] }[] = [
+  { key: "needs", title: "island.home.needsYou" },
+  { key: "working", title: "island.home.working" },
+  { key: "done", title: "island.home.done" },
 ];
 
 const WASH: Partial<Record<BotStateName, Wash>> = {
@@ -61,9 +62,10 @@ function gauge(name: string, icon: string) {
     el,
     /** `percent` is null while nothing is known; `more` is what the tooltip adds. */
     set(percent: number | null, more = "") {
-      value.textContent = percent != null ? `${Math.round(percent)}%` : "—";
+      value.textContent = percent != null ? formatPercent(percent, currentIslandLanguage()) : "—";
       value.classList.toggle("blank", percent == null);
       fill.style.width = `${percent ?? 0}%`;
+      clearIslandAttribute(el, "title");
       el.title = more;
     },
   };
@@ -100,7 +102,7 @@ export function buildHome(actions: ViewActions): ViewHost {
   for (const { key, title } of LANES) {
     const count = h("i");
     const bots = h("div", { class: "lane-bots" });
-    lanes.set(key, { el: h("div", { class: `lane ${key}` }, h("div", { class: "lane-h" }, title, " ", count), bots), count, bots });
+    lanes.set(key, { el: h("div", { class: `lane ${key}` }, h("div", { class: "lane-h" }, im(title), " ", count), bots), count, bots });
   }
   const more = h("button", { class: "hs-more", onclick: (e: Event) => { e.stopPropagation(); toggleList(); } });
   const laneRow = h("div", { class: "hs-lanes" }, ...LANES.map((l) => lanes.get(l.key)!.el), more);
@@ -125,14 +127,14 @@ export function buildHome(actions: ViewActions): ViewHost {
     return { el, resets, value, fill };
   });
   const noUsage = h("div", { class: "res-none" });
-  const usageBox = h("div", { class: "res-usage", title: USAGE_SOURCE_WORDS }, usageRows[0].el, usageRows[1].el, noUsage);
-  const ageWhat = h("span", { class: "what", text: "as of last Claude Code activity" });
+  const usageBox = h("div", { class: "res-usage", title: im("island.usage.sourceUsage") }, usageRows[0].el, usageRows[1].el, noUsage);
+  const ageWhat = h("span", { class: "what", text: im("island.home.asOfActivity") });
   const ageWhen = h("span", { class: "when" });
   const usageAge = h("div", { class: "res-age" }, ageWhat, ageWhen);
   const resCard = h(
     "div", { class: "card home-res" },
     h("div", { class: "res-machine" }, cpu.el, gpu.el, ram.el),
-    h("div", { class: "lane-h", text: "Claude usage" }),
+    h("div", { class: "lane-h", text: im("island.home.claudeUsage") }),
     usageBox,
     usageAge,
   );
@@ -215,7 +217,8 @@ export function buildHome(actions: ViewActions): ViewHost {
     // wears — asking, an error — is not touched by either.
     cell.mark.hidden = !(entry.unseen || entry.decision);
     cell.mark.classList.toggle("decide", entry.decision);
-    cell.el.title = entry.decision ? DECISION_WORDS : "";
+    if (entry.decision) setIslandAttribute(cell.el, "title", im("island.status.needsDecision"));
+    else clearIslandAttribute(cell.el, "title");
 
     clear(cell.kids);
     for (const r of running.slice(0, MAX_CHILD_DOTS)) {
@@ -295,7 +298,7 @@ export function buildHome(actions: ViewActions): ViewHost {
       lane.el.hidden = mine.length === 0;
       lane.el.classList.toggle("sep", !first && mine.length > 0);
       if (mine.length) first = false;
-      lane.count.textContent = String(mine.length);
+      lane.count.textContent = formatNumber(mine.length, currentIslandLanguage());
       for (const entry of mine) {
         let cell = cells.get(entry.id);
         const fresh = !cell;
@@ -317,7 +320,7 @@ export function buildHome(actions: ViewActions): ViewHost {
       more.textContent = `+${hidden.length}`;
       wear(more, hidden[0].color);
       more.classList.toggle("calls", hidden[0].rank === 0);
-      more.title = `${hidden.length} more`;
+      setIslandAttribute(more, "title", im("island.home.moreSessions", { count: formatNumber(hidden.length, currentIslandLanguage()) }));
     } else {
       listOpen = false;
     }
@@ -335,11 +338,11 @@ export function buildHome(actions: ViewActions): ViewHost {
       const missing = !State.settings.hooksInstalled && tracked === 0;
       botCard.style.setProperty("--wash", washRGBA("soft"));
       whoTool.replaceChildren();
-      whoName.textContent = missing ? "Not connected" : "No sessions";
+      setIslandText(whoName, im(missing ? "island.home.notConnected" : "island.home.noSessions"));
       whoName.title = "";
       whoModel.textContent = "";
       whoState.textContent = "";
-      doing.textContent = missing ? "Claude Code can't reach Nook yet" : "Nothing is running";
+      setIslandText(doing, im(missing ? "island.home.cannotReach" : "island.home.noRunning"));
       doing.title = "";
       review.style.display = "none";
       return;
@@ -365,9 +368,10 @@ export function buildHome(actions: ViewActions): ViewHost {
     // No Allow here: this card cannot show a request whole, and Allow allows
     // all of it. The button goes to the request's own card, which can — and
     // which arms its buttons from the moment it is on show.
-    const asks = front.session?.question ? "Answer" : front.session?.approval ? "Review" : "";
+    const asks = front.session?.question || front.session?.approval;
     review.style.display = asks ? "" : "none";
-    reviewLabel.textContent = asks;
+    if (asks) setIslandText(reviewLabel, im(front.session?.question ? "island.home.answer" : "island.home.review"));
+    else reviewLabel.textContent = "";
   }
 
   function drawEmpty(none: boolean, tracked: number) {
@@ -382,21 +386,21 @@ export function buildHome(actions: ViewActions): ViewHost {
     if (!none) return;
     if (missing) {
       empty.append(
-        h("div", { class: "title", text: "Hooks not installed" }),
-        h("div", { class: "sub", text: "Nook hears about sessions through Claude Code's hooks. Install them to see sessions here." }),
-        h("button", { class: "btn secondary", onclick: () => actions.openSettingsWindow() }, svg(ICONS.gear, 12), "Open Settings"),
+        h("div", { class: "title", text: im("island.home.hooksMissing") }),
+        h("div", { class: "sub", text: im("island.home.hooksHelp") }),
+        h("button", { class: "btn secondary", onclick: () => actions.openSettingsWindow() }, svg(ICONS.gear, 12), im("island.home.openSettings")),
       );
     } else if (tracked > 0) {
       // Sessions are still followed: they have only been at rest long enough to leave the view.
       empty.append(
-        h("div", { class: "title", text: "Nothing running" }),
-        h("div", { class: "sub", text: `${tracked} session${tracked === 1 ? " is" : "s are"} at rest. ${tracked === 1 ? "It comes" : "They come"} back here when ${tracked === 1 ? "it works" : "they work"} again.` }),
-        h("button", { class: "btn secondary", text: tracked === 1 ? "Show it" : "Show them", onclick: () => { actions.blip(); actions.openSessions(); } }),
+        h("div", { class: "title", text: im("island.home.nothingRunning") }),
+        h("div", { class: "sub", text: im(tracked === 1 ? "island.home.sessionRest.one" : "island.home.sessionRest.other", { count: formatNumber(tracked, currentIslandLanguage()) }) }),
+        h("button", { class: "btn secondary", text: im(tracked === 1 ? "island.home.showIt" : "island.home.showThem"), onclick: () => { actions.blip(); actions.openSessions(); } }),
       );
     } else {
       empty.append(
-        h("div", { class: "title", text: "No Claude Code sessions" }),
-        h("div", { class: "sub" }, "Run ", h("code", { class: "code", text: "claude" }), " in any project folder and it shows up here."),
+        h("div", { class: "title", text: im("island.home.noClaudeSessions") }),
+        h("div", { class: "sub", text: im("island.home.runClaude") }),
       );
     }
   }
@@ -411,7 +415,7 @@ export function buildHome(actions: ViewActions): ViewHost {
     clear(foot);
     if (!entry) {
       foot.classList.add("quiet");
-      foot.append(h("div", { class: "hf-doing", text: "Hover a bot for its project and what it is doing. Click opens its session." }));
+      foot.append(h("div", { class: "hf-doing", text: im("island.home.hoverHelp") }));
       return;
     }
     foot.classList.remove("quiet");
@@ -481,11 +485,11 @@ export function buildHome(actions: ViewActions): ViewHost {
     const windows = usage ? [usage.fiveHour, usage.sevenDay] : [];
     usageRows.forEach((row, i) => {
       // What the window shows now (state.ts `usageShown`): past its reset, 0 % and the words for it.
-      const w = usageShown(windows[i], usage?.updatedAt ?? now, now);
+      const w = usageShown(windows[i], usage?.updatedAt ?? now, now, currentIslandLanguage());
       row.el.style.visibility = w ? "visible" : "hidden";
       if (!w) return;
       const used = w.percent;
-      row.value.textContent = `${used}%`;
+      row.value.textContent = formatPercent(used, currentIslandLanguage());
       row.resets.textContent = w.countdown;
       row.resets.title = w.countdown;
       row.value.dataset.level = w.state === "reset" ? "" : usageLevel(used);
@@ -498,25 +502,25 @@ export function buildHome(actions: ViewActions): ViewHost {
     noUsage.hidden = usage != null;
     if (!usage) {
       const why = State.usageInstalled === false
-        ? "Turn on usage limits in Settings"
+        ? tIsland("island.home.turnOnUsage")
         : State.usageInstalled
-          ? "Appears once a session has run"
-          : "Appears once a session has run with usage limits on in Settings";
+          ? tIsland("island.home.appearsAfterSession")
+          : tIsland("island.home.appearsAfterSessionWithUsage");
       if (noUsage.dataset.why !== why) {
         noUsage.dataset.why = why;
         clear(noUsage);
-        noUsage.append(h("b", { text: "No usage data yet" }), h("span", { text: why }));
+        noUsage.append(h("b", { text: tIsland("island.home.noUsageData") }), h("span", { text: why }));
       }
     }
 
     // How old the numbers are, said as what they are: Claude Code's last word. Ticks with the home view's slow timer.
     const age = usage ? now - usage.updatedAt : 0;
-    const when = !usage ? "" : age < 60_000 ? " · just now" : ` · ${span(age)} ago`;
+    const when = !usage ? "" : age < 60_000 ? ` · ${tIsland("island.home.justNow")}` : ` · ${tIsland("island.home.ago", { time: span(age) })}`;
     usageAge.style.visibility = usage ? "visible" : "hidden";
     usageAge.classList.toggle("old", usage != null && age > USAGE_OLD_MS);
     if (ageWhen.textContent !== when) ageWhen.textContent = when;
-    const whole = usage ? `${ageWhat.textContent}${when}. ${USAGE_SOURCE_WORDS}` : "";
-    if (usageAge.title !== whole) usageAge.title = whole;
+    if (usage) setIslandAttribute(usageAge, "title", im("island.home.usageTooltip", { label: `${ageWhat.textContent}${when}`, source: tIsland("island.usage.sourceUsage") }));
+    else clearIslandAttribute(usageAge, "title");
   }
 
   State.onGauges(drawGauges);

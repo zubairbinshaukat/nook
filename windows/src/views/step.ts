@@ -11,19 +11,7 @@ import { h, svg } from "./dom";
 import { diffLine, fileKind, readPatch } from "./code";
 import { ICONS } from "./icons";
 import type { SessionStep } from "../core/state";
-
-/** Tools by a name short enough for a column, where their own is not. */
-const STEP_NAMES: Record<string, string> = {
-  AskUserQuestion: "Question",
-  NotebookEdit: "Notebook",
-  MultiEdit: "Edit",
-  TodoWrite: "Todos",
-  WebSearch: "Search",
-  WebFetch: "Fetch",
-  PowerShell: "Shell",
-};
-
-export const stepName = (step: SessionStep) => STEP_NAMES[step.tool] ?? step.tool;
+export { activityLineText, stepActivityLine, stepMessage, stepName } from "./step-labels";
 
 const STEP_ICONS: Record<SessionStep["kind"], { path: string; stroke: number }> = {
   read: { path: ICONS.doc, stroke: 0 },

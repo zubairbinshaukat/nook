@@ -5,11 +5,12 @@
 
 import { botGlowColor, type BotStateName } from "../core/layout";
 import {
-  DECISION_WORDS, QUIET_WORDS, State, TURN_DONE, isQuiet, subagentAsks, subagentName, turnSteps,
+  State, TURN_DONE, isQuiet, subagentAsks, subagentName, turnSteps,
   type AgentTask, type ClaudeSession, type Subagent,
 } from "../core/state";
 import { COLOR } from "./palette";
-import { stepName } from "./step";
+import { activityLineText, stepName } from "./step-labels";
+import { currentIslandLanguage, formatNumber, tIsland } from "../core/i18n";
 
 // ── The rules, as constants ───────────────────────────────────────────────────
 
@@ -187,20 +188,20 @@ export function labelText(entry: Entry): string {
   return n == null ? name : `${name} ·${n}`;
 }
 
-const WORDS: Record<BotStateName, string> = {
-  idle: "at rest", working: "working", thinking: "thinking", searching: "searching",
-  approval: "needs permission", question: "is asking you", error: "stopped on an error",
-  finished: "finished", ratelimit: "rate limited", sleeping: "asleep", dizzy: "dizzy",
+const WORDS: Record<BotStateName, Parameters<typeof tIsland>[0]> = {
+  idle: "island.status.atRest", working: "island.status.working", thinking: "island.status.thinking", searching: "island.status.searching",
+  approval: "island.status.needsPermission", question: "island.status.askingYou", error: "island.status.stoppedOnError",
+  finished: "island.status.finished", ratelimit: "island.status.rateLimited", sleeping: "island.status.asleep", dizzy: "island.status.dizzy",
 };
 
 export function stateWords(entry: Entry): string {
   const session = entry.session;
   // Its last reply waits on a decision: said of one at rest — a request or an error is said first.
-  if (session?.decision && entry.lane === "done") return DECISION_WORDS.toLowerCase();
+  if (session?.decision && entry.lane === "done") return tIsland("island.status.needsDecision");
   // A turn that ended is "finished" for as long as it is on show, not only while the bot hops.
   if (session && entry.lane === "done" && session.restedAt > 0) return WORDS.finished;
-  if (session && entry.lane === "working" && isQuiet(session)) return QUIET_WORDS.toLowerCase();
-  return WORDS[entry.state];
+  if (session && entry.lane === "working" && isQuiet(session)) return tIsland("island.status.quietLower", { time: tIsland("island.time.minutes", { count: formatNumber(10, currentIslandLanguage()) }) });
+  return tIsland(WORDS[entry.state]);
 }
 
 /** The subagents of a session that are at work, the one asking first: it is never the one folded into "+N". */
@@ -216,7 +217,7 @@ export const subagentColor = (asking: boolean) => botGlowColor(asking ? "approva
 /** "2 subagents running", or nothing. */
 export function subagentWords(session: ClaudeSession): string {
   const going = session.subagents.filter((a) => a.state === "running").length;
-  return going ? `${going} subagent${going === 1 ? "" : "s"} running` : "";
+  return going ? tIsland(going === 1 ? "island.status.subagentsRunning.one" : "island.status.subagentsRunning.other", { count: formatNumber(going, currentIslandLanguage()) }) : "";
 }
 
 const oneLine = (text: string | null | undefined) => text?.split("\n").find((line) => line.trim())?.trim() ?? "";
@@ -227,34 +228,37 @@ const plain = (text: string | null) => oneLine(text).replace(/^#{1,6}\s+|\*\*|`/
 /** What something on the island is doing, in one line. */
 export function doingOf(entry: Entry): string {
   const session = entry.session;
-  if (!session) return entry.task?.steps.at(-1) ?? "No activity yet";
+  if (!session) {
+    const last = entry.task?.steps.at(-1);
+    return last ? activityLineText(last) : tIsland("island.status.noActivity");
+  }
 
   const request = session.approval ?? session.question;
   if (request) {
     const agent = request.agentId ? session.subagents.find((a) => a.id === request.agentId) : null;
-    const what = session.question ? oneLine(session.question.questions[0]?.question) || "a question" : oneLine(session.approval?.command);
+    const what = session.question ? oneLine(session.question.questions[0]?.question) || tIsland("island.status.questionFallback") : oneLine(session.approval?.command);
     if (agent) {
-      const kind = agent.type ? `${agent.type} subagent` : "subagent";
-      return `${subagentName(agent)} (${kind}) ${session.question ? "asks" : "needs permission"} · ${what}`;
+      const kind = tIsland("island.status.subagentKind", { kind: agent.type ?? "" });
+      return tIsland(session.question ? "island.status.subagentAsks" : "island.status.subagentNeedsPermission", { name: subagentName(agent), kind, what });
     }
-    return session.question ? `Asks · ${what}` : what;
+    return session.question ? tIsland("island.status.asAsking", { what }) : what;
   }
-  if (session.state === "error") return "The session stopped on an error";
+  if (session.state === "error") return tIsland("island.status.sessionError");
 
   const steps = turnSteps(session);
   const last = steps.at(-1) ?? null;
   const ended = [...session.steps].reverse().find((step) => step.kind !== "note")?.tool === TURN_DONE;
   if (ended || session.state === "finished") {
     const said = plain(session.answer);
-    if (said) return `Done · ${said}`;
+    if (said) return tIsland("island.status.doneWithReply", { reply: said });
     const files = State.changes.get(session.id)?.length ?? 0;
-    return files ? `Done · ${files} file${files === 1 ? "" : "s"} changed` : "Done";
+    return files ? `${tIsland("island.status.done")} · ${tIsland(files === 1 ? "island.status.filesChanged.one" : "island.status.filesChanged.other", { count: formatNumber(files, currentIslandLanguage()) })}` : tIsland("island.status.done");
   }
   const going = subagentWords(session);
-  if (going && last?.state !== "running") return session.parked ? `Main turn stopped · ${going}` : `Agent · ${going}`;
-  if (last) return last.target ? `${stepName(last)} · ${oneLine(last.target)}` : stepName(last);
-  if (session.state === "thinking") return session.asked ? `Thinking · ${oneLine(session.asked)}` : "Thinking";
-  return "Open · waiting for a prompt";
+  if (going && last?.state !== "running") return tIsland(session.parked ? "island.status.mainTurnStopped" : "island.status.agentRunning", { count: going });
+  if (last) return last.target ? tIsland("island.tool.operation", { label: stepName(last), target: oneLine(last.target) }) : stepName(last);
+  if (session.state === "thinking") return session.asked ? tIsland("island.status.thinkingWithPrompt", { prompt: oneLine(session.asked) }) : tIsland("island.status.thinking");
+  return tIsland("island.status.openWaiting");
 }
 
 // ── Spans of time ─────────────────────────────────────────────────────────────
@@ -264,11 +268,12 @@ const MIN = 60_000;
 /** "3 min", "1 h 05 min": how long something has been as it is. */
 export function span(ms: number): string {
   const minutes = Math.max(0, Math.floor(ms / MIN));
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min`;
+  const language = currentIslandLanguage();
+  if (minutes < 1) return tIsland("island.time.justNow");
+  if (minutes < 60) return tIsland("island.time.minutes", { count: formatNumber(minutes, language) });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} h ${String(minutes % 60).padStart(2, "0")} min`;
-  return `${Math.floor(hours / 24)} d ${hours % 24} h`;
+  if (hours < 24) return tIsland("island.time.hoursMinutes", { hours: formatNumber(hours, language), minutes: formatNumber(minutes % 60, language).padStart(2, "0") });
+  return tIsland("island.time.daysHours", { days: formatNumber(Math.floor(hours / 24), language), hours: formatNumber(hours % 24, language) });
 }
 
 /** "2h 14m", "3d 4h": until a limit's window starts again. */

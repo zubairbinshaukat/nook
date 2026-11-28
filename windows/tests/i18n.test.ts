@@ -1,11 +1,292 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { DEFAULT_SETTINGS } from "../src/core/state.ts";
-import { DICTIONARIES, ENGLISH, effectiveLanguage, t, translatedValue } from "../src/core/i18n.ts";
+import { DEFAULT_SETTINGS, ramWords, targetTip, targetWords } from "../src/core/state.ts";
+import { cardinalForm, contextUsageLabel, DICTIONARIES, ENGLISH, effectiveLanguage, formatNumber, localeFor, ISLAND_DICTIONARIES, ISLAND_ENGLISH, setIslandLanguage, t, tIsland, translatedValue, usageSourceDescription } from "../src/core/i18n.ts";
+import { repliedWords } from "../src/core/state.ts";
 import { LOOK_RESET_FIELDS, lookAtDefaults, lookResetPatch } from "../src/settings/reset.ts";
 import { searchResultCount, settingsCopyKeys, settingsSearchMatches, settingsSearchWords, tSettings, translateSettingsSource } from "../src/core/settings-copy.ts";
-import { formatDateTime, formatDurationSeconds, formatNumber, formatPercent, pluralCategory } from "../src/core/i18n.ts";
+import { formatDateTime, formatDurationSeconds, formatPercent, pluralCategory } from "../src/core/i18n.ts";
 import { applySettingsEchoEffects, changedSettingKeys, composeShortcutRefusal, createLocalizedPainter, formatSettingsDuration, shortcutProblemText } from "../src/settings/settings-behavior.ts";
+
+function islandCatalogSource(language: "en" | "uk" | "pl" | "ru"): string {
+  const source = readFileSync(fileURLToPath(new URL("../src/core/i18n.ts", import.meta.url)), "utf8");
+  const islandStart = source.indexOf("export const ISLAND_ENGLISH = {");
+  const settingsStart = source.indexOf("export const DICTIONARIES:");
+  const dictionarySource = source.slice(islandStart, settingsStart);
+  const startMarker = language === "en" ? "export const ISLAND_ENGLISH = {" : `  ${language}: {`;
+  const start = language === "en" ? dictionarySource.indexOf(startMarker) : dictionarySource.indexOf(startMarker, dictionarySource.indexOf("export const ISLAND_DICTIONARIES"));
+  assert.notEqual(start, -1, `${language} catalog exists in source`);
+  const endMarker = language === "en" ? "} as const;" : language === "uk" ? "  pl: {" : language === "pl" ? "  ru: {" : "export function tIsland";
+  const end = dictionarySource.indexOf(endMarker, start + startMarker.length);
+  assert.notEqual(end, -1, `${language} catalog ends in source`);
+  return dictionarySource.slice(start, end);
+}
+
+function sourceEntries(source: string): Map<string, string> {
+  const entries = new Map<string, string>();
+  for (const match of source.matchAll(/^\s*"(island\.[^"]+)":\s*"((?:[^"\\]|\\.)*)",?\s*$/gm)) {
+    const [, key, value] = match;
+    assert.ok(!entries.has(key!), `duplicate Island key ${key}`);
+    entries.set(key!, value!);
+  }
+  return entries;
+}
+
+function placeholders(value: string): string[] {
+  return [...value.matchAll(/\{([a-zA-Z][\w]*)\}/g)].map((match) => match[1]!).sort();
+}
+
+test("Island catalogs have unique keys, full coverage, non-empty values and matching placeholders", () => {
+  const expectedKeys = Object.keys(ISLAND_ENGLISH).sort();
+  for (const language of ["en", "uk", "pl", "ru"] as const) {
+    const entries = sourceEntries(islandCatalogSource(language));
+    assert.deepEqual([...entries.keys()].sort(), expectedKeys, `${language} source keys`);
+    const catalog = language === "en" ? ISLAND_ENGLISH : ISLAND_DICTIONARIES[language];
+    for (const [key, value] of Object.entries(catalog)) {
+      assert.ok(value.trim(), `${language}.${key} is non-empty`);
+      assert.deepEqual(placeholders(value), placeholders(ISLAND_ENGLISH[key as keyof typeof ISLAND_ENGLISH]), `${language}.${key} placeholders`);
+      assert.equal(entries.get(key), value, `${language}.${key} source/runtime value`);
+    }
+  }
+});
+
+test("reviewed English Island source changes require an explicit translation review", () => {
+  const reviewed = JSON.parse(readFileSync(fileURLToPath(new URL("./fixtures/island-english-reviewed.json", import.meta.url)), "utf8")) as Record<string, string>;
+  const keys = new Set([...Object.keys(reviewed), ...Object.keys(ISLAND_ENGLISH)]);
+  for (const key of [...keys].sort()) {
+    assert.equal(ISLAND_ENGLISH[key as keyof typeof ISLAND_ENGLISH], reviewed[key],
+      `English source ${key} changed; review UK/PL/RU translations, then update tests/fixtures/island-english-reviewed.json`);
+  }
+});
+
+test("target, time, RAM and reply-error copy follows the selected Island locale", async () => {
+  const { Reply } = await import("../src/core/reply.ts");
+  const target = { kind: "terminal", label: "Windows Terminal", tabbed: true } as const;
+  const session = { target, title: "Build", project: "demo" } as never;
+  const targetWordsExpected = { en: "Open terminal", uk: "Відкрити термінал", pl: "Otwórz terminal", ru: "Открыть терминал" } as const;
+  for (const language of ["en", "uk", "pl", "ru"] as const) {
+    setIslandLanguage(language);
+    assert.equal(targetWords(target), targetWordsExpected[language]);
+    for (const kind of ["vscode", "cursor"] as const) {
+      assert.equal(targetWords({ kind, label: kind === "vscode" ? "VS Code" : "Cursor", tabbed: false }),
+        tIsland("island.target.open", { target: kind === "vscode" ? "VS Code" : "Cursor" }, language));
+    }
+    assert.equal(targetTip(session), tIsland("island.target.openTab", { target: "Windows Terminal", tab: "Build" }, language));
+    const relative = tIsland("island.timeAgo.minutes", { count: formatNumber(2, language) }, language);
+    assert.equal((await import("../src/views/dom.ts")).timeAgo(Date.now() - 120_000), relative);
+    assert.equal(ramWords({ ramUsed: 2 * 1024 ** 3, ramTotal: 8 * 1024 ** 3 } as never),
+      tIsland("island.metric.ramUsedOfTotal", {
+        used: new Intl.NumberFormat(localeFor(language), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(2),
+        total: new Intl.NumberFormat(localeFor(language), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(8),
+      }, language));
+    const id = `reply-test-${language}`;
+    Reply.ended({ tool: "claude", sessionId: id, ok: false });
+    assert.equal(Reply.error({ id } as never), tIsland("island.reply.errorGeneric", {}, language));
+    Reply.ended({ tool: "claude", sessionId: `${id}-external`, ok: false, error: "system refused" });
+    assert.equal(Reply.error({ id: `${id}-external` } as never), tIsland("island.reply.errorNotSent", { error: "system refused" }, language));
+    for (const count of [1, 2, 5]) {
+      const warningSession = { subagents: Array.from({ length: count }, () => ({ state: "running" })) } as never;
+      const form = cardinalForm(count, language);
+      assert.equal(Reply.warning(warningSession), tIsland(`island.reply.subagentsWarning.${form}`, { count: formatNumber(count, language) }, language));
+    }
+  }
+  setIslandLanguage("en");
+});
+
+test("session count, Markdown line plural, and contextual widget names render reviewed phrases", () => {
+  const sessionSource = readFileSync(fileURLToPath(new URL("../src/views/session.ts", import.meta.url)), "utf8");
+  assert.match(sessionSource, /setIslandText\(el, im\(countKey\("sessionCount", count\)/, "visible chip uses the localized singular/plural count label");
+  assert.match(sessionSource, /const replied = repliedWords\(session\);[\s\S]*words: replied\.toLowerCase\(\)/, "visible replied-subagent status uses the localized plural helper");
+  assert.doesNotMatch(sessionSource, /island\.tool\.repliedSubagents/, "the singular status no longer uses a hard-coded plural phrase");
+  const expected = {
+    en: ["1 session", "2 sessions", "1 more line", "2 more lines"],
+    uk: ["1 сеанс", "2 сеанси", "ще 1 рядок", "ще 2 рядки"],
+    pl: ["1 sesja", "2 sesje", "jeszcze 1 wiersz", "jeszcze 2 wiersze"],
+    ru: ["1 сеанс", "2 сеанса", "ещё 1 строка", "ещё 2 строки"],
+  } as const;
+  for (const language of ["en", "uk", "pl", "ru"] as const) {
+    setIslandLanguage(language);
+    assert.equal(tIsland("island.session.sessionCount.one", { count: "1" }, language), expected[language][0]);
+    assert.equal(tIsland(`island.session.sessionCount.${cardinalForm(2, language)}`, { count: "2" }, language), expected[language][1]);
+    assert.equal(tIsland("island.markdown.moreLine.one", { count: "1" }, language), expected[language][2]);
+    assert.equal(tIsland(`island.markdown.moreLine.${cardinalForm(2, language)}`, { count: "2" }, language), expected[language][3]);
+  }
+  setIslandLanguage("en");
+});
+
+test("reviewed fixes keep Ukrainian in the Ukrainian catalog and preserve placeholders", () => {
+  assert.equal(ISLAND_DICTIONARIES.uk["island.session.needsPermission"], "потрібен дозвіл");
+  assert.equal(ISLAND_DICTIONARIES.uk["island.session.waitingForYouCount"], ", на вас чекає: {count}");
+  assert.equal(ISLAND_DICTIONARIES.uk["island.markdown.decisionsBelow"], "Ще важливі рішення нижче: {count}");
+  assert.deepEqual(placeholders(ISLAND_DICTIONARIES.uk["island.session.waitingForYouCount"]), ["count"]);
+});
+
+test("Shelf controls have contextual translated accessible names in all locales", () => {
+  const uiSource = readFileSync(fileURLToPath(new URL("../src/widgets/ui.ts", import.meta.url)), "utf8");
+  assert.match(uiSource, /title: im\(EXPAND_LABEL\[id\]\), "aria-label": im\(EXPAND_LABEL\[id\]\)/);
+  assert.match(uiSource, /island\.control\.removeItem/);
+  const widgets = ["Media", "Timer", "Reminders", "Todo", "Mirror", "Projects"] as const;
+  for (const language of ["en", "uk", "pl", "ru"] as const) {
+    for (const widget of widgets) {
+      const label = tIsland(`island.widget.expand${widget}`, {}, language);
+      assert.ok(label.length > 0);
+      assert.notEqual(label, tIsland("island.widget.expand", {}, language), `${language} expand ${widget} has contextual copy`);
+    }
+    const remove = tIsland("island.control.removeItem", { item: "Buy tea" }, language);
+    assert.ok(remove.includes("Buy tea"), `${language} remove label names the specific user item`);
+  }
+});
+
+test("Island translations stay in their language catalogs and blank values fall back to English", () => {
+  assert.equal(ISLAND_DICTIONARIES.uk["island.reply.label"], "Відповісти");
+  assert.equal(ISLAND_DICTIONARIES.pl["island.reply.label"], "Odpowiedz");
+  assert.equal(ISLAND_DICTIONARIES.ru["island.reply.label"], "Ответить");
+  assert.equal(ISLAND_DICTIONARIES.uk["island.view.comingNext"], "Буде доступно пізніше");
+  assert.equal(ISLAND_DICTIONARIES.pl["island.view.comingNext"], "Wkrótce");
+  assert.equal(ISLAND_DICTIONARIES.ru["island.view.comingNext"], "Скоро появится");
+  const dictionary = ISLAND_DICTIONARIES.uk as Record<string, string>;
+  const original = dictionary["island.home.needsYou"];
+  dictionary["island.home.needsYou"] = "";
+  try {
+    assert.equal(tIsland("island.home.needsYou", {}, "uk"), ISLAND_ENGLISH["island.home.needsYou"]);
+  } finally {
+    dictionary["island.home.needsYou"] = original!;
+  }
+});
+
+test("Island catalogs reject the cross-locale script contamination found in review", () => {
+  // Product names and technical tokens remain Latin in every locale. These checks target
+  // the copied Polish diacritics and Cyrillic strings that had crossed dictionary boundaries.
+  for (const [key, value] of Object.entries(ISLAND_DICTIONARIES.uk)) {
+    assert.doesNotMatch(value, /[łŁąĄęĘśŚćĆńŃźŹżŻóÓ]/, `uk.${key} contains a Polish-script marker`);
+    assert.doesNotMatch(value, /potrzebuje pozwolenia|czeka na ciebie/i, `uk.${key} contains the reviewed Polish catalog contamination`);
+  }
+  for (const [key, value] of Object.entries(ISLAND_DICTIONARIES.pl)) {
+    assert.doesNotMatch(value, /[\u0400-\u04ff]/, `pl.${key} contains Cyrillic text`);
+  }
+  for (const [key, value] of Object.entries(ISLAND_DICTIONARIES.ru)) {
+    assert.doesNotMatch(value, /[łŁąĄęĘśŚćĆńŃźŹżŻóÓ]/, `ru.${key} contains a Polish-script marker`);
+  }
+  assert.equal(ISLAND_DICTIONARIES.uk["island.session.all"], "Усі");
+  assert.equal(ISLAND_DICTIONARIES.pl["island.session.all"], "Wszystkie");
+  assert.equal(ISLAND_DICTIONARIES.ru["island.session.all"], "Все");
+});
+
+test("production Island views do not stringify typed translation keys", () => {
+  for (const file of ["../src/views/reply-box.ts", "../src/views/session.ts", "../src/views/shelf.ts",
+    "../src/widgets/ui.ts", "../src/widgets/timer.ts", "../src/widgets/todo.ts", "../src/widgets/reminders.ts",
+    "../src/widgets/media.ts", "../src/widgets/mirror.ts", "../src/widgets/projects.ts"]) {
+    const source = readFileSync(fileURLToPath(new URL(file, import.meta.url)), "utf8");
+    assert.doesNotMatch(source, /im\([^\n]*\)\.key/, `${file} must render im() through the Island DOM helpers`);
+    if (file.endsWith("session.ts")) assert.doesNotMatch(source, /yet:\s*steps\.length/, "empty-state production paths must use complete localized phrases");
+  }
+});
+
+test("every built-in Shelf widget consumes typed Island copy on its production path", () => {
+  const expected: Record<string, string[]> = {
+    "../src/widgets/ui.ts": ["island.widget.back", "island.control.removeItem", "island.widget.markDone"],
+    "../src/widgets/timer.ts": ["island.widget.timerPresets", "island.widget.timerSmallRunning", "island.widget.timerOf"],
+    "../src/widgets/todo.ts": ["island.widget.todoAddLabel", "island.widget.todoEmpty", "island.widget.todoCount"],
+    "../src/widgets/reminders.ts": ["island.widget.reminderAddLabel", "island.widget.remindersEmpty", "island.widget.reminderIn"],
+    "../src/widgets/media.ts": ["island.widget.mediaPlayPause", "island.widget.mediaVolume", "island.widget.mediaNothingPlaying"],
+    "../src/widgets/mirror.ts": ["island.widget.cameraOn", "island.widget.cameraWaiting", "island.widget.cameraDeniedHelp"],
+    "../src/widgets/projects.ts": ["island.widget.projectsNote", "island.widget.projectsNoneHelp", "island.widget.projectsOpenCode"],
+  };
+  for (const [file, keys] of Object.entries(expected)) {
+    const source = readFileSync(fileURLToPath(new URL(file, import.meta.url)), "utf8");
+    for (const key of keys) assert.ok(source.includes(key), `${file} consumes ${key}`);
+  }
+  const englishKeys = Object.keys(ISLAND_ENGLISH).filter((key) => key.startsWith("island.widget."));
+  const localeNeutralKeys = new Set([
+    "island.widget.mediaState", "island.widget.minutesShort", "island.widget.minutesUnit",
+    "island.widget.reminder10m", "island.widget.reminder30m", "island.widget.unitMinutes",
+  ]);
+  assert.ok(englishKeys.length > 0, "the runtime widget inventory remains part of the typed Island catalog");
+  for (const language of ["uk", "pl", "ru"] as const) {
+    for (const key of englishKeys) {
+      assert.ok(ISLAND_DICTIONARIES[language][key as keyof typeof ISLAND_ENGLISH], `${language}.${key} is translated`);
+      if (!localeNeutralKeys.has(key)) assert.notEqual(ISLAND_DICTIONARIES[language][key as keyof typeof ISLAND_ENGLISH], ISLAND_ENGLISH[key as keyof typeof ISLAND_ENGLISH], `${language}.${key} must not silently fall back to English`);
+    }
+  }
+  for (const file of ["../src/widgets/defs.ts", "../src/widgets/ui.ts", "../src/widgets/timer.ts", "../src/widgets/todo.ts",
+    "../src/widgets/reminders.ts", "../src/widgets/media.ts", "../src/widgets/mirror.ts", "../src/widgets/projects.ts",
+    "../src/views/shelf.ts"]) {
+    const source = readFileSync(fileURLToPath(new URL(file, import.meta.url)), "utf8");
+    assert.doesNotMatch(source, /\b(?:text|title|aria-label|placeholder)\s*:\s*["`]/, `${file} must use typed copy for literal UI labels`);
+  }
+  const markdown = readFileSync(fileURLToPath(new URL("../src/views/markdown.ts", import.meta.url)), "utf8");
+  assert.match(markdown, /h\("b", \{ text: im\(title\) \}\)/, "Markdown callout headings resolve typed Island keys");
+  for (const key of ["island.markdown.showLess", "island.markdown.showFullReply", "island.markdown.decisionsBelow"]) {
+    assert.ok(markdown.includes(key), `folded session replies consume ${key}`);
+  }
+  assert.match(markdown, /island\.markdown\.moreLine\.\$\{cardinalForm/);
+});
+
+test("context usage messages contain exactly one locale-formatted percent sign", () => {
+  for (const language of ["en", "uk", "pl", "ru"] as const) {
+    const message = contextUsageLabel(50, language);
+    const number = formatNumber(50, language);
+    assert.equal(message, tIsland("island.session.context", { percent: number }, language));
+    assert.equal([...message].filter((character) => character === "%").length, 1, `${language} context label`);
+    assert.ok(message.includes(number), `${language} localized number`);
+  }
+});
+
+test("empty step messages use complete localized phrases for both age states", () => {
+  const pairs = [
+    ["island.session.noSessionStepKind", "island.session.noSessionStepKindYet"],
+    ["island.session.noSubagentStepKind", "island.session.noSubagentStepKindYet"],
+  ] as const;
+  for (const language of ["en", "uk", "pl", "ru"] as const) {
+    for (const [currentKey, yetKey] of pairs) {
+      const current = tIsland(currentKey, {}, language);
+      const yet = tIsland(yetKey, {}, language);
+      assert.ok(current.length > 0 && yet.length > 0, `${language} empty-state phrases exist`);
+      assert.doesNotMatch(current + yet, /\{yet\}/);
+      if (language !== "en") assert.doesNotMatch(yet, /\byet\b/i, `${language} must not contain English yet`);
+    }
+  }
+});
+
+test("replied subagent status uses locale-correct singular and plural forms", () => {
+  const expected = {
+    en: ["Replied · 1 subagent still running", "Replied · 2 subagents still running"],
+    uk: ["Відповів · ще працює 1 субагент", "Відповів · ще працюють 2 субагенти"],
+    pl: ["Odpowiedział · nadal działa 1 subagent", "Odpowiedział · nadal działają 2 subagenci"],
+    ru: ["Ответил · ещё работает 1 субагент", "Ответил · ещё работают 2 субагента"],
+  } as const;
+  for (const language of ["en", "uk", "pl", "ru"] as const) {
+    setIslandLanguage(language);
+    for (const n of [1, 2]) {
+      const session = { parked: true, toldReply: true, subagents: Array.from({ length: n }, () => ({ state: "running" })) } as never;
+      assert.equal(repliedWords(session), expected[language][n === 1 ? 0 : 1]);
+    }
+    assert.equal(cardinalForm(5, language), language === "en" ? "other" : "many");
+  }
+  setIslandLanguage("en");
+});
+
+test("usage tooltip source follows the stable provider identity in every locale", () => {
+  const headerStats = readFileSync(fileURLToPath(new URL("../src/views/header-stats.ts", import.meta.url)), "utf8");
+  assert.doesNotMatch(headerStats, /startsWith\("Codex"\)/);
+  assert.match(headerStats, /usage\(codexFive,[^\n]*"codex"/);
+  assert.match(headerStats, /usage\(five,[^\n]*"claude"/);
+  for (const language of ["en", "uk", "pl", "ru"] as const) {
+    assert.equal(usageSourceDescription("codex", language), tIsland("island.usage.codexSource", {}, language));
+    assert.equal(usageSourceDescription("claude", language), tIsland("island.usage.sourceUsage", {}, language));
+    assert.notEqual(usageSourceDescription("codex", language), usageSourceDescription("claude", language));
+  }
+});
+
+test("Island document language follows the effective locale without changing Settings language resolution", () => {
+  const source = readFileSync(fileURLToPath(new URL("../src/island/island.ts", import.meta.url)), "utf8");
+  assert.match(source, /document\.documentElement\.lang\s*=\s*localeFor\(language\)/);
+  assert.equal(effectiveLanguage("system", "uk"), "uk");
+  assert.equal(effectiveLanguage("system", "pl"), "pl");
+  assert.equal(effectiveLanguage("system", "ru"), "ru");
+});
 
 test("English is the default and explicit language choices stay selected", () => {
   assert.equal(DEFAULT_SETTINGS.language, "en");
