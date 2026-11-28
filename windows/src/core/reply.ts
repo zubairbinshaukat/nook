@@ -10,8 +10,9 @@
 // Kept here, per session: what is being typed (a draft outlives a redraw, a
 // fold, another session coming in front), whether its window was there when
 // last looked for, and why the last reply could not be sent.
-import { Bridge, IS_TAURI, type ReplyEnded, type ReplyTool } from "./bridge";
-import { State, type ClaudeSession } from "./state";
+import { Bridge, IS_TAURI, type ReplyEnded, type ReplyTool } from "./bridge.ts";
+import { State, type ClaudeSession } from "./state.ts";
+import { cardinalForm, currentIslandLanguage, formatNumber, tIsland } from "./i18n.ts";
 
 /** The longest a reply may be: Rust refuses a longer one. */
 export const MAX_REPLY_CHARS = 8000;
@@ -30,7 +31,7 @@ const drafts = new Map<string, string>();
 /** The sessions a reply of ours is running for. */
 const running = new Set<string>();
 const errors = new Map<string, string>();
-const notes = new Map<string, string>();
+const notes = new Map<string, { key: "island.reply.noteInterrupted" | "island.reply.notePrefilled"; target?: string }>();
 const background = new Map<string, string>();
 /** Runs stopped from the island: their end is no error. */
 const stopped = new Set<string>();
@@ -42,7 +43,7 @@ const turnOver = (session: ClaudeSession) => AT_REST.has(session.state) || (sess
 const toolOf =(session: ClaudeSession): ReplyTool | null => (session.agent === "claude" || session.agent === "codex" ? session.agent : null);
 /** The session's id as its tool knows it. */
 const rawId = (session: ClaudeSession) => (session.agent === "codex" && session.id.startsWith(CODEX_PREFIX) ? session.id.slice(CODEX_PREFIX.length) : session.id);
-const words = (err: unknown) => (err instanceof Error ? err.message : String(err ?? "")).trim() || "The reply could not be sent.";
+const words = (err: unknown) => (err instanceof Error ? err.message : String(err ?? "")).trim();
 
 export const Reply = {
   /**
@@ -86,7 +87,9 @@ export const Reply = {
   warning(session: ClaudeSession): string | null {
     const going = subagentsGoing(session);
     if (going === 0) return null;
-    return `${going === 1 ? "A subagent is" : `${going} subagents are`} still running. Your reply starts a new turn now, and may cross with what ${going === 1 ? "it reports" : "they report"}.`;
+    const language = currentIslandLanguage();
+    const form = cardinalForm(going, language);
+    return tIsland(`island.reply.subagentsWarning.${form}`, { count: formatNumber(going, language) }, language);
   },
 
   /** A reply of ours is running for this session. */
@@ -96,9 +99,16 @@ export const Reply = {
   /** An event of a run a reply started: never taken for an automated session's. */
   isOurs: (sessionId: string | undefined) => sessionId != null && running.has(sessionId),
 
-  error: (session: ClaudeSession) => errors.get(session.id) ?? null,
+  error(session: ClaudeSession): string | null {
+    const reason = errors.get(session.id);
+    return reason === undefined ? null : reason ? tIsland("island.reply.errorNotSent", { error: reason }) : tIsland("island.reply.errorGeneric");
+  },
   /** Something to know about the last reply that is no error: where it was put, and what is left to do. */
-  note: (session: ClaudeSession) => notes.get(session.id) ?? null,
+  note(session: ClaudeSession): string | null {
+    const note = notes.get(session.id);
+    if (!note) return null;
+    return note.key === "island.reply.noteInterrupted" ? tIsland(note.key) : tIsland(note.key, { target: note.target ?? tIsland("island.reply.editor") });
+  },
   /** Why the reply under way runs in the background and not in the session's window: Rust's own sentence, or "". */
   background: (session: ClaudeSession) => background.get(session.id) ?? "",
   draft: (session: ClaudeSession) => drafts.get(session.id) ?? "",
@@ -122,15 +132,15 @@ export const Reply = {
     try {
       const place = await Bridge.sessionReplyHere(id, session.title ?? null, text.slice(0, MAX_REPLY_CHARS));
       if (place === "interrupted") {
-        notes.set(id, "You changed windows while Nook was typing. Part of your reply is in the terminal, and it was not sent.");
+        notes.set(id, { key: "island.reply.noteInterrupted" });
         return false;
       }
       drafts.delete(id);
-      if (place === "prefilled") notes.set(id, `Your reply is in ${session.target?.label || "the editor"}'s Claude prompt. Press Enter there to send it.`);
+      if (place === "prefilled") notes.set(id, { key: "island.reply.notePrefilled", target: session.target?.label || "" });
       return true;
     } catch (err) {
       // Rust refused with nothing typed anywhere: said, and what was typed stays to send again.
-      errors.set(id, `${words(err)} Your reply was not sent.`);
+      errors.set(id, words(err));
       // Its window may be gone: looked for again at once.
       reach.delete(id);
       return false;
@@ -156,7 +166,10 @@ export const Reply = {
     running.delete(id);
     background.delete(id);
     const byHand = stopped.delete(id);
-    if (ok !== true && !byHand) errors.set(id, typeof error === "string" && error.trim() ? error.trim() : "The reply could not be sent.");
+    if (ok !== true && !byHand) {
+      const reason = typeof error === "string" ? error.trim() : "";
+      errors.set(id, reason);
+    }
     // A run that ended without its session saying so (stopped, or failed before its first event): at rest again.
     const session = State.sessions.find((s) => s.id === id);
     if (session && !AT_REST.has(session.state) && subagentsGoing(session) === 0 && session.approval == null && session.question == null && (ok !== true || byHand)) session.state = "idle";

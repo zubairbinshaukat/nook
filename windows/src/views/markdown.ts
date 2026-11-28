@@ -12,7 +12,8 @@
 // what looks like a file (`filePath`) are plain functions of the text — and
 // `markdown` / `reply` draw them.
 
-import { h } from "./dom";
+import { h, im } from "./dom";
+import { cardinalForm, currentIslandLanguage, formatNumber, type IslandTranslationKey } from "../core/i18n.ts";
 import { LUCIDE, lucide } from "./iconset";
 
 // ── Reading: an answer as blocks ──────────────────────────────────────────────
@@ -406,12 +407,12 @@ function inline(text: string, opener: PathOpener | null, lead = false): Node[] {
 }
 
 /** Each alert's name, as its title says it, and its icon. Its colour is the style sheet's. */
-const CALLOUTS: Record<CalloutKind, { title: string; icon: string }> = {
-  note: { title: "Note", icon: LUCIDE.info },
-  tip: { title: "Tip", icon: LUCIDE.lightbulb },
-  important: { title: "Important", icon: LUCIDE.messageSquareWarning },
-  warning: { title: "Warning", icon: LUCIDE.triangleAlert },
-  caution: { title: "Caution", icon: LUCIDE.octagonAlert },
+const CALLOUTS: Record<CalloutKind, { title: IslandTranslationKey; icon: string }> = {
+  note: { title: "island.callout.note", icon: LUCIDE.info },
+  tip: { title: "island.callout.tip", icon: LUCIDE.lightbulb },
+  important: { title: "island.callout.important", icon: LUCIDE.messageSquareWarning },
+  warning: { title: "island.callout.warning", icon: LUCIDE.triangleAlert },
+  caution: { title: "island.callout.caution", icon: LUCIDE.octagonAlert },
 };
 const CALLOUT_ICON = 13;
 
@@ -440,7 +441,7 @@ function draw(block: Block, opener: PathOpener | null): HTMLElement {
       const { title, icon } = CALLOUTS[block.callout];
       return h(
         "div", { class: `md-callout ${block.callout}`, role: "note" },
-        h("div", { class: "md-callout-h" }, lucide(icon, CALLOUT_ICON), h("b", { text: title })),
+        h("div", { class: "md-callout-h" }, lucide(icon, CALLOUT_ICON), h("b", { text: im(title) })),
         ...body,
       );
     }
@@ -474,13 +475,13 @@ export function reply(source: string, opener: PathOpener | null, fold: ReplyFold
   const files = capped(opener);
   const all = (shown: Block[]) => shown.map((block) => draw(block, files));
   if (!plan) return h("div", { class: "md" }, ...all(blocks));
-  const control = (label: string, note: string) =>
+  const control = (label: ReturnType<typeof im>, note?: ReturnType<typeof im>) =>
     h("button", { class: "md-more", type: "button", "aria-expanded": String(fold.open), onclick: () => fold.toggle(!fold.open) }, h("b", { text: label }), note ? h("span", { text: note }) : null);
-  if (fold.open) return h("div", { class: "md" }, ...all(blocks), control("Show less", ""));
+  if (fold.open) return h("div", { class: "md" }, ...all(blocks), control(im("island.markdown.showLess")));
   return h(
     "div", { class: "md folded" },
     ...all(plan.lead),
-    plan.decisions > 0 ? h("div", { class: "md-skip", text: `${plan.decisions} ${plan.decisions === 1 ? "decision" : "decisions"} further down` }) : null,
-    control("Show full reply", `${plan.hidden} more ${plan.hidden === 1 ? "line" : "lines"}`),
+    plan.decisions > 0 ? h("div", { class: "md-skip", text: im("island.markdown.decisionsBelow", { count: plan.decisions }) }) : null,
+    control(im("island.markdown.showFullReply"), im(`island.markdown.moreLine.${cardinalForm(plan.hidden, currentIslandLanguage())}` as IslandTranslationKey, { count: formatNumber(plan.hidden, currentIslandLanguage()) })),
   );
 }

@@ -19,13 +19,14 @@ import {
   type CodexQuotaSnapshot, type CompactMetric, type Metrics, type Usage, type UsageLevel,
 } from "../core/state";
 import { Bridge, type BatteryStatus } from "../core/bridge";
-import { clear, h } from "../views/dom";
+import { clear, h, im } from "../views/dom";
 import { LUCIDE, lucide } from "../views/iconset";
 import { wear } from "../views/palette";
-import { CLAUDE_ORANGE, DOT_LEGEND, TOOL_NAME } from "../views/tool";
+import { CLAUDE_ORANGE, TOOL_NAME } from "../views/tool";
 import { labelText, roster, stateWords, waitingCount, type Entry } from "../views/roster";
 import { availableCompactUsageAgents, compactCellTooltip, compactUsageReading, createCompactUsageCycle, type UsageAgent } from "./compact-usage-cycle";
 import { compactClock, createCompactClock } from "./compact-clock";
+import { currentIslandLanguage, formatNumber, formatPercent, localeFor, tIsland } from "../core/i18n";
 import {
   BATTERY_CELL_GAP, BATTERY_CELL_WIDTH, BATTERY_PERCENT_WIDTH, BATTERY_RING_SIZE,
   BATTERY_SIDE_CELL_GAP, BATTERY_SIDE_CELL_WIDTH, BATTERY_SIDE_PERCENT_WIDTH,
@@ -40,15 +41,15 @@ export const COMPACT_CLOCK_WIDTH = 14 + 5 + 68;
 const PERCENT_W = 52;
 
 /** Each cell, wide enough for the worst it can say. */
-const METRIC: Record<CompactMetric, { width: number; name: string; icon: string }> = {
-  cpu: { width: PERCENT_W, name: "CPU", icon: LUCIDE.cpu },
-  gpu: { width: PERCENT_W, name: "GPU", icon: LUCIDE.gpu },
-  ram: { width: PERCENT_W, name: "RAM", icon: LUCIDE.memoryStick },
-  usage5h: { width: PERCENT_W, name: "5-hour usage", icon: LUCIDE.timer },
-  usage7d: { width: PERCENT_W, name: "7-day usage", icon: LUCIDE.calendarDays },
-  waiting: { width: 38, name: "Sessions waiting for you", icon: LUCIDE.bell },
-  clock: { width: COMPACT_CLOCK_WIDTH, name: "Clock", icon: LUCIDE.clock },
-  battery: { width: BATTERY_CELL_WIDTH, name: "Battery", icon: LUCIDE.batteryRing },
+const METRIC: Record<CompactMetric, { width: number; nameKey: Parameters<typeof tIsland>[0]; icon: string }> = {
+  cpu: { width: PERCENT_W, nameKey: "island.metric.cpu", icon: LUCIDE.cpu },
+  gpu: { width: PERCENT_W, nameKey: "island.metric.gpu", icon: LUCIDE.gpu },
+  ram: { width: PERCENT_W, nameKey: "island.metric.ram", icon: LUCIDE.memoryStick },
+  usage5h: { width: PERCENT_W, nameKey: "island.metric.usage5h", icon: LUCIDE.timer },
+  usage7d: { width: PERCENT_W, nameKey: "island.metric.usage7d", icon: LUCIDE.calendarDays },
+  waiting: { width: 38, nameKey: "island.metric.waiting", icon: LUCIDE.bell },
+  clock: { width: COMPACT_CLOCK_WIDTH, nameKey: "island.metric.clock", icon: LUCIDE.clock },
+  battery: { width: BATTERY_CELL_WIDTH, nameKey: "island.metric.battery", icon: LUCIDE.batteryRing },
 };
 
 /** A cell as it reads now: its number, what its tooltip adds, and — for usage — how it is coloured. */
@@ -77,7 +78,7 @@ export interface Gauges {
   now?: number;
 }
 
-const percent = (value: number | null | undefined): string => (value != null ? `${Math.round(value)}%` : "—");
+const percent = (value: number | null | undefined): string => (value != null ? formatPercent(value, currentIslandLanguage()) : "—");
 const isUsageMetric = (kind: CompactMetric) => kind === "usage5h" || kind === "usage7d";
 
 /** What one cell says, from the gauges alone: nothing here looks at the island. */
@@ -92,14 +93,14 @@ export function reading(kind: CompactMetric, { metrics: m, usage, codexQuota, us
       return { text: percent(ramPercent(m)), more: ramWords(m) };
     case "usage5h":
     case "usage7d": {
-      return compactUsageReading({ kind, usage, codexQuota, rotationEnabled: usageRotationEnabled, codexLimitsEnabled: codexQuotaEnabled, agent: codexQuotaEnabled ? usageAgent : "claude", shownUsage: usageShown, levelFor: usageLevel, sourceWords: USAGE_SOURCE_WORDS, now });
+      return compactUsageReading({ kind, usage, codexQuota, rotationEnabled: usageRotationEnabled, codexLimitsEnabled: codexQuotaEnabled, agent: codexQuotaEnabled ? usageAgent : "claude", shownUsage: (win, updatedAt, at) => usageShown(win, updatedAt, at, currentIslandLanguage()), levelFor: usageLevel, sourceWords: USAGE_SOURCE_WORDS, now });
     }
     case "waiting":
       return { text: String(Math.min(99, waiting)) };
     case "clock":
       return { text: compactClock(now) };
     case "battery":
-      return batteryReading(battery);
+      return batteryReading(battery, currentIslandLanguage());
   }
 }
 
@@ -158,12 +159,13 @@ export function compactSlots(plan: CompactPlan, from: Gauges): CompactSlots {
       id: entry.id, color: entry.color, calls: entry.rank === 0, rest: entry.lane === "done",
       decision: entry.decision && entry.lane === "done",
       cursor: entry.session?.agent === "cursor",
-      title: `${entry.session ? `${TOOL_NAME[entry.session.agent]} · ` : ""}${labelText(entry)} — ${stateWords(entry)}${plan.live.some((e) => e.session?.agent === "cursor") ? `\n${DOT_LEGEND}` : ""}`,
+      title: `${entry.session ? `${TOOL_NAME[entry.session.agent]} · ` : ""}${labelText(entry)} — ${stateWords(entry)}${plan.live.some((e) => e.session?.agent === "cursor") ? `\n${tIsland("island.tool.dotLegend")}` : ""}`,
     })),
     more: hidden.length ? { count: hidden.length, color: hidden[0].color, calls: hidden[0].rank === 0 } : null,
     cells: plan.kinds.map((kind) => {
       const read = reading(kind, from);
-      return { kind, ...read, title: read.more ? `${METRIC[kind].name} — ${read.more}` : METRIC[kind].name };
+      const name = tIsland(METRIC[kind].nameKey);
+      return { kind, ...read, title: read.more ? tIsland("island.metric.tooltipMore", { name, more: read.more }) : name };
     }),
   };
 }
@@ -186,6 +188,8 @@ export interface CompactStrip {
   el: HTMLElement;
   /** Pauses or resumes the display-only usage timer with island activity. */
   setActive(active: boolean): void;
+  /** Updates formatted values after the effective language changes. */
+  localeChanged(): void;
   /** Stops timers and listeners when the island page is torn down. */
   destroy(): void;
   /** Draws what the plan holds; nothing is rebuilt when it has not changed. */
@@ -260,11 +264,11 @@ export function buildCompact(): CompactStrip {
       const { text, more, level, dim, charging, accessible } = result;
       const battery = kind === "battery" ? result as BatteryReading : null;
       const title = kind === "battery"
-        ? `Battery — ${more ?? "Battery status unavailable"}`
-        : compactCellTooltip(METRIC[kind].name, more, rotationActive, isUsageMetric(kind), from.usageAgent ?? null);
+        ? tIsland("island.metric.tooltipMore", { name: tIsland(METRIC[kind].nameKey), more: more ?? tIsland("island.metric.batteryUnavailable") })
+        : compactCellTooltip(tIsland(METRIC[kind].nameKey), more, rotationActive, isUsageMetric(kind), from.usageAgent ?? null);
       const cell = value.parentElement!;
       if (cell.title !== title) cell.title = title;
-      const label = kind === "battery" ? accessible ?? "Battery status unavailable" : title;
+      const label = kind === "battery" ? accessible ?? tIsland("island.metric.batteryUnavailable") : title;
       if (cell.getAttribute("aria-label") !== label) cell.setAttribute("aria-label", label);
       cell.classList.toggle("charging", kind === "battery" && charging === true);
       if (battery) {
@@ -332,7 +336,7 @@ export function buildCompact(): CompactStrip {
   clockFace = createCompactClock((text) => {
     const value = values.get("clock");
     if (value) value.textContent = text;
-  });
+  }, Date.now, undefined, undefined, (time) => compactClock(time, localeFor(currentIslandLanguage())));
 
   function syncClock() {
     clockFace.configure(visible && kinds.includes("clock"));
@@ -374,6 +378,10 @@ export function buildCompact(): CompactStrip {
       if (visible) clockFace.resync();
       else syncClock();
     },
+    localeChanged() {
+      writeValues();
+      clockFace.resync();
+    },
     destroy: teardown,
     sync(plan) {
       kinds = plan.kinds;
@@ -397,7 +405,7 @@ export function buildCompact(): CompactStrip {
           // "+N" wears the colour of the most urgent session it hides.
           const badge = h("span", {
             class: `ci-more${more.calls ? " calls" : ""}`, style: `width:${COMPACT_MORE_W}px`,
-            text: `+${Math.min(99, more.count)}`, title: `${more.count} more`,
+            text: `+${Math.min(99, more.count)}`, title: im("island.home.moreSessions", { count: formatNumber(more.count, currentIslandLanguage()) }),
           });
           wear(badge, more.color);
           dots.append(badge);
@@ -419,7 +427,7 @@ export function buildCompact(): CompactStrip {
           if (kind === "battery") {
             const side = sideDock(Room.dock);
             const size = side ? BATTERY_SIDE_RING_SIZE : BATTERY_RING_SIZE;
-            const wrapper = h("span", { class: "ci-battery-icon", style: `--ring-size:${size}px` }, batteryRingSvg(batteryReading(batteryStatus), size),
+          const wrapper = h("span", { class: "ci-battery-icon", style: `--ring-size:${size}px` }, batteryRingSvg(batteryReading(batteryStatus, currentIslandLanguage()), size),
               h("i", { class: "ci-battery-zap", hidden: true, "aria-hidden": "true" }, lucide(LUCIDE.zap, 8)));
             icon = wrapper;
           } else {
@@ -438,7 +446,7 @@ export function buildCompact(): CompactStrip {
             ? `--w:${width}px;--battery-gap:${side ? BATTERY_SIDE_CELL_GAP : BATTERY_CELL_GAP}px;--battery-value-w:${side ? BATTERY_SIDE_PERCENT_WIDTH : BATTERY_PERCENT_WIDTH}px`
             : `--w:${width}px`;
           metrics.append(h(
-            "span", { class: `ci-metric${kind === "clock" ? " ci-clock" : ""}${kind === "battery" ? " ci-battery" : ""}`, style, title: def.name, "aria-label": def.name },
+            "span", { class: `ci-metric${kind === "clock" ? " ci-clock" : ""}${kind === "battery" ? " ci-battery" : ""}`, style, title: im(def.nameKey), "aria-label": im(def.nameKey) },
             icon,
             value,
           ));

@@ -1,12 +1,69 @@
 // Minimal DOM helpers — no framework, as specified.
 
-type Attrs = Record<string, string | number | boolean | EventListener | undefined>;
-type Child = Node | string | null | undefined | false;
+import { currentIslandLanguage, formatNumber, tIsland, type IslandTranslationKey } from "../core/i18n.ts";
+
+type LocalizedMessage = { readonly __islandMessage: true; readonly key: IslandTranslationKey; readonly params: Readonly<Record<string, string | number>> };
+type AttrValue = string | number | boolean | EventListener | LocalizedMessage | undefined;
+type Attrs = Record<string, AttrValue>;
+type Child = Node | string | LocalizedMessage | null | undefined | false;
 
 type TextTranslator = (source: string) => string;
 let textTranslator: TextTranslator | null = null;
 const textSources = new WeakMap<Text, { source: string; rendered: string }>();
 const attributeSources = new WeakMap<Element, Map<string, { source: string; rendered: string }>>();
+const islandTextSources = new WeakMap<Text, LocalizedMessage>();
+const islandAttributeSources = new WeakMap<Element, Map<string, LocalizedMessage>>();
+
+/** A typed Island message. It remains attached to its text node for live language changes. */
+export function im(key: IslandTranslationKey, params: Record<string, string | number> = {}): LocalizedMessage {
+  return { __islandMessage: true, key, params };
+}
+
+function isIslandMessage(value: unknown): value is LocalizedMessage {
+  return typeof value === "object" && value !== null && (value as LocalizedMessage).__islandMessage === true;
+}
+
+function islandValue(value: LocalizedMessage): string {
+  return tIsland(value.key, { ...value.params });
+}
+
+function appendText(el: Element, message: LocalizedMessage): void {
+  const text = document.createTextNode(islandValue(message));
+  islandTextSources.set(text, message);
+  el.replaceChildren(text);
+}
+
+/** Updates an existing node while keeping its translation key and live params. */
+export function setIslandText(el: Element, message: LocalizedMessage): void {
+  appendText(el, message);
+}
+
+/** Writes a typed translated attribute, such as an accessible name or tooltip. */
+export function setIslandAttribute(el: Element, name: string, message: LocalizedMessage): void {
+  const sources = islandAttributeSources.get(el) ?? new Map<string, LocalizedMessage>();
+  sources.set(name, message);
+  islandAttributeSources.set(el, sources);
+  el.setAttribute(name, islandValue(message));
+}
+
+export function clearIslandAttribute(el: Element, name: string): void {
+  islandAttributeSources.get(el)?.delete(name);
+  el.removeAttribute(name);
+}
+
+/** Repaints typed Island text and attributes in place, preserving controls and focus. */
+export function refreshIslandLocalization(root: ParentNode = document): void {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    const message = islandTextSources.get(node as Text);
+    if (message) node.textContent = islandValue(message);
+  }
+  const elements: Element[] = root instanceof Element ? [root, ...root.querySelectorAll("*")] : [...root.querySelectorAll("*")];
+  for (const el of elements) {
+    for (const [name, message] of islandAttributeSources.get(el) ?? []) el.setAttribute(name, islandValue(message));
+  }
+}
 
 /** Enable source-preserving UI text localization for a standalone window. */
 export function configureTextLocalization(translate: TextTranslator): void {
@@ -65,6 +122,8 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   for (const [k, v] of Object.entries(attrs)) {
     if (v == null || v === false) continue;
     if (k === "class") el.className = String(v);
+    else if (k === "text" && isIslandMessage(v)) appendText(el, v);
+    else if (isIslandMessage(v)) setIslandAttribute(el, k, v);
     else if (k === "text") {
       if (rawText) el.textContent = String(v);
       else setText(el, String(v));
@@ -77,7 +136,11 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   }
   for (const c of children) {
     if (c == null || c === false) continue;
-    if (typeof c === "string") {
+    if (isIslandMessage(c)) {
+      const text = document.createTextNode(islandValue(c));
+      islandTextSources.set(text, c);
+      el.append(text);
+    } else if (typeof c === "string") {
       const source = rawText ? c : textTranslator?.(c) ?? c;
       const text = document.createTextNode(source);
       if (textTranslator && !rawText) textSources.set(text, { source: c, rendered: text.data });
@@ -136,8 +199,9 @@ export function timeAgo(value: unknown): string {
   const date = typeof value === "number" ? new Date(value) : new Date(String(value));
   const diff = (Date.now() - date.getTime()) / 1000;
   if (!Number.isFinite(diff)) return "";
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-  return `${Math.floor(diff / 86400)}d`;
+  const language = currentIslandLanguage();
+  if (diff < 60) return tIsland("island.timeAgo.justNow", {}, language);
+  if (diff < 3600) return tIsland("island.timeAgo.minutes", { count: formatNumber(Math.floor(diff / 60), language) }, language);
+  if (diff < 86400) return tIsland("island.timeAgo.hours", { count: formatNumber(Math.floor(diff / 3600), language) }, language);
+  return tIsland("island.timeAgo.days", { count: formatNumber(Math.floor(diff / 86400), language) }, language);
 }

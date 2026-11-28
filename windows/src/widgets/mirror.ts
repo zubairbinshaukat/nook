@@ -8,13 +8,14 @@
 // tells every widget `stop`). It does not come back by itself: it is turned on
 // again by a press. Nothing is recorded, nothing is saved, no frame is read.
 
-import { h } from "../views/dom";
+import { h, im, setIslandText } from "../views/dom";
+import type { IslandTranslationKey } from "../core/i18n.ts";
 import { camera, resetCamera, startCamera, stopCamera } from "./camera";
 import { notifyShelf } from "./core";
 import { frame, mark, mini, shared, type Widget, type WidgetContext } from "./ui";
 
 /** The Mirror's one video element. */
-const video = h("video", { class: "mirror-video", muted: true, playsinline: true, "aria-label": "Camera preview" });
+const video = h("video", { class: "mirror-video", muted: true, playsinline: true, "aria-label": im("island.widget.cameraPreview") });
 video.muted = true;
 
 camera.onChange = () => notifyShelf();
@@ -24,20 +25,17 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) stopCamera(video, "the page was hidden");
 });
 
-const MESSAGES: Record<string, [string, string]> = {
-  denied: [
-    "Camera access was refused",
-    "Allow it for Nook: Windows Settings → Privacy & security → Camera, and let desktop apps use your camera. If you chose Block when asked, that choice is remembered. Then try again.",
-  ],
-  missing: ["No camera found", "Plug one in, or check that Windows can see it, then try again."],
-  busy: ["The camera is busy", "Another app may be using it. Close it, then try again."],
-  error: ["The camera could not be started", "Try again; if it keeps failing, check the camera in Windows Settings."],
+const MESSAGES = {
+  denied: ["island.widget.cameraDeniedTitle", "island.widget.cameraDeniedHelp"],
+  missing: ["island.widget.cameraMissingTitle", "island.widget.cameraMissingHelp"],
+  busy: ["island.widget.cameraBusyTitle", "island.widget.cameraBusyHelp"],
+  error: ["island.widget.cameraErrorTitle", "island.widget.cameraErrorHelp"],
 };
 
 export function buildMirror(ctx: WidgetContext): Widget {
   // Small: one button. It expands Mirror and starts the camera there.
-  const sNote = h("div", { class: "wmini-note", text: "Camera off. It only runs while Mirror is open." });
-  const sStart = shared(h("button", { class: "btn secondary wmini-btn", text: "Turn camera on", onclick: () => ctx.expand("mirror", { camera: true }) }), "mirror-start");
+  const sNote = h("div", { class: "wmini-note", text: im("island.widget.cameraOffNote") });
+  const sStart = shared(h("button", { class: "btn secondary wmini-btn", text: im("island.widget.cameraOn"), onclick: () => ctx.expand("mirror", { camera: true }) }), "mirror-start");
   const small = mini("mirror", h("div", { class: "wbody-mirror" }, sNote, sStart));
 
   // Expanded: the large preview.
@@ -61,21 +59,19 @@ export function buildMirror(ctx: WidgetContext): Widget {
       case "on":
         break;
       case "starting":
-        title.textContent = "Waiting for the camera…";
-        sub.textContent = camera.slow
-          ? "No answer yet. If no question appeared, allow the camera for Nook in Windows Settings → Privacy & security → Camera, then go back and try again."
-          : "Windows may be asking for permission.";
+        setIslandText(title, im("island.widget.cameraWaiting"));
+        setIslandText(sub, im(camera.slow ? "island.widget.cameraPermissionSlow" : "island.widget.cameraPermissionPending"));
         break;
       case "off":
-        title.textContent = "Camera off";
-        sub.textContent = "Nothing is recorded or saved. The camera stops the moment you leave this view.";
-        start.textContent = "Turn camera on";
+        setIslandText(title, im("island.widget.cameraOff"));
+        setIslandText(sub, im("island.widget.cameraPrivacy"));
+        setIslandText(start, im("island.widget.cameraOn"));
         break;
       default: {
         const [heading, how] = MESSAGES[s] ?? MESSAGES.error;
-        title.textContent = heading;
-        sub.textContent = how;
-        start.textContent = "Try again";
+        setIslandText(title, im(heading as IslandTranslationKey));
+        setIslandText(sub, im(how as IslandTranslationKey));
+        setIslandText(start, im("island.widget.cameraRetry"));
       }
     }
   }

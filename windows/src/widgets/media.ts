@@ -11,7 +11,8 @@
 // moment the Shelf is off the screen; it is never written anywhere.
 
 import type { MediaInfo } from "../core/bridge";
-import { clear, h, svg } from "../views/dom";
+import { tIsland } from "../core/i18n.ts";
+import { clear, h, im, setIslandText, svg } from "../views/dom";
 import { ICONS } from "../views/icons";
 import { ShelfBackend } from "./backend";
 import { notifyShelf } from "./core";
@@ -120,9 +121,9 @@ export function buildMedia(ctx: WidgetContext): Widget {
   let expandedOn: () => boolean = () => false;
 
   const controls = (playSize: number, skipSize: number) => {
-    const prev = shared(h("button", { class: "media-skip", title: "Previous", "aria-label": "Previous track", onclick: () => void press("previous", expandedOn()) }, svg(PREVIOUS, skipSize)), "media-prev");
-    const play = shared(h("button", { class: "media-play", title: "Play / pause", "aria-label": "Play or pause", onclick: () => void press("toggle", expandedOn()) }), "media-play");
-    const next = shared(h("button", { class: "media-skip", title: "Next", "aria-label": "Next track", onclick: () => void press("next", expandedOn()) }, svg(NEXT, skipSize)), "media-next");
+    const prev = shared(h("button", { class: "media-skip", title: im("island.widget.mediaPrevious"), "aria-label": im("island.widget.mediaPreviousTrack"), onclick: () => void press("previous", expandedOn()) }, svg(PREVIOUS, skipSize)), "media-prev");
+    const play = shared(h("button", { class: "media-play", title: im("island.widget.mediaPlayPause"), "aria-label": im("island.widget.mediaPlayOrPause"), onclick: () => void press("toggle", expandedOn()) }), "media-play");
+    const next = shared(h("button", { class: "media-skip", title: im("island.widget.mediaNext"), "aria-label": im("island.widget.mediaNextTrack"), onclick: () => void press("next", expandedOn()) }, svg(NEXT, skipSize)), "media-next");
     return { row: h("div", { class: "media-ctl" }, prev, play, next), play, prev, next, playSize };
   };
 
@@ -143,7 +144,7 @@ export function buildMedia(ctx: WidgetContext): Widget {
   const bar = h("div", { class: "media-bar" }, fill);
   const times = h("div", { class: "media-times" }, h("span"), h("span"));
   const ctl = controls(18, 16);
-  const volume = h("input", { class: "media-vol", type: "range", min: 0, max: 100, step: 1, title: "Volume", "aria-label": "Volume" });
+  const volume = h("input", { class: "media-vol", type: "range", min: 0, max: 100, step: 1, title: im("island.widget.mediaVolume"), "aria-label": im("island.widget.mediaVolume") });
   volume.addEventListener("input", () => setVolume(Number(volume.value)));
   const volumeIcon = h("span", { class: "media-vol-icon" });
   const volumeBox = h("div", { class: "media-volume" }, volumeIcon, volume);
@@ -161,10 +162,24 @@ export function buildMedia(ctx: WidgetContext): Widget {
     const info = media.info;
     const session = info?.kind === "session" ? info : null;
     const unavailable = info == null || info.kind === "unavailable";
-    const words = session ? session.title || "Unknown title" : !media.asked ? "Checking…" : unavailable ? "Not available" : "Nothing playing";
-    const by = session ? session.artist : !media.asked ? "" : unavailable ? (info?.reason ?? "Media controls could not be reached.") : "Start something in any player.";
-    for (const el of [sTitle, title]) if (el.textContent !== words) el.textContent = words;
-    for (const el of [sArtist, artist]) if (el.textContent !== by) el.textContent = by;
+    const titleMessage = !session ? im(!media.asked ? "island.widget.mediaChecking" : unavailable ? "island.widget.mediaUnavailable" : "island.widget.mediaNothingPlaying") : null;
+    const artistMessage = !session && media.asked && !info?.reason
+      ? im(unavailable ? "island.widget.mediaControlsError" : "island.widget.mediaStartSomething")
+      : null;
+    for (const el of [sTitle, title]) {
+      if (session?.title) { if (el.textContent !== session.title) el.textContent = session.title; }
+      else if (session) setIslandText(el, im("island.widget.mediaUnknownTitle"));
+      else setIslandText(el, titleMessage!);
+    }
+    for (const el of [sArtist, artist]) {
+      if (session) { if (el.textContent !== session.artist) el.textContent = session.artist; }
+      else if (!session && media.asked && info?.reason) {
+        // The bridge reason is external diagnostic text; preserve it as supplied.
+        if (el.textContent !== info.reason) el.textContent = info.reason;
+      }
+      else if (artistMessage) setIslandText(el, artistMessage);
+      else el.textContent = "";
+    }
 
     const playing = session?.playing === true;
     for (const c of [sCtl, ctl]) {
@@ -173,7 +188,11 @@ export function buildMedia(ctx: WidgetContext): Widget {
       (c.prev as HTMLButtonElement).disabled = !session;
       (c.next as HTMLButtonElement).disabled = !session;
     }
-    state.textContent = session ? `${session.app || "Player"} · ${playing ? "Playing" : "Paused"}` : "";
+    if (session) setIslandText(state, im("island.widget.mediaState", {
+      player: session.app || tIsland("island.widget.mediaPlayer"),
+      state: tIsland(playing ? "island.widget.mediaPlaying" : "island.widget.mediaPaused"),
+    }));
+    else state.textContent = "";
     small.classList.toggle("paused", !playing);
 
     // Album art: the player's own, or the widget's mark where there is none.

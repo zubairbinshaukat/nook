@@ -27,7 +27,7 @@ import { mediaOn } from "../widgets/media";
 import { nextReminder } from "../widgets/reminders";
 import { todo } from "../widgets/todo";
 import { CONTROL, mini, type Widget, type WidgetContext } from "../widgets/ui";
-import { clear, h } from "./dom";
+import { clear, h, im, refreshIslandLocalization } from "./dom";
 import type { ViewActions, ViewHost } from "./views";
 
 export { SHELF_WIDGETS, shelfWidgets };
@@ -149,7 +149,7 @@ export function settleRow(row: HTMLElement, still: boolean) {
 
 /** A widget that is not built yet has its place in the row, and nothing in it. */
 function placeholder(id: ShelfWidgetId): HTMLElement {
-  const el = mini(id, h("div", { class: "wmini-none", text: "Coming next" }));
+  const el = mini(id, h("div", { class: "wmini-none", text: im("island.view.comingNext") }));
   el.querySelector(".wmini-expand")?.remove();
   return el;
 }
@@ -157,9 +157,9 @@ function placeholder(id: ShelfWidgetId): HTMLElement {
 export function buildShelf(actions: ViewActions): ShelfHost {
   const row = h("div", { class: "shelf-row" });
   const empty = h("div", { class: "shelf-empty" },
-    h("div", { class: "title", text: "Every widget is hidden." }),
-    h("div", { class: "sub", text: "Turn some on in Settings → Shelf." }),
-    h("button", { class: "link-btn", text: "Open Settings…", onclick: () => actions.openSettingsWindow() }));
+    h("div", { class: "title", text: im("island.view.shelfEmptyTitle") }),
+    h("div", { class: "sub", text: im("island.view.shelfEmptyHelp") }),
+    h("button", { class: "link-btn", text: im("island.view.openSettings"), onclick: () => actions.openSettingsWindow() }));
   const rowLayer = h("div", { class: "shelf-layer on" }, row, empty);
   const focusLayer = h("div", { class: "shelf-layer" });
   const el = h("div", { class: "view shelf-view" }, rowLayer, focusLayer);
@@ -232,7 +232,11 @@ export function buildShelf(actions: ViewActions): ShelfHost {
     if (next === key) return;
     key = next;
     clear(row);
-    for (const id of shown) row.append(widgets.get(id)?.small ?? placeholders.get(id)!);
+    for (const id of shown) {
+      const small = widgets.get(id)?.small ?? placeholders.get(id)!;
+      refreshIslandLocalization(small);
+      row.append(small);
+    }
     row.style.display = shown.length ? "" : "none";
     empty.style.display = shown.length ? "none" : "";
     row.scrollTo({ left: 0, top: 0 });

@@ -8,6 +8,7 @@
 import { Bridge, onEvent } from "../core/bridge";
 import { State } from "../core/state";
 import { snapshotOf } from "./model";
+import { activityLineText } from "../views/step-labels";
 
 /** Changes come in runs: the rows go once, this long after the last of them. */
 const DEBOUNCE_MS = 150;
@@ -20,7 +21,8 @@ export function startAgentsFeed(): { poke: () => void } {
   const send = (force: boolean) => {
     timer = 0;
     if (!State.settings.showAgentsList) return;
-    const snapshot = snapshotOf(State.sessions, State.usage, Date.now());
+    const sessions = State.sessions.map((session) => ({ ...session, lines: session.lines.map((line) => activityLineText(line, "en")) }));
+    const snapshot = snapshotOf(sessions, State.usage, Date.now());
     const text = JSON.stringify(snapshot);
     if (!force && text === last) return;
     last = text;

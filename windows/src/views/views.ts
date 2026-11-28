@@ -2,8 +2,9 @@
 // colours and wording are copied from the Swift views so both platforms read
 // identically.
 
-import { h, svg, clear, dot } from "./dom";
+import { h, im, setIslandText, setIslandAttribute, clearIslandAttribute, svg, clear, dot } from "./dom";
 import { ICONS } from "./icons";
+import { activityLineText } from "./step-labels";
 import {
   CLAUDE_ID, State, isQuestion, newSession, repliedWords, requestsOf, subagentName, targetTip, targetWords,
   type AgentTask, type ClaudeSession, type SessionRequest,
@@ -19,6 +20,7 @@ import { TOOL_NAME, toolMark } from "./tool";
 import { buildReplyBox } from "./reply-box";
 import { Update } from "../core/update";
 import { buildHeaderStats } from "./header-stats";
+import { currentIslandLanguage, formatNumber, tIsland } from "../core/i18n";
 
 /** What stands for a session where there is none to go to: another agent's pill has no ↗. */
 const NO_SESSION = newSession("");
@@ -117,7 +119,7 @@ function card(wash: Wash, ...children: (Node | string)[]): HTMLElement {
 }
 
 function btn(
-  label: string,
+  label: string | ReturnType<typeof im>,
   kind: "primary" | "secondary",
   onClick: () => void,
   kbd?: string,
@@ -152,7 +154,7 @@ function sessionWho(label: string): HTMLElement {
   if (task) row.append(dot(task.color, 8), ...(session.id ? [toolMark(session.agent, 11)] : []), h("span", { class: "n", text: session.id ? sessionName(session) : task.name }));
   row.append(h("span", { text: label }));
   const waiting = State.waiting.length;
-  if (waiting > 0) row.append(h("span", { class: "who-waiting", text: `+${waiting} waiting`, title: "Other sessions waiting for an answer" }));
+  if (waiting > 0) row.append(h("span", { class: "who-waiting", text: im("island.control.waitingCount", { count: formatNumber(waiting, currentIslandLanguage()) }), title: im("island.control.otherSessionsWaiting") }));
   return row;
 }
 
@@ -172,7 +174,7 @@ function askerWho(request: SessionRequest | null, label: string, color: string):
   if (!agent) {
     row = sessionWho(label);
     const unsure = request != null && session.attributed !== true && session.subagents.some((a) => a.state === "running");
-    if (unsure) row.insertBefore(h("span", { class: "who-maybe", text: "a subagent may be asking" }), row.querySelector(".who-waiting"));
+    if (unsure) row.insertBefore(h("span", { class: "who-maybe", text: im("island.status.subagentMayAsk") }), row.querySelector(".who-waiting"));
   } else {
     row = h("div", { class: "who-row who-asker" }, dot(color, 8));
     const project = h("i", { class: "who-proj", text: session.project, title: session.title ?? session.project });
@@ -182,34 +184,42 @@ function askerWho(request: SessionRequest | null, label: string, color: string):
       project.style.minWidth = "0";
     }
     // Its kind, as far as it is known: "general-purpose subagent", or just "subagent".
-    const kind = agent.type ? `${agent.type} subagent` : "subagent";
     const task = agent.description ?? agent.task;
     if (task) {
+      const key = agent.type ? "island.control.agentParentOfTyped" : "island.control.agentParentOf";
       row.append(
         h("span", { class: "n", text: task, title: task }),
-        h("span", { class: "who-of", text: `(${kind}) of` }), project, h("span", { class: "who-of", text: label }),
+        h("span", { class: "who-of", text: im(key, agent.type ? { kind: agent.type } : {}) }), project, h("span", { class: "who-of", text: label }),
       );
     } else {
-      row.append(h("span", { text: `A ${kind} of` }), project, h("span", { text: label }));
+      const key = agent.type ? "island.control.agentOfTyped" : "island.control.agentOf";
+      row.append(h("span", { text: im(key, agent.type ? { kind: agent.type } : {}) }), project, h("span", { text: label }));
     }
     const waiting = State.waiting.length;
-    if (waiting > 0) row.append(h("span", { class: "who-waiting", text: `+${waiting} waiting`, title: "Other sessions waiting for an answer" }));
+    if (waiting > 0) row.append(h("span", { class: "who-waiting", text: im("island.control.waitingCount", { count: formatNumber(waiting, currentIslandLanguage()) }), title: im("island.control.otherSessionsWaiting") }));
   }
   // Two of the session's subagents can ask at once: one card at a time, the oldest first.
   const queued = requestsOf(session).length;
   if (queued > 1) {
-    row.append(h("span", { class: "who-waiting", text: `1 of ${queued}`, title: `${queued} requests are waiting: the oldest first` }));
+      row.append(h("span", { class: "who-waiting", text: im("island.control.questionPosition", { current: "1", total: formatNumber(queued, currentIslandLanguage()) }), title: im("island.control.requestsWaiting", { count: formatNumber(queued, currentIslandLanguage()) }) }));
   }
   return row;
 }
 
 /** The request waiting behind the one on the card, in a line: who asks, and what. */
-function nextWords(session: ClaudeSession): string {
+function nextWords(session: ClaudeSession): ReturnType<typeof im> | null {
   const next = session.queued[0];
-  if (!next) return "";
+  if (!next) return null;
   const agent = next.agentId ? session.subagents.find((a) => a.id === next.agentId) : null;
-  const who = agent ? (agent.description ? `${agent.description} (${agent.type ? `${agent.type} ` : ""}subagent)` : `${subagentName(agent)} (subagent)`) : "another request";
-  return `Next: ${who} · ${isQuestion(next) ? (next.questions[0]?.question ?? "a question") : next.command}`;
+  const who = agent ? (agent.description ?? subagentName(agent)) : tIsland("island.control.anotherRequest");
+  const key = !agent ? "island.control.nextRequest"
+    : agent.description ? agent.type ? "island.control.nextAgentDescriptionTyped" : "island.control.nextAgentDescription"
+      : agent.type ? "island.control.nextAgentNameTyped" : "island.control.nextAgentName";
+  return im(key, {
+    who,
+    ...(agent?.type ? { kind: agent.type } : {}),
+    what: isQuestion(next) ? (next.questions[0]?.question ?? tIsland("island.status.questionFallback")) : next.command,
+  });
 }
 
 function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElement {
@@ -251,8 +261,8 @@ function airy(lines: HTMLElement, onResize: () => void): { fit(): void; readonly
 export function buildHeader(actions: ViewActions): ViewHost {
   // The two tabs: Home, the agents; the Shelf, the widgets. A click on one
   // never leaves it with the focus (island.ts stops that for every button).
-  const tabHome = h("button", { class: "tab named", title: "Home: your sessions", onclick: () => go("overview") }, svg(ICONS.house, 13), "Home");
-  const tabShelf = h("button", { class: "tab named", title: "Shelf: your widgets", onclick: () => go("shelf") }, svg(ICONS.shelf, 13), "Shelf");
+  const tabHome = h("button", { class: "tab named", title: im("island.view.homeTitle"), onclick: () => go("overview") }, svg(ICONS.house, 13), im("island.view.home"));
+  const tabShelf = h("button", { class: "tab named", title: im("island.view.shelfTitle"), onclick: () => go("shelf") }, svg(ICONS.shelf, 13), im("island.view.shelf"));
 
   // The session panel's own button: its normal size, or as large as the display has room for.
   const expandBtn = h("button", { class: "expand ha", onclick: () => actions.setLarge(!State.large) });
@@ -260,8 +270,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
   // large panel takes, is for the sidebar and for Escape — Enter must not shrink the panel back.
   expandBtn.addEventListener("mousedown", (e) => e.preventDefault());
   let expandKey = "";
-  const gearBtn = h("button", { class: "ha", title: "Settings", "aria-label": "Settings", onclick: () => go("settings") }, lucide(LUCIDE.slidersHorizontal, 15, 1.75));
-  const soundBtn = h("button", { class: "ha", title: "Mute", "aria-label": "Mute", onclick: () => actions.toggleSound() });
+  const gearBtn = h("button", { class: "ha", title: im("island.control.settings"), "aria-label": im("island.control.settings"), onclick: () => go("settings") }, lucide(LUCIDE.slidersHorizontal, 15, 1.75));
+  const soundBtn = h("button", { class: "ha", title: im("island.control.mute"), "aria-label": im("island.control.mute"), onclick: () => actions.toggleSound() });
   let soundKey = "";
   // A newer Nook is out, and the user asked to be told (core/update.ts): the way to its release page.
   const updateBtn = h("button", { class: "ha ha-update", onclick: () => {
@@ -302,7 +312,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
         expandBtn.style.display = v === "session" ? "" : "none";
         clear(expandBtn);
         expandBtn.append(svg(State.large ? ICONS.shrink : ICONS.expand, 13, { stroke: 2 }));
-        expandBtn.title = State.large ? "Smaller (Esc)" : "Larger";
+        setIslandAttribute(expandBtn, "title", im(State.large ? "island.control.smaller" : "island.control.larger"));
         expandBtn.classList.toggle("on", State.large);
       }
       gearBtn.classList.toggle("on", v === "settings");
@@ -312,14 +322,23 @@ export function buildHeader(actions: ViewActions): ViewHost {
         soundKey = nextSound;
         clear(soundBtn);
         soundBtn.append(lucide(soundOn ? LUCIDE.volume2 : LUCIDE.volumeX, 15, 1.75));
-        soundBtn.title = soundBtn.ariaLabel = soundOn ? "Mute" : "Unmute";
+        const soundTitleKey = soundOn ? "island.control.mute" : "island.control.unmute";
+        setIslandAttribute(soundBtn, "title", im(soundTitleKey));
+        setIslandAttribute(soundBtn, "aria-label", im(soundTitleKey));
       }
       const offered = Update.offered;
       const nextUpdate = offered?.latest ?? "";
       if (nextUpdate !== updateKey) {
         updateKey = nextUpdate;
         updateBtn.style.display = offered ? "" : "none";
-        updateBtn.title = updateBtn.ariaLabel = offered ? `Nook ${offered.latest} is out. Opens its download page.` : "";
+        if (offered) {
+          const title = im("island.control.updateAvailable", { version: offered.latest });
+          setIslandAttribute(updateBtn, "title", title);
+          setIslandAttribute(updateBtn, "aria-label", title);
+        } else {
+          clearIslandAttribute(updateBtn, "title");
+          clearIslandAttribute(updateBtn, "aria-label");
+        }
       }
       stats.draw();
       el.style.opacity = v === "confused" ? "0" : "1";
@@ -336,8 +355,8 @@ function buildEmpty(): ViewHost {
     h(
       "div",
       { style: "display:flex;flex-direction:column;gap:5px" },
-      h("div", { class: "title", text: "Nothing running right now." }),
-      h("div", { class: "sub", text: "Your Claude Code sessions show up here." }),
+      h("div", { class: "title", text: im("island.view.sessionsEmptyTitle") }),
+      h("div", { class: "sub", text: im("island.view.sessionsEmptyHelp") }),
     ),
   );
   return { el: h("div", { class: "view" }, card(null, body)), sync() {} };
@@ -397,16 +416,23 @@ function buildApproval(actions: ViewActions, onResize: () => void): ViewHost {
         armedAt = performance.now() + REQUEST_ARM_MS;
       }
       clear(who);
-      const asking = askerWho(approval, "needs permission", COLOR.amber);
+      const asking = askerWho(approval, tIsland("island.status.needsPermission"), COLOR.amber);
       if (proposal) asking.append(plusMinus(proposal.additions, proposal.deletions));
       who.append(asking);
-      next.textContent = next.title = nextWords(State.session);
-      next.style.display = next.textContent ? "" : "none";
+      const queuedMessage = nextWords(State.session);
+      if (queuedMessage) {
+        setIslandText(next, queuedMessage);
+        setIslandAttribute(next, "title", queuedMessage);
+      } else {
+        next.textContent = "";
+        clearIslandAttribute(next, "title");
+      }
+      next.style.display = queuedMessage ? "" : "none";
       // The whole point of approving here rather than in the terminal: this line
       // is the command, the file path or the URL being authorised, not just the
       // name of the tool asking.
       code.textContent = proposal
-        ? `${approval?.tool} · ${proposal.path}${proposal.created ? " · new file" : ""}`
+        ? `${approval?.tool} · ${proposal.path}${proposal.created ? ` · ${tIsland("island.control.newFile")}` : ""}`
         : approval?.command || approval?.tool || "…";
       // What that edit would do, line by line, before it is allowed. Drawn once
       // per request: a list redrawn under the mouse would lose its scroll.
@@ -426,7 +452,7 @@ function buildApproval(actions: ViewActions, onResize: () => void): ViewHost {
           }
           if (proposal.truncated) {
             diff.append(
-              h("div", { class: "gh-diff-line hunk" }, h("span", { class: "n", text: "⋯" }), h("span", { class: "s" }), h("span", { class: "t", text: "The rest of this edit is in Claude Code" })),
+              h("div", { class: "gh-diff-line hunk" }, h("span", { class: "n", text: "⋯" }), h("span", { class: "s" }), h("span", { class: "t", text: im("island.control.restOfEdit") })),
             );
           }
           proposed.append(diff);
@@ -443,11 +469,11 @@ function buildApproval(actions: ViewActions, onResize: () => void): ViewHost {
         rowKey = nextRow;
         clear(row);
         if (approval?.tooLong) {
-          row.append(h("span", { class: "too-long", text: `Too long to review here. Answer it in ${State.clientName}.` }));
+          row.append(h("span", { class: "too-long", text: im("island.control.tooLongReview", { client: State.clientName }) }));
         } else {
           row.append(
-            btn("Deny", "secondary", () => decide("deny")),
-            btn("Allow", "primary", () => decide("allow")),
+            btn(im("island.control.deny"), "secondary", () => decide("deny")),
+            btn(im("island.control.allow"), "primary", () => decide("allow")),
           );
         }
       }
@@ -474,15 +500,15 @@ function buildQuestion(actions: ViewActions, onResize: () => void): ViewHost {
   const title = h("div", { class: "title q-title" });
   const row = h("div", { class: "actions q-options" });
   const hint = h("span", { class: "q-hint" });
-  const back = h("button", { class: "link-btn q-link", text: "‹ Previous" });
+  const back = h("button", { class: "link-btn q-link", text: im("island.control.backToPrevious") });
   const pass = h("button", { class: "link-btn q-link", onclick: () => seen() && actions.passQuestion() });
-  const skip = h("button", { class: "btn secondary q-skip", text: "Skip", title: "Leave this question unanswered", onclick: () => seen() && actions.skipQuestion() });
+  const skip = h("button", { class: "btn secondary q-skip", text: im("island.control.skip"), title: im("island.control.leaveQuestion"), onclick: () => seen() && actions.skipQuestion() });
   // Under a list of options: "Other…", and Send when several can be picked.
   const tail = h("div", { class: "q-tail" });
   const foot = h("div", { class: "q-foot" }, tail, hint, h("div", { class: "grow" }), back, pass, skip);
   const field = h("input", {
     class: "island-field", type: "text", maxlength: "2000", autocomplete: "off", spellcheck: "false",
-    placeholder: "Your answer",
+    placeholder: im("island.control.yourAnswer"),
   }) as HTMLInputElement;
   const lines = stack(116, 16, who, title, row, foot);
   // A question with more options than the window is tall for fills its card:
@@ -581,7 +607,7 @@ function buildQuestion(actions: ViewActions, onResize: () => void): ViewHost {
     // swallow the click, so only rebuild when what they show has changed.
     const asker = info?.agentId ? State.session.subagents.find((a) => a.id === info.agentId) : null;
     const next = [
-      request, at, typing, [...picked].join("|"), State.clientName, State.waiting.length,
+      currentIslandLanguage(), request, at, typing, [...picked].join("|"), State.clientName, State.waiting.length,
       requestsOf(State.session).length, asker?.type, asker?.description,
     ].join("~");
     if (next === key) return;
@@ -592,11 +618,12 @@ function buildQuestion(actions: ViewActions, onResize: () => void): ViewHost {
     clear(who);
     clear(row);
     clear(tail);
-    pass.textContent = `Answer in ${State.clientName}`;
+    pass.textContent = tIsland("island.control.answerInClient", { client: State.clientName });
     back.style.display = at > 0 ? "" : "none";
     if (!info || !q) {
-      who.append(askerWho(info, "is asking a question", COLOR.cyan));
-      title.textContent = task?.steps.at(-1) ?? "Claude needs an answer.";
+      who.append(askerWho(info, tIsland("island.status.askingYou"), COLOR.cyan));
+      const activity = task?.steps.at(-1);
+      title.textContent = activity ? activityLineText(activity) : tIsland("island.control.claudeNeedsAnswer");
       hint.textContent = "";
       pass.style.display = "none";
       skip.style.display = "none";
@@ -605,22 +632,22 @@ function buildQuestion(actions: ViewActions, onResize: () => void): ViewHost {
     pass.style.display = "";
     skip.style.display = "";
 
-    const asking = askerWho(info, "is asking a question", COLOR.cyan);
+    const asking = askerWho(info, tIsland("island.status.askingYou"), COLOR.cyan);
     if (q.header) asking.append(h("span", { class: "q-chip", text: q.header }));
-    if (info.questions.length > 1) asking.append(h("span", { class: "q-count", text: `${at + 1}/${info.questions.length}` }));
+    if (info.questions.length > 1) asking.append(h("span", { class: "q-count", text: im("island.control.questionPosition", { current: formatNumber(at + 1, currentIslandLanguage()), total: formatNumber(info.questions.length, currentIslandLanguage()) }) }));
     who.append(asking);
     title.textContent = q.question;
     title.title = q.question;
 
-    const rest = q.multiSelect ? "Pick one or more, then send." : "";
+    const rest = q.multiSelect ? tIsland("island.control.pickAndSend") : "";
     hint.textContent = rest;
 
     if (typing) {
       row.classList.remove("q-list");
       row.append(
         field,
-        btn(at + 1 < info.questions.length ? "Next" : "Send", "primary", () => settle(field.value.trim())),
-        btn("Back", "secondary", () => {
+        btn(im(at + 1 < info.questions.length ? "island.control.next" : "island.control.send"), "primary", () => settle(field.value.trim())),
+        btn(im("island.control.backToPrevious"), "secondary", () => {
           stopTyping();
           State.notify();
         }),
@@ -655,7 +682,7 @@ function buildQuestion(actions: ViewActions, onResize: () => void): ViewHost {
     after.append(
       h("button", {
         class: "btn secondary q-opt other",
-        text: "Other…",
+        text: im("island.control.other"),
         onclick: () => {
           typing = true;
           State.notify();
@@ -666,7 +693,7 @@ function buildQuestion(actions: ViewActions, onResize: () => void): ViewHost {
     );
     if (q.multiSelect) {
       after.append(
-        btn(at + 1 < info.questions.length ? "Next" : "Send", "primary", () =>
+        btn(im(at + 1 < info.questions.length ? "island.control.next" : "island.control.send"), "primary", () =>
           // In the order the options are listed, not the order they were clicked.
           settle(q.options.filter((o) => picked.has(o.label)).map((o) => o.label).join(ANSWER_JOIN)),
         ),
@@ -693,13 +720,13 @@ function buildQuestion(actions: ViewActions, onResize: () => void): ViewHost {
 
 function buildError(actions: ViewActions, onResize: () => void): ViewHost {
   const who = h("div");
-  const title = h("div", { class: "title", text: "Session stopped on an error." });
+  const title = h("div", { class: "title", text: im("island.control.errorCard") });
   const detail = h("div", { class: "detail" });
   // Where what stopped runs: the Claude app, a terminal — the pill's own way out.
   const openLabel = h("span");
   const openBtn = h("button", { class: "btn secondary", onclick: () => actions.openTarget() }, openLabel);
   const row = h("div", { class: "actions" },
-    btn("Retry", "primary", () => actions.leaveCard(false)),
+    btn(im("island.control.retry"), "primary", () => actions.leaveCard(false)),
     openBtn,
   );
   const lines = stack(116, 16, who, title, detail, row);
@@ -715,8 +742,9 @@ function buildError(actions: ViewActions, onResize: () => void): ViewHost {
       clear(who);
       // A Claude Code session is named by its conversation; a third-party
       // agent's pill by its own name.
-      who.append(task?.id === CLAUDE_ID ? sessionWho(TOOL_NAME[State.session.agent]) : agentWho(task, "stopped"));
-      detail.textContent = task?.steps.at(-1) ?? "No detail available.";
+      who.append(task?.id === CLAUDE_ID ? sessionWho(TOOL_NAME[State.session.agent]) : agentWho(task, tIsland("island.status.stopped")));
+      const activity = task?.steps.at(-1);
+      detail.textContent = activity ? activityLineText(activity) : tIsland("island.control.noDetail");
       // Nowhere known to go to — another agent's pill, a session that has not
       // said where it runs — and the button is not there.
       const session = task?.id === CLAUDE_ID ? State.session : NO_SESSION;
@@ -740,12 +768,12 @@ function buildFinished(actions: ViewActions, onResize: () => void): ViewHost {
   const changesLabel = h("span");
   const changesBtn = h("button", { class: "btn secondary", onclick: () => actions.openSession(true) }, changesLabel);
   // What Claude said, in full: the card only has room for its first words.
-  const readBtn = h("button", { class: "btn primary", onclick: () => actions.openSession() }, h("span", { text: "Read reply" }));
+  const readBtn = h("button", { class: "btn primary", onclick: () => actions.openSession() }, h("span", { text: im("island.control.readReply") }));
   const row = h("div", { class: "actions" },
     readBtn,
     openBtn,
     changesBtn,
-    btn("OK", "secondary", () => actions.leaveCard(true)),
+    btn(im("island.control.ok"), "secondary", () => actions.leaveCard(true)),
   );
   // A line to answer with, where a reply can reach the session (views/reply-box.ts).
   const replyBox = buildReplyBox(actions, "card", () => air.fit());
@@ -765,10 +793,11 @@ function buildFinished(actions: ViewActions, onResize: () => void): ViewHost {
       // A reply given while subagents still run is told on this card too, as
       // what it is: the session has replied, and is not finished.
       const replied = claude ? repliedWords(State.session) : null;
-      who.append(claude ? sessionWho(replied ?? "finished") : agentWho(State.focusTask, "finished"));
+      who.append(claude ? sessionWho(replied ?? tIsland("island.status.finished")) : agentWho(State.focusTask, tIsland("island.status.finished")));
       // What Claude said to end its turn, its first line; its last step otherwise.
       const answer = claude ? firstWords(State.session.answer) : null;
-      title.textContent = answer ?? State.focusTask?.steps.at(-1) ?? "Session finished";
+      const activity = State.focusTask?.steps.at(-1);
+      title.textContent = answer ?? (activity ? activityLineText(activity) : tIsland("island.control.sessionFinished"));
       // An answer is a sentence, not a step: smaller, and two lines at most.
       title.classList.toggle("said", answer != null);
       readBtn.style.display = answer ? "" : "none";
@@ -780,7 +809,7 @@ function buildFinished(actions: ViewActions, onResize: () => void): ViewHost {
       openLabel.textContent = words ?? "";
       openBtn.title = claude ? targetTip(State.session) ?? "" : "";
       changesBtn.style.display = files > 0 ? "" : "none";
-      changesLabel.textContent = files === 1 ? "1 file changed" : `${files} files changed`;
+      changesLabel.textContent = tIsland(files === 1 ? "island.status.filesChanged.one" : "island.status.filesChanged.other", { count: formatNumber(files, currentIslandLanguage()) });
       air.fit();
     },
   };
@@ -792,8 +821,8 @@ function buildConfused(): ViewHost {
   const body = h(
     "div",
     { class: "stack", style: "padding:0 18px 0 128px" },
-    h("div", { class: "title", text: "Too many hits at once." }),
-    h("div", { class: "sub", text: "Give me a sec — back to work in three seconds." }),
+    h("div", { class: "title", text: im("island.control.tooManyHits") }),
+    h("div", { class: "sub", text: im("island.control.takeSecond") }),
   );
   return { el: h("div", { class: "view" }, card("pink", body)), sync() {} };
 }
@@ -808,14 +837,14 @@ function buildSettings(actions: ViewActions): ViewHost {
   }) as HTMLInputElement;
   const autoLabel = h("span", {});
   const segButtons = [10, 15, 30].map((s) =>
-    h("button", { onclick: () => actions.setAutoClose(s) }, `${s}s`),
+    h("button", { onclick: () => actions.setAutoClose(s) }, im("island.control.seconds", { seconds: formatNumber(s, currentIslandLanguage()) })),
   );
   const claudeBadge = h("span", { class: "status-badge" });
 
   const rows = h(
     "div",
     { class: "settings-rows" },
-    h("div", { class: "settings-row" }, soundSwitch, h("span", { text: "Sound" }), volume),
+    h("div", { class: "settings-row" }, soundSwitch, h("span", { text: im("island.control.sound") }), volume),
     h(
       "div",
       { class: "settings-row" },
@@ -831,7 +860,7 @@ function buildSettings(actions: ViewActions): ViewHost {
       h("button", {
         class: "link-btn",
         style: "color:#8e939c;font-size:11.5px",
-        text: "Settings…",
+        text: im("island.control.settingsEllipsis"),
         onclick: () => actions.openSettingsWindow(),
       }),
     ),
@@ -847,7 +876,7 @@ function buildSettings(actions: ViewActions): ViewHost {
       soundSwitch.classList.toggle("on", s.soundEnabled);
       volume.value = String(s.soundVolume);
       volume.style.opacity = s.soundEnabled ? "1" : "0.4";
-      autoLabel.textContent = `Auto-close · ${Math.round(s.autoCloseInterval)}s`;
+      autoLabel.textContent = tIsland("island.control.autoClose", { seconds: formatNumber(Math.round(s.autoCloseInterval), currentIslandLanguage()) });
       segButtons.forEach((b, i) => b.classList.toggle("on", s.autoCloseInterval === [10, 15, 30][i]));
       clear(claudeBadge);
       claudeBadge.append(

@@ -1,3 +1,5 @@
+import { currentIslandLanguage, formatPercent, tIsland } from "../core/i18n.ts";
+
 export type UsageAgent = "claude" | "codex";
 export type CompactUsageReading = { text: string; more?: string; level?: "calm" | "warm" | "hot"; dim?: boolean };
 export type CompactUsageWindow = { usedPercent: number; resetsAt: number };
@@ -5,9 +7,9 @@ export type CompactUsageShown = { percent: number; state: "fresh" | "old" | "res
 
 /** Compose the text that is actually assigned to a compact cell's tooltip. */
 export function compactCellTooltip(name: string, more: string | undefined, rotationActive: boolean, isUsage: boolean, agent: UsageAgent | null): string {
-  if (more) return `${name} — ${more}`;
+  if (more) return tIsland("island.metric.tooltipMore", { name, more });
   const provider = rotationActive && isUsage && agent ? agent === "codex" ? "Codex" : "Claude Code" : "";
-  return `${name}${provider ? ` — ${provider}` : ""}`;
+  return provider ? tIsland("island.metric.tooltipProvider", { name, provider }) : name;
 }
 export interface CompactUsageReadingOptions {
   kind: "usage5h" | "usage7d";
@@ -24,25 +26,27 @@ export interface CompactUsageReadingOptions {
 
 /** Select and label the usage window without consulting UI or island state. */
 export function compactUsageReading({ kind, usage, codexQuota, rotationEnabled, codexLimitsEnabled, agent, shownUsage, levelFor, sourceWords, now }: CompactUsageReadingOptions): CompactUsageReading {
+  const language = currentIslandLanguage();
+  const localizedSourceWords = language === "en" ? sourceWords : tIsland("island.usage.sourceUsage", {}, language);
   const rotationActive = rotationEnabled && codexLimitsEnabled;
-  if (rotationActive && !agent) return { text: "—", more: "Usage unavailable", dim: true };
+  if (rotationActive && !agent) return { text: "—", more: tIsland("island.metric.usageUnavailable"), dim: true };
   const fiveHour = kind === "usage5h";
   const window = rotationActive && agent === "codex"
     ? (fiveHour ? codexQuota?.quotas?.fiveHour : codexQuota?.quotas?.sevenDay)
     : (fiveHour ? usage?.fiveHour : usage?.sevenDay);
   const updatedAt = rotationActive && agent === "codex" ? codexQuota?.updatedAt ?? 0 : usage?.updatedAt ?? 0;
   const shown = shownUsage(window, updatedAt, now);
-  if (!shown) return { text: "—", ...(rotationActive ? { more: `${agent === "codex" ? "Codex" : "Claude Code"} usage unavailable` } : {}) };
+  if (!shown) return { text: "—", ...(rotationActive ? { more: tIsland("island.metric.providerUsageUnavailable", { provider: agent === "codex" ? "Codex" : "Claude Code" }) } : {}) };
   if (rotationActive && (shown.state !== "fresh" || updatedAt <= 0 || (agent === "codex" && (!codexQuota?.available || codexQuota.stale)))) {
-    return { text: "—", more: `${agent === "codex" ? "Codex" : "Claude Code"} usage unavailable`, dim: true };
+    return { text: "—", more: tIsland("island.metric.providerUsageUnavailable", { provider: agent === "codex" ? "Codex" : "Claude Code" }), dim: true };
   }
   const reset = shown.state === "reset";
   const provider = rotationActive ? `${agent === "codex" ? "Codex" : "Claude Code"}` : "";
   return {
-    text: `${shown.percent}%`,
+    text: formatPercent(shown.percent, language),
     more: rotationActive
-      ? [provider, shown.countdown, agent === "claude" ? sourceWords : ""].filter(Boolean).join(" · ")
-      : [shown.countdown, sourceWords].filter(Boolean).join(". "),
+      ? [provider, shown.countdown, agent === "claude" ? localizedSourceWords : ""].filter(Boolean).join(" · ")
+      : [shown.countdown, localizedSourceWords].filter(Boolean).join(". "),
     level: reset ? undefined : levelFor(shown.percent),
     dim: shown.state !== "fresh",
   };

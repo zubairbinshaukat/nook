@@ -22,7 +22,8 @@
 // replay of it, a second behind. The session itself stays where it runs — the
 // Claude app, VS Code, a terminal.
 
-import { h, svg, clear, dot, replay, timeAgo } from "./dom";
+import { h, svg, clear, dot, replay, timeAgo, im, setIslandText, setIslandAttribute, clearIslandAttribute } from "./dom";
+import { cardinalForm, contextUsageLabel, currentIslandLanguage, formatNumber, tIsland, type IslandTranslationKey } from "../core/i18n";
 import { diffLine, extBadge, fileKind, plusMinus, readPatch, splitPath, type FileKind } from "./code";
 import { ICONS } from "./icons";
 import { COLOR } from "./palette";
@@ -30,21 +31,22 @@ import { LUCIDE, lucide } from "./iconset";
 import { collapses, reply as replyView, type PathOpener, type ReplyFold } from "./markdown";
 import { Bridge } from "../core/bridge";
 import {
-  DECISION_WORDS, QUIET_WORDS, State, isQuestion, isQuiet, isTool, repliedWords, requestsOf, stepsApart, subagentKind, subagentName, subagentStanding, subagentTask, subagentTook, targetTip,
+  State, isQuestion, isQuiet, isTool, repliedWords, requestsOf, stepsApart, subagentKind, subagentName, subagentStanding, subagentTask, subagentTook, targetTip,
   type ChangedFile, type ClaudeSession, type ModelInfo, type SessionStep, type StepKind, type Subagent,
 } from "../core/state";
 import { targetButton, targetIcon } from "./target";
 import { TOOL_NAME, toolMark } from "./tool";
 import { buildReplyBox } from "./reply-box";
 import type { SessionAgent } from "../core/state";
-import { stepIcon, stepName, stepPreview, type ToType } from "./step";
+import { stepIcon, stepPreview, type ToType } from "./step";
+import { cacheJournalEntry, journalClock, journalEntryCopy, type JournalEntryNode } from "./journal-cache";
 import { botGlowColor } from "../core/layout";
 import { contextUse } from "../core/context";
 import { Reader } from "../core/reading";
 import type { ViewActions, ViewHost } from "./views";
 
 /** What a session is called until it has a project or a title to go by. */
-const UNNAMED = "Claude Code";
+const UNNAMED = im("island.session.unnamed");
 /** An edit is typed out when it reached the island less than this ago; older, it is just shown. */
 const FRESH_MS = 4_000;
 /** However long the edit, typing it takes about this long, a tick at a time. */
@@ -83,8 +85,8 @@ let stamp = 0;
 
 /** The kind of step the journal keeps; "all" keeps everything, what was said included. */
 type Filter = "all" | "edit" | "command" | "read" | "search";
-const FILTERS: readonly (readonly [Filter, string])[] = [
-  ["all", "All"], ["edit", "Edits"], ["command", "Commands"], ["read", "Reads"], ["search", "Searches"],
+const FILTERS: readonly (readonly [Filter, ReturnType<typeof im>])[] = [
+  ["all", im("island.session.all")], ["edit", im("island.session.edits")], ["command", im("island.session.commands")], ["read", im("island.session.reads")], ["search", im("island.session.searches")],
 ];
 let filter: Filter = "all";
 
@@ -140,7 +142,7 @@ function openerOf(session: ClaudeSession): PathOpener | null {
   const { kind, label } = session.target;
   if (!session.id || (kind !== "vscode" && kind !== "cursor")) return null;
   return {
-    tip: `Open in ${label}`,
+    tip: tIsland("island.session.openIn", { target: label }),
     open: (path, line) => Bridge.openSessionFile(session.id, path, line),
     exists: (path) => fileExists(session.id, path),
   };
@@ -204,7 +206,23 @@ export function leaveSubagent(): boolean {
   return true;
 }
 
-const counted = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
+function countKey(kind: "subagent" | "fileCount" | "sessionCount", n: number): IslandTranslationKey {
+  const form = cardinalForm(n, currentIslandLanguage());
+  const keys = {
+    subagent: {
+      one: "island.session.subagent.one", few: "island.session.subagent.few", many: "island.session.subagent.many", other: "island.session.subagent.other",
+    },
+    fileCount: {
+      one: "island.session.fileCount.one", few: "island.session.fileCount.few", many: "island.session.fileCount.many", other: "island.session.fileCount.other",
+    },
+    sessionCount: {
+      one: "island.session.sessionCount.one", few: "island.session.sessionCount.few", many: "island.session.sessionCount.many", other: "island.session.sessionCount.other",
+    },
+  } as const;
+  return keys[kind][form];
+}
+
+const counted = (n: number, key: "subagent" | "fileCount") => tIsland(countKey(key, n), { count: formatNumber(n, currentIslandLanguage()) });
 
 // ── Several sessions ──────────────────────────────────────────────────────────
 
@@ -213,32 +231,35 @@ export const sessionName = (session: ClaudeSession) => session.title ?? session.
 
 /** Where a session is at, as a colour and in words: what its line of the sidebar shows and says. */
 function standing(session: ClaudeSession): { color: string; words: string; quiet?: boolean } {
-  if (session.question) return { color: COLOR.cyan, words: "is asking a question" };
-  if (session.approval) return { color: COLOR.amber, words: "needs permission" };
-  if (session.news === "error" || session.state === "error") return { color: COLOR.red, words: "stopped on an error" };
+  if (session.question) return { color: COLOR.cyan, words: tIsland("island.session.asking") };
+  if (session.approval) return { color: COLOR.amber, words: tIsland("island.session.needsPermission") };
+  if (session.news === "error" || session.state === "error") return { color: COLOR.red, words: tIsland("island.session.stoppedError") };
   // Its last reply waits on a decision: said after a request and an error, before "finished".
-  if (session.decision) return { color: COLOR.purple, words: DECISION_WORDS.toLowerCase() };
+  if (session.decision) return { color: COLOR.purple, words: tIsland("island.status.needsDecision") .toLowerCase() };
   // It replied while its subagents still run, and nobody has looked yet: said as that, not as finished.
-  if (session.news === "finished" && repliedWords(session)) return { color: COLOR.green, words: repliedWords(session)!.toLowerCase() };
-  if (session.news === "finished" || session.state === "finished") return { color: COLOR.green, words: "finished" };
-  if (session.state === "question") return { color: COLOR.cyan, words: "is waiting for you" };
-  if (session.state === "idle" || session.state === "sleeping") return { color: COLOR.grey, words: "at rest" };
+  if (session.news === "finished") {
+    const replied = repliedWords(session);
+    if (replied) return { color: COLOR.green, words: replied.toLowerCase() };
+  }
+  if (session.news === "finished" || session.state === "finished") return { color: COLOR.green, words: tIsland("island.session.finished") };
+  if (session.state === "question") return { color: COLOR.cyan, words: tIsland("island.session.waitingYou") };
+  if (session.state === "idle" || session.state === "sleeping") return { color: COLOR.grey, words: tIsland("island.session.atRest") };
   // At work, and nothing heard from it for a long while: it says so, quietly. Its state is not touched.
-  if (isQuiet(session)) return { color: botGlowColor(session.state), words: QUIET_WORDS, quiet: true };
-  return { color: botGlowColor(session.state), words: session.state === "thinking" ? "thinking" : "at work" };
+  if (isQuiet(session)) return { color: botGlowColor(session.state), words: tIsland("island.session.quiet"), quiet: true };
+  return { color: botGlowColor(session.state), words: tIsland(session.state === "thinking" ? "island.session.thinking" : "island.session.atWork") };
 }
 
 /** What the quiet word means, for whoever hovers it. */
-const QUIET_TIP = "Nothing has come from this session for 10 minutes. It may be over: Claude Code does not always say when a turn ends.";
+const QUIET_TIP = () => im("island.session.quietTip");
 
 /** What the mark of a reply that waits on a decision means, for whoever hovers it. */
-const DECISION_TIP = "Its last reply has something marked IMPORTANT. The mark goes once that reply has been read whole here, or when you answer it.";
+const DECISION_TIP = () => im("island.session.decisionTip");
 
 /** Something a session wants looked at: it is waiting for an answer, or has news nobody has seen. */
 const calls = (session: ClaudeSession) => session.news != null || session.question != null || session.approval != null || session.decision || session.attention;
 
 /** What the mark of a turn that ended while the panel was being read says. */
-const ATTENTION_WORDS = "New activity";
+const ATTENTION_WORDS = () => im("island.session.newActivity");
 
 /**
  * The way to the sessions, where a session is shown: a chip that says how
@@ -253,11 +274,13 @@ export function sessionsChip(onOpen: () => void): { el: HTMLElement; sync(): voi
     sync() {
       const count = State.sessions.length;
       el.style.display = count > 1 ? "" : "none";
-      el.textContent = counted(count, "session");
+      setIslandText(el, im(countKey("sessionCount", count), { count: formatNumber(count, currentIslandLanguage()) }));
+      setIslandAttribute(el, "aria-label", im(countKey("sessionCount", count), { count: formatNumber(count, currentIslandLanguage()) }));
       const calling = State.sessions.find((s) => s.id !== State.frontId && calls(s));
       el.classList.toggle("calls", calling != null);
       el.style.setProperty("--c", calling ? standing(calling).color : "currentColor");
-      el.title = calling ? `${sessionName(calling)} ${standing(calling).words}${calling.attention ? ` — ${ATTENTION_WORDS.toLowerCase()}` : ""}` :"Every session followed, Claude Code and Cursor";
+      clearIslandAttribute(el, "title");
+      el.title = calling ? `${sessionName(calling)} ${standing(calling).words}${calling.attention ? ` — ${tIsland("island.session.newActivity").toLowerCase()}` : ""}` : tIsland("island.session.everyFollowed");
     },
   };
 }
@@ -283,7 +306,7 @@ function folderOf(session: ClaudeSession): string {
 
 /** What happened to the file: "edited" in grey, "new" in green. */
 function statusWord(file: ChangedFile): HTMLElement {
-  const word = h("span", { class: "gh-file-status", text: file.created ? "new" : "edited" });
+  const word = h("span", { class: "gh-file-status", text: im(file.created ? "island.session.new" : "island.session.edited") });
   if (file.created) word.style.color = COLOR.green;
   return word;
 }
@@ -314,14 +337,14 @@ function diffView(file: ChangedFile, kind: FileKind): HTMLElement {
     for (const line of readPatch(edit.patch)) {
       if ("hunk" in line) {
         // Between two edits, which one this is; inside one, where lines were skipped.
-        const label = first && several ? `Edit ${i + 1} of ${file.edits.length} · ${timeAgo(edit.at)}` : "";
+        const label = first && several ? tIsland("island.session.editOf", { current: formatNumber(i + 1, currentIslandLanguage()), total: formatNumber(file.edits.length, currentIslandLanguage()), time: timeAgo(edit.at) }) : "";
         if (!first || label) diff.append(diffBreak(label));
         first = false;
         continue;
       }
       diff.append(diffLine(line.new ?? line.old, line.sign, line.text, kind));
     }
-    if (edit.truncated) diff.append(diffBreak("The rest of this edit is in Claude Code"));
+    if (edit.truncated) diff.append(diffBreak(tIsland("island.control.restOfEdit")));
   });
   return h("div", { class: "gh-code" }, diff);
 }
@@ -346,7 +369,10 @@ const MARKS = {
 
 function elapsed(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));
-  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
+  const language = currentIslandLanguage();
+  return s < 60
+    ? tIsland("island.session.elapsedSeconds", { seconds: formatNumber(s, language) })
+    : tIsland("island.session.elapsedMinutes", { minutes: formatNumber(Math.floor(s / 60), language), seconds: formatNumber(s % 60, language) });
 }
 
 /** How long something has been going: kept up to date, a second at a time, by the panel's clock. */
@@ -363,23 +389,23 @@ function running(since: number): HTMLElement {
  */
 function endedWords(a: Subagent): string {
   const ms = subagentTook(a);
-  if (a.state === "failed") return ms == null ? "failed" : `failed after ${elapsed(ms)}`;
-  return ms == null ? "done" : `done in ${elapsed(ms)}`;
+  if (a.state === "failed") return ms == null ? tIsland("island.session.failed") : tIsland("island.session.failedAfter", { time: elapsed(ms) });
+  return ms == null ? tIsland("island.session.done") : tIsland("island.session.doneIn", { time: elapsed(ms) });
 }
 
 /** How a subagent stands, in words: "running 1m 23s" (the time ticks, when its start was seen), or how it ended. */
 function statusOf(session: ClaudeSession, a: Subagent): HTMLElement {
   const at = subagentStanding(session, a);
   const el = h("span", { class: `sess-status ${at}` });
-  if (at === "asking") el.append(...(a.timed ? ["needs you · ", running(a.startedAt)] : ["needs you"]));
-  else if (at === "running") el.append(...(a.timed ? ["running ", running(a.startedAt)] : ["running"]));
+  if (at === "asking") el.append(...(a.timed ? [h("span", { text: im("island.session.needsMe") }), " · ", running(a.startedAt)] : [h("span", { text: im("island.session.needsMe") })]));
+  else if (at === "running") el.append(...(a.timed ? [h("span", { text: im("island.session.running") }), " ", running(a.startedAt)] : [h("span", { text: im("island.session.running") })]));
   else el.append(endedWords(a));
   return el;
 }
 
 function statusWords(session: ClaudeSession, a: Subagent): string {
   const at = subagentStanding(session, a);
-  return at === "asking" ? "waiting for your answer" : at === "running" ? "running" : endedWords(a);
+  return at === "asking" ? tIsland("island.session.waitingAnswer") : at === "running" ? tIsland("island.session.running") : endedWords(a);
 }
 
 /** A subagent's kind and what it is at, as a tooltip says them. */
@@ -388,19 +414,19 @@ const fullName = (a: Subagent) => (subagentTask(a) ? `${subagentKind(a)} · ${su
 // ── The journal ───────────────────────────────────────────────────────────────
 
 /** When a line of the journal happened, as a clock shows it. */
-const clock = (at: number) => new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const clock = journalClock;
 
 /** Several options picked for one question come back as one answer, joined like this. */
 const ANSWER_JOIN = ", ";
 
 /** Where a tool's permission request stands, in a word and a colour. */
 const PERMISSIONS = {
-  asked: { words: "needs permission", color: COLOR.amber },
-  allowed: { words: "allowed", color: COLOR.green },
-  denied: { words: "denied", color: COLOR.red },
+  asked: { key: "island.session.needsPermission", color: COLOR.amber },
+  allowed: { key: "island.session.allowed", color: COLOR.green },
+  denied: { key: "island.session.denied", color: COLOR.red },
 } as const;
 
-function chip(text: string, color: string): HTMLElement {
+function chip(text: string | ReturnType<typeof im>, color: string): HTMLElement {
   const el = h("span", { class: "jr-chip", text });
   el.style.setProperty("--c", color);
   return el;
@@ -424,7 +450,7 @@ function askedView(step: SessionStep): HTMLElement {
     el.append(h("div", { class: "jr-q" }, h("div", { class: "jr-q-title", text: q.question }), options));
   }
   if (!step.answers) {
-    el.append(h("div", { class: "jr-waiting", text: step.state === "running" ? "Waiting for an answer…" : step.state === "failed" ? "Left unanswered." : "Answered in Claude Code." }));
+    el.append(h("div", { class: "jr-waiting", text: im(step.state === "running" ? "island.session.waitingAnswerEllipsis" : step.state === "failed" ? "island.session.leftUnanswered" : "island.session.answeredInClaude") }));
   }
   return el;
 }
@@ -439,19 +465,20 @@ function askedView(step: SessionStep): HTMLElement {
  * files it names, and which of its two forms a long one is in.
  */
 function journalEntry(step: SessionStep, large: boolean, said: Said, typed?: ToType[]): HTMLElement {
+  const copy = journalEntryCopy(step);
   if (step.kind === "prompt") {
-    return h("div", { class: "jr jr-asked" }, h("div", { class: "sess-asked", text: step.target ?? "", title: clock(step.at) }));
+    return h("div", { class: "jr jr-asked" }, h("div", { class: "sess-asked", text: step.target ?? "", title: copy.time }));
   }
   if (step.kind === "reply") {
     return h(
       "div",
       { class: "jr jr-reply" },
-      h("div", { class: "sess-said" }, dot(COLOR.green, 6), h("b", { text: "Claude" }), h("span", { text: clock(step.at) })),
-      step.target ? replyView(step.target, said.opener, said.fold(step)) : h("div", { class: "jr-waiting", text: "The turn ended without a word." }),
+      h("div", { class: "sess-said" }, dot(COLOR.green, 6), h("b", { text: "Claude" }), h("span", { text: copy.time })),
+      step.target ? replyView(step.target, said.opener, said.fold(step)) : h("div", { class: "jr-waiting", text: im("island.session.turnNoWord") }),
     );
   }
   if (step.kind === "note") {
-    return h("div", { class: step.state === "failed" ? "jr jr-note failed" : "jr jr-note", text: step.target ?? "" });
+    return h("div", { class: step.state === "failed" ? "jr jr-note failed" : "jr jr-note", text: copy.message });
   }
 
   const command = step.kind === "command";
@@ -460,15 +487,15 @@ function journalEntry(step: SessionStep, large: boolean, said: Said, typed?: ToT
     "div",
     { class: "jr-head" },
     h("i", {}, stepIcon(step, 11)),
-    h("b", { text: stepName(step) }),
+    h("b", { text: copy.heading }),
     h("span", { class: "at", text: large && command ? whole : whole.split("\n")[0], title: whole }),
     h("div", { class: "grow" }),
   );
-  if (step.permission) head.append(chip(PERMISSIONS[step.permission].words, PERMISSIONS[step.permission].color));
-  else if (step.questions && step.state === "running") head.append(chip("waiting for an answer", COLOR.cyan));
+  if (step.permission) head.append(chip(im(PERMISSIONS[step.permission].key), PERMISSIONS[step.permission].color));
+  else if (step.questions && step.state === "running") head.append(chip(im("island.session.waitingAnswerChip"), COLOR.cyan));
   if (step.state === "running") head.append(MARKS.running());
-  else if (step.state === "failed" && !step.questions && !step.permission) head.append(chip("failed", COLOR.red));
-  head.append(h("span", { class: "jr-time", text: clock(step.at) }));
+  else if (step.state === "failed" && !step.questions && !step.permission) head.append(chip(im("island.session.failedChip"), COLOR.red));
+  head.append(h("span", { class: "jr-time", text: copy.time }));
 
   const el = h("div", { class: `jr jr-step ${step.state} ${step.kind}` }, head);
   if (step.questions) el.append(askedView(step));
@@ -518,10 +545,10 @@ export function buildSession(actions: ViewActions): ViewHost {
   // The model the session runs on, beside its name — in the panel at its
   // normal size, where the line above the journal has no room for it.
   const nameModel = h("span", { class: "sess-name-model" });
-  const tree =h("div", { class: "sess-tree", role: "tree", "aria-label": "Sessions and their subagents" });
+  const tree =h("div", { class: "sess-tree", role: "tree", "aria-label": im("island.control.sessionsAndSubagents") });
   // All · Claude Code · Cursor · Codex: there only while sessions of more than one tool are followed.
   let toolFilter: "all" | SessionAgent = "all";
-  const toolChips = h("div", { class: "sess-tools", role: "group", "aria-label": "Show sessions of" });
+  const toolChips = h("div", { class: "sess-tools", role: "group", "aria-label": im("island.control.showSessionsOf") });
   toolChips.hidden = true;
   const rail = h(
     "div",
@@ -543,7 +570,7 @@ export function buildSession(actions: ViewActions): ViewHost {
     clear(toolChips);
     if (!both) return;
     for (const which of ["all", ...kinds] as const) {
-      const label = which === "all" ? "All" : TOOL_NAME[which];
+      const label = which === "all" ? im("island.session.all") : TOOL_NAME[which];
       const chip = h("button", { class: `sess-tool${toolFilter === which ? " on" : ""}`, type: "button", "aria-pressed": String(toolFilter === which) },
         which === "all" ? null : toolMark(which, 10), label);
       chip.addEventListener("click", () => {
@@ -575,7 +602,7 @@ export function buildSession(actions: ViewActions): ViewHost {
   const badge = h("span", { class: "gh-head-badge" });
   const aside = h("span", { class: "gh-head-aside" });
   // One step back: from a file to the changes, from the changes to the journal.
-  const backBtn = h("button", { class: "gh-icon sess-back", title: "Back" }, svg(ICONS.chevronLeft, 10, { stroke: 2.4 }));
+  const backBtn = h("button", { class: "gh-icon sess-back", title: im("island.session.back") }, svg(ICONS.chevronLeft, 10, { stroke: 2.4 }));
   const tab = h("div", { class: "gh-tab" }, badge, who);
   const head = h("div", { class: "gh-head" }, backBtn, tab, aside, h("div", { class: "grow" }), sub, headTarget.el);
   // The journal, and behind it the changes: one of the two is on screen.
@@ -585,7 +612,7 @@ export function buildSession(actions: ViewActions): ViewHost {
   // The way back to the journal's end, from further up. A sibling of the
   // scroller, not a child: the journal is redrawn and fades out at its edge.
   const jumpDot = h("i", { class: "sess-jump-dot" });
-  const jump = h("button", { class: "sess-jump", type: "button", "aria-label": "Jump to latest", title: "Jump to latest", hidden: true }, svg(ICONS.chevronDown, 12, { stroke: 2.4 }), jumpDot);
+  const jump = h("button", { class: "sess-jump", type: "button", "aria-label": im("island.session.jumpLatest"), title: im("island.session.jumpLatest"), hidden: true }, svg(ICONS.chevronDown, 12, { stroke: 2.4 }), jumpDot);
   // Under the journal: a line to answer a session at rest with (views/reply-box.ts).
   // Its height is told to the panel, so the way back to the journal's end stays above it.
   const replyBox = buildReplyBox(actions, "panel", () => {
@@ -765,6 +792,7 @@ export function buildSession(actions: ViewActions): ViewHost {
     const next = lines
       .map(({ session, subs, open, at }) =>
         [
+          currentIslandLanguage(),
           session.id, session.agent, folderOf(session), session.title, at.words, at.color, open, targetTip(session), session.target.kind, session.model?.label, session.decision, session.attention,
           contextUse(session.contextTokens, session.contextWindow, session.model?.id)?.percent,
           ...subs.map((a) => [a.id, a.type, subagentTask(a), subagentStanding(session, a), a.model?.label].join(":")),
@@ -788,13 +816,19 @@ export function buildSession(actions: ViewActions): ViewHost {
       if (session.question || session.approval) mark.classList.add("calls");
       mark.style.setProperty("--c", at.color);
 
+      const subagentTitle = subs.length
+        ? ` — ${counted(subs.length, "subagent")}, ${tIsland("island.session.runningCount", { count: formatNumber(going, currentIslandLanguage()) })}`
+        : "";
       const row = h("div", {
         class: `sess-ti sess-node${inFront ? " front" : ""}${inFront && !onAgent ? " on" : ""}`,
         id: domId(key),
         role: "treeitem",
         "aria-level": 1,
         "aria-selected": String(inFront && !onAgent),
-        title: `${TOOL_NAME[session.agent]} — ${folder} — ${session.title ?? TOOL_NAME[session.agent]}${session.model ? ` — ${session.model.label}` : ""} — ${at.words}${subs.length ? ` — ${counted(subs.length, "subagent")}, ${going} running` : ""}`,
+        title: im("island.session.sessionTitle", {
+          tool: TOOL_NAME[session.agent], folder, title: session.title ?? TOOL_NAME[session.agent],
+          model: session.model ? ` — ${session.model.label}` : "", state: at.words, subagents: subagentTitle,
+        }),
       });
       row.dataset.key = key;
       row.dataset.session = session.id;
@@ -802,7 +836,7 @@ export function buildSession(actions: ViewActions): ViewHost {
       if (subs.length > 0) {
         row.setAttribute("aria-expanded", String(open));
         row.setAttribute("aria-owns", groupId);
-        const twisty = h("i", { class: "sess-twisty", title: open ? "Hide its subagents" : "Show its subagents" }, svg(ICONS.chevronRight, 9, { stroke: 2.8 }));
+        const twisty = h("i", { class: "sess-twisty", title: im(open ? "island.control.hideSubagents" : "island.control.showSubagents") }, svg(ICONS.chevronRight, 9, { stroke: 2.8 }));
         twisty.addEventListener("click", (e) => {
           e.stopPropagation();
           toggle(session, !open);
@@ -816,7 +850,8 @@ export function buildSession(actions: ViewActions): ViewHost {
         row.append(h("span", {
           class: asking > 0 ? "sess-count asking" : going > 0 ? "sess-count going" : "sess-count",
           text: String(subs.length),
-          title: `${counted(subs.length, "subagent")}: ${going} running${asking ? `, ${asking} waiting for you` : ""}`,
+          title: `${counted(subs.length, "subagent")}: ${tIsland("island.session.runningCount", { count: formatNumber(going, currentIslandLanguage()) })}${asking ? `, ${tIsland("island.control.waitingCount", { count: formatNumber(asking, currentIslandLanguage()) })}` : ""}`,
+          "aria-label": im(countKey("subagent", subs.length), { count: formatNumber(subs.length, currentIslandLanguage()) }),
         }));
       }
       // The way to where it runs, from its own line: no need to put it in
@@ -825,7 +860,7 @@ export function buildSession(actions: ViewActions): ViewHost {
       const tip = targetTip(session);
       const icon = tip ? targetIcon(session.target.kind, 10) : null;
       if (tip && icon) {
-        const goto = h("i", { class: "sess-goto", title: `${tip} (Ctrl+Enter)`, "aria-label": tip, role: "button" }, icon);
+        const goto = h("i", { class: "sess-goto", title: im("island.session.targetShortcut", { target: tip }), "aria-label": tip, role: "button" }, icon);
         goto.dataset.target = session.target.kind;
         // Not the tree's mouse-down either: going there is not asking for the keyboard.
         goto.addEventListener("mousedown", (e) => {
@@ -842,29 +877,41 @@ export function buildSession(actions: ViewActions): ViewHost {
       }
       // How full its context is, for the one to go and /compact: a cue, as Nook cannot do it.
       // Said in words as well as colour; none before an answer has been counted.
+      clearIslandAttribute(row, "title");
+      setIslandAttribute(row, "title", im("island.session.sessionTitle", {
+        tool: TOOL_NAME[session.agent], folder, title: session.title ?? TOOL_NAME[session.agent],
+        model: session.model ? ` — ${session.model.label}` : "", state: at.words, subagents: subagentTitle,
+      }));
       const use = contextUse(session.contextTokens, session.contextWindow, session.model?.id);
       if (use) {
-        const words = `Context ${use.percent}%`;
-        row.append(h("i", { class: `sess-ctx ${use.level}`, title: words }, h("u", { style: `width:${use.percent}%` }), h("span", { class: "sess-ctx-words", text: words })));
-        row.title += ` — ${words}`;
+        const words = contextUsageLabel(use.percent, currentIslandLanguage());
+        row.append(h("i", { class: `sess-ctx ${use.level}`, title: im("island.session.context", { percent: formatNumber(use.percent, currentIslandLanguage()) }) }, h("u", { style: `width:${use.percent}%` }), h("span", { class: "sess-ctx-words", text: im("island.session.context", { percent: formatNumber(use.percent, currentIslandLanguage()) }) })));
+        setIslandAttribute(row, "title", im("island.session.sessionTitle", {
+          tool: TOOL_NAME[session.agent], folder, title: session.title ?? TOOL_NAME[session.agent],
+          model: session.model ? ` — ${session.model.label}` : "", state: `${at.words} — ${words}`, subagents: subagentTitle,
+        }));
       }
       // A turn of its ended while the panel was being read: not said by sound or card, but here, until it is opened.
       if ((session.attention && !inFront) || session === owed) {
         row.classList.add("attn");
-        row.append(h("i", { class: "sess-new", role: "img", "aria-label": ATTENTION_WORDS, title: ATTENTION_WORDS }));
-        row.title += ` — ${ATTENTION_WORDS.toLowerCase()}`;
+        row.append(h("i", { class: "sess-new", role: "img", "aria-label": ATTENTION_WORDS(), title: ATTENTION_WORDS() }));
+        const state = `${at.words}${use ? ` — ${contextUsageLabel(use.percent, currentIslandLanguage())}` : ""} — ${tIsland("island.session.newActivity").toLowerCase()}`;
+        setIslandAttribute(row, "title", im("island.session.sessionTitle", {
+          tool: TOOL_NAME[session.agent], folder, title: session.title ?? TOOL_NAME[session.agent],
+          model: session.model ? ` — ${session.model.label}` : "", state, subagents: subagentTitle,
+        }));
       }
       row.append(mark);
       row.addEventListener("click", () => pickSession(session.id));
       tree.append(row);
       // Nothing heard from it for a long while: a quiet word under its line.
-      if (at.quiet) tree.append(h("div", { class: "sess-quiet", text: at.words, title: QUIET_TIP }));
+      if (at.quiet) tree.append(h("div", { class: "sess-quiet", text: at.words, title: QUIET_TIP() }));
       // Its last reply waits on a decision: a mark under its line, whatever its dot says — a request
       // or an error keeps the dot. A click reads the reply, as a click on the line does.
       if (session.decision) {
         tree.append(h(
-          "div", { class: "sess-decide", title: DECISION_TIP, onclick: () => pickSession(session.id) },
-          lucide(LUCIDE.messageSquareWarning, 10, 2.2), h("span", { text: DECISION_WORDS }),
+          "div", { class: "sess-decide", title: DECISION_TIP(), onclick: () => pickSession(session.id) },
+          lucide(LUCIDE.messageSquareWarning, 10, 2.2), h("span", { text: im("island.session.needsDecision") }),
         ));
       }
 
@@ -891,7 +938,7 @@ export function buildSession(actions: ViewActions): ViewHost {
             h("span", { class: "sess-sub-task", text: subagentTask(a) ?? subagentKind(a) }),
             h("span", { class: "sess-sub-meta", text: subagentMeta(a) })),
         );
-        if (stands === "asking") line.append(h("span", { class: "sess-sub-needs", text: "needs me" }));
+        if (stands === "asking") line.append(h("span", { class: "sess-sub-needs", text: im("island.session.needsMe") }));
         line.dataset.key = akey;
         line.dataset.session = session.id;
         line.dataset.agent = a.id;
@@ -1078,7 +1125,7 @@ export function buildSession(actions: ViewActions): ViewHost {
   // ── A journal: the session's, or a subagent's ───────────────────────────────
 
   /** Each step's entry, kept: only one that changed is drawn again, and a scroll or a selection stays. */
-  const entries = new WeakMap<SessionStep, { el: HTMLElement; key: string }>();
+  const entries = new WeakMap<SessionStep, JournalEntryNode<{ el: HTMLElement; lines: ToType[] }>>();
   /** The edits typed already: an edit is typed once. */
   const typedSteps = new WeakSet<SessionStep>();
   const empty = h("div", { class: "int-empty" });
@@ -1098,13 +1145,13 @@ export function buildSession(actions: ViewActions): ViewHost {
       "button",
       {
         class: `jr sess-launch ${stands}`,
-        title: `${fullName(a)} — ${statusWords(session, a)}. Open its steps.`,
+        title: im("island.session.launchTitle", { name: fullName(a), status: statusWords(session, a), open: tIsland("island.session.openSubagent") }),
         onclick: () => openAgent(session.id, a.id),
       },
       MARKS[stands](),
-      h("b", { text: "Launched" }),
+      h("b", { text: im("island.session.launch") }),
       // Its kind, then what it is at; with nothing said of that, its kind alone.
-      h("span", { class: "sess-launch-type", text: task ? `${subagentKind(a)}:` : subagentKind(a) }),
+      h("span", { class: "sess-launch-type", text: task ? im("island.session.subagentType", { kind: subagentKind(a) }) : subagentKind(a) }),
       task ? h("span", { class: "sess-launch-task", text: task }) : null,
       h("span", { class: "sess-launch-sep", text: "·" }),
       statusOf(session, a),
@@ -1160,7 +1207,7 @@ export function buildSession(actions: ViewActions): ViewHost {
     const request = requestsOf(session).find((r) => r.agentId === a.id) ?? null;
     // What it came back with opens the files it names in its session's editor.
     const opener = openerOf(session);
-    const key = [session.id, a.id, stands, a.result, request?.requestId, a.timed, a.endedAt, replyFolds.get(a) ?? false, opener?.tip ?? ""].join("~");
+    const key = [currentIslandLanguage(), session.id, a.id, stands, a.result, request?.requestId, a.timed, a.endedAt, replyFolds.get(a) ?? false, opener?.tip ?? ""].join("~");
     if (ended?.key === key) return ended.el;
     let el: HTMLElement;
     if (request) {
@@ -1170,18 +1217,18 @@ export function buildSession(actions: ViewActions): ViewHost {
         "div",
         { class: "jr sess-end asking" },
         MARKS.asking(),
-        h("span", { class: "sess-end-words" }, h("b", { text: question ? "Waiting for your answer" : "Waiting for your permission" }), h("span", { class: "sess-end-what", text: what, title: what })),
-        h("button", { class: "sess-end-btn", text: question ? "Show question" : "Show request", onclick: () => actions.showRequest() }),
+        h("span", { class: "sess-end-words" }, h("b", { text: im(question ? "island.session.waitingAnswer" : "island.session.waitingPermission") }), h("span", { class: "sess-end-what", text: what, title: what })),
+        h("button", { class: "sess-end-btn", text: im(question ? "island.session.showQuestion" : "island.session.showRequest"), onclick: () => actions.showRequest() }),
       );
     } else if (a.state === "running") {
-      el = h("div", { class: "jr sess-end running" }, MARKS.running(), h("span", { class: "sess-end-words" }, h("b", {}, ...(a.timed ? ["Still running · ", running(a.startedAt)] : ["Still running"])), h("span", { text: "Its result will show here when it finishes." })));
+      el = h("div", { class: "jr sess-end running" }, MARKS.running(), h("span", { class: "sess-end-words" }, h("b", {}, ...(a.timed ? [im("island.session.stillRunning"), " · ", running(a.startedAt)] : [im("island.session.stillRunning")])), h("span", { text: im("island.session.resultLater") })));
     } else {
       const failed = a.state === "failed";
       el = h(
         "div",
         { class: `jr sess-result ${a.state}` },
-        h("div", { class: "sess-result-h" }, MARKS[a.state](), h("b", { text: failed ? "Stopped without finishing" : "Result" }), h("span", { text: endedWords(a) })),
-        replyView(a.result ?? (failed ? "It said nothing before it stopped." : "It finished without a last message."), opener, foldOf(a)),
+        h("div", { class: "sess-result-h" }, MARKS[a.state](), h("b", { text: im(failed ? "island.session.stoppedUnfinished" : "island.session.result") }), h("span", { text: endedWords(a) })),
+        replyView(a.result ?? (failed ? tIsland("island.session.noWordsBeforeStop") : tIsland("island.session.finishedNoMessage")), opener, foldOf(a)),
       );
     }
     ended = { key, el, of: a };
@@ -1196,9 +1243,9 @@ export function buildSession(actions: ViewActions): ViewHost {
     h(
       "div",
       {},
-      h("b", { text: "This subagent's steps cannot be told apart on this version of Claude Code." }),
-      h("span", { text: "Its tool events carry no agent id, so they are in the main journal, among the session's own steps, in the order they happened." }),
-      h("button", { class: "sess-end-btn", text: "Open the main journal", onclick: () => go({ kind: "live" }) }),
+      h("b", { text: im("island.session.stepsUnavailable") }),
+      h("span", { text: im("island.session.stepsHelp") }),
+      h("button", { class: "sess-end-btn", text: im("island.session.openMain"), onclick: () => go({ kind: "live" }) }),
     ),
   );
 
@@ -1234,30 +1281,31 @@ export function buildSession(actions: ViewActions): ViewHost {
       const key = launched
         ? [launched.type, subagentTask(launched), subagentStanding(session, launched), launched.endedAt, launched.timed, launched.model?.label].join("~")
         : entryKey(step, large, said.opener);
-      let entry = entries.get(step);
-      if (!entry || entry.key !== key) {
-        const known = entry != null;
+      const cached = cacheJournalEntry(entries, step, key, () => {
         // Typed once, and only while it is news: seen later, the edit is just there.
         const fresh = step.patch != null && !typedSteps.has(step) && !entering && Date.now() - step.at < FRESH_MS;
         if (step.patch != null) typedSteps.add(step);
         const lines: ToType[] = [];
         const drawn = launched ? launchRow(session, launched) : journalEntry(step, large, said, fresh ? lines : undefined);
+        return { el: drawn, lines };
+      });
+      if (cached.changed) {
         // A line that is new comes in; one that got something more — what the
         // tool gave back, what was decided — only brings that in.
-        if (!entering) drawn.classList.add(known ? "more" : "in");
-        entry?.el.replaceWith(drawn);
-        entry = { el: drawn, key };
-        entries.set(step, entry);
-        if (lines.length > 0) toType = { lines, kind: fileKind(step.target ?? "") };
+        if (!entering && !cached.localeChanged) cached.entry.el.el.classList.add(cached.previous ? "more" : "in");
+        cached.previous?.el.el.replaceWith(cached.entry.el.el);
       }
-      nodes.push(entry.el);
+      if (cached.entry.el.lines.length > 0) toType = { lines: cached.entry.el.lines, kind: fileKind(step.target ?? "") };
+      nodes.push(cached.entry.el.el);
     }
     if (!told) nodes.push(apart);
     else if (nodes.length === 0) {
-      empty.textContent =
-        filter !== "all" ? `No step of this kind in this ${agent ? "subagent" : "session"}${steps.length > 0 ? "" : " yet"}.`
-        : agent ? "No step yet."
-        : session.id ? "Nothing has happened in this session yet." : "No Claude Code session yet.";
+      setIslandText(empty, filter !== "all"
+        ? im(agent
+          ? steps.length > 0 ? "island.session.noSubagentStepKind" : "island.session.noSubagentStepKindYet"
+          : steps.length > 0 ? "island.session.noSessionStepKind" : "island.session.noSessionStepKindYet")
+        : agent ? im("island.session.noStepYet")
+        : session.id ? im("island.session.noActivityYet") : im("island.session.noSessionYet"));
       nodes.push(empty);
     }
     if (agent) nodes.push(ending(session, agent));
@@ -1281,7 +1329,7 @@ export function buildSession(actions: ViewActions): ViewHost {
       shownSession = session.id;
     }
     // A reply just opened, or put back as it was, is read from its top: not from the journal's end.
-    const revealed = reveal ? (reveal === ended?.of ? ended.el : entries.get(reveal as SessionStep)?.el) : null;
+    const revealed = reveal ? (reveal === ended?.of ? ended.el : entries.get(reveal as SessionStep)?.el.el) : null;
     reveal = null;
     if (toType) type(toType.lines, toType.kind);
     else if (revealed?.isConnected) {
@@ -1317,7 +1365,7 @@ export function buildSession(actions: ViewActions): ViewHost {
             State.notify();
           },
         },
-        label, h("b", { text: String(count) }),
+        label, h("b", { text: formatNumber(count, currentIslandLanguage()) }),
       );
     });
   }
@@ -1327,7 +1375,7 @@ export function buildSession(actions: ViewActions): ViewHost {
     const at = standing(session);
     const files = State.sessionFiles.length;
     const waits = session.question != null || session.approval != null;
-    const next = [
+    const next = [currentIslandLanguage(),
       session.id, agent?.id, filter, FILTERS.map(([id]) => steps.filter((s) => isTool(s) && (id === "all" || s.kind === id)).length).join(","),
       agent
         ? [agent.type, subagentTask(agent), subagentStanding(session, agent), agent.endedAt, agent.timed, stepsApart(session, agent), folderOf(session), agent.model?.label].join(":")
@@ -1340,16 +1388,17 @@ export function buildSession(actions: ViewActions): ViewHost {
     if (!agent) {
       // Where the session is at; while it waits for an answer, the way to its card.
       const state = chip(at.words, at.quiet ? COLOR.grey : at.color);
-      if (at.quiet) state.title = QUIET_TIP;
+      clearIslandAttribute(state, "title");
+      if (at.quiet) setIslandAttribute(state, "title", QUIET_TIP());
       if (waits) {
         state.classList.add("opens");
-        state.title = "Show what it asks";
+        setIslandAttribute(state, "title", im("island.session.showWhatAsks"));
         state.addEventListener("click", () => actions.showRequest());
       }
       filters.append(...chips(steps), h("div", { class: "grow" }), ...modelChip(session.model), state);
       if (files > 0) {
         filters.append(h("button", {
-          class: "sess-files", title: "Every file this session changed", text: counted(files, "file"),
+          class: "sess-files", title: im("island.session.filesChanged"), text: counted(files, "fileCount"),
           onclick: () => {
             actions.blip();
             go({ kind: "list" });
@@ -1367,8 +1416,8 @@ export function buildSession(actions: ViewActions): ViewHost {
       go({ kind: "live" });
     };
     crumb.append(
-      h("button", { class: "sess-crumb-back", title: `Back to ${folder} (the main session)`, "aria-label": "Back to the main session", onclick: back }, svg(ICONS.chevronLeft, 11, { stroke: 2.8 })),
-      h("button", { class: "sess-crumb-session", text: folder, title: `Back to ${folder} (the main session)`, onclick: back }),
+      h("button", { class: "sess-crumb-back", title: im("island.session.backToMain", { folder }), "aria-label": im("island.session.mainSession"), onclick: back }, svg(ICONS.chevronLeft, 11, { stroke: 2.8 })),
+      h("button", { class: "sess-crumb-session", text: folder, title: im("island.session.backToMain", { folder }), onclick: back }),
       h("span", { class: "sess-crumb-sep", text: "›" }),
       h("span", { class: "sess-crumb-type", text: subagentKind(agent) }),
       ...(subagentTask(agent)
@@ -1472,9 +1521,15 @@ export function buildSession(actions: ViewActions): ViewHost {
 
       // The sidebar: whose session, by its folder and its conversation's title, and the tree.
       // "Claude Code · project" / "Cursor · project", with the tool's mark before it.
-      const heading = session.id ? `${TOOL_NAME[session.agent]} · ${folderOf(session)}` : UNNAMED;
-      name.replaceChildren(...(session.id ? [toolMark(session.agent, 12), heading] : [heading]));
-      name.title = heading;
+      if (session.id) {
+        const heading = `${TOOL_NAME[session.agent]} · ${folderOf(session)}`;
+        name.replaceChildren(toolMark(session.agent, 12), heading);
+        clearIslandAttribute(name, "title");
+        name.title = heading;
+      } else {
+        setIslandText(name, UNNAMED);
+        setIslandAttribute(name, "title", UNNAMED);
+      }
       drawToolChips();
       nameSub.textContent = nameSub.title = session.title ?? (session.id ? TOOL_NAME[session.agent] : "");
       nameModel.textContent = session.model?.label ?? "";
@@ -1516,7 +1571,7 @@ export function buildSession(actions: ViewActions): ViewHost {
 
       // The head: a file opened from the changes has its name on the tab, as in an editor.
       const path = picked?.path ?? null;
-      const nextHead = [session.id, screen.kind, path, files.length, picked?.edits.length].join("~");
+      const nextHead = [currentIslandLanguage(), session.id, screen.kind, path, files.length, picked?.edits.length].join("~");
       if (nextHead !== headKey) {
         headKey = nextHead;
         clear(badge);
@@ -1528,8 +1583,8 @@ export function buildSession(actions: ViewActions): ViewHost {
           sub.textContent = path;
           badge.append(extBadge(path));
         } else {
-          who.textContent = "Changes";
-          sub.textContent = files.length > 0 ? counted(files.length, "file") : "";
+          setIslandText(who, im("island.session.changes"));
+          sub.textContent = files.length > 0 ? counted(files.length, "fileCount") : "";
           badge.append(dot(standing(session).color, 7));
         }
         if (picked) aside.append(statusWord(picked), plusMinus(picked.additions, picked.deletions));
@@ -1542,7 +1597,7 @@ export function buildSession(actions: ViewActions): ViewHost {
       // Rebuilding the rows between a mouse-down and its mouse-up would swallow
       // the click, so only rebuild when something they show has changed.
       const total = files.reduce((n, f) => n + f.edits.length, 0);
-      const next = [session.id, stamp, screen.kind, total, files[0]?.path].join("~");
+    const next = [currentIslandLanguage(), session.id, stamp, screen.kind, total, files[0]?.path].join("~");
       if (next === key) return;
       key = next;
 
@@ -1552,7 +1607,7 @@ export function buildSession(actions: ViewActions): ViewHost {
       clear(list);
       list.classList.toggle("gh-edge", picked != null);
       if (picked) list.append(diffView(picked, fileKind(picked.path)));
-      else if (files.length === 0) list.append(h("div", { class: "int-empty", text: "Nothing written in this session yet." }));
+      else if (files.length === 0) list.append(h("div", { class: "int-empty", text: im("island.session.noFilesWritten") }));
       else for (const f of files) list.append(fileRow(f));
       list.scrollTop = scroll;
     },
